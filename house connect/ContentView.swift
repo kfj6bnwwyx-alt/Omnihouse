@@ -7,18 +7,16 @@
 
 import SwiftUI
 
+/// Thin wrapper kept for Xcode's default preview hookup. The app now uses
+/// `RootTabView` at the root — see `house_connectApp.swift`.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        RootTabView()
     }
 }
 
 #Preview {
     ContentView()
+        .environment(ProviderRegistry())
+        .environment(SceneStore())
 }

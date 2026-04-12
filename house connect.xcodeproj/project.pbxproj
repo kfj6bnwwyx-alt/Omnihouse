@@ -6,20 +6,112 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B54476F22F8AA84600386447 /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = B54476F12F8AA84600386447 /* KeychainAccess */; };
+		B5AA39B12F8AD78300C1DC9C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B54477352F8AD24200386447 /* WidgetKit.framework */; };
+		B5AA39B22F8AD78300C1DC9C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B54477372F8AD24200386447 /* SwiftUI.framework */; };
+		B5AA39BF2F8AD78400C1DC9C /* HouseConnectWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B5AA39B02F8AD78300C1DC9C /* HouseConnectWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B5AA39BD2F8AD78400C1DC9C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B54476A12F89D16C00386447 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B5AA39AF2F8AD78300C1DC9C;
+			remoteInfo = HouseConnectWidgetsExtension;
+		};
+		B5CC000A2F8B00000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B54476A12F89D16C00386447 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B54476A82F89D16C00386447;
+			remoteInfo = "house connect";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B544774A2F8AD24400386447 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B5AA39BF2F8AD78400C1DC9C /* HouseConnectWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		B54476A92F89D16C00386447 /* house connect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "house connect.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B54477352F8AD24200386447 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		B54477372F8AD24200386447 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		B5AA39B02F8AD78300C1DC9C /* HouseConnectWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HouseConnectWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5CC00012F8B000000000001 /* house connectTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "house connectTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B5AA39C22F8AD78400C1DC9C /* Exceptions for "HouseConnectWidgets" folder in "HouseConnectWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B5AA39AF2F8AD78300C1DC9C /* HouseConnectWidgetsExtension */;
+		};
+		B5AA39C52F8AD8F400C1DC9C /* Exceptions for "house connect" folder in "HouseConnectWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/LiveActivities/SmokeAlertAttributes.swift,
+			);
+			target = B5AA39AF2F8AD78300C1DC9C /* HouseConnectWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B54476AB2F89D16C00386447 /* house connect */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B5AA39C52F8AD8F400C1DC9C /* Exceptions for "house connect" folder in "HouseConnectWidgetsExtension" target */,
+			);
 			path = "house connect";
+			sourceTree = "<group>";
+		};
+		B5AA39B32F8AD78300C1DC9C /* HouseConnectWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B5AA39C22F8AD78400C1DC9C /* Exceptions for "HouseConnectWidgets" folder in "HouseConnectWidgetsExtension" target */,
+			);
+			path = HouseConnectWidgets;
+			sourceTree = "<group>";
+		};
+		B5CC00022F8B000000000002 /* house connectTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "house connectTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B54476A62F89D16C00386447 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B54476F22F8AA84600386447 /* KeychainAccess in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5AA39AD2F8AD78300C1DC9C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B5AA39B22F8AD78300C1DC9C /* SwiftUI.framework in Frameworks */,
+				B5AA39B12F8AD78300C1DC9C /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5CC00052F8B000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +125,9 @@
 			isa = PBXGroup;
 			children = (
 				B54476AB2F89D16C00386447 /* house connect */,
+				B5CC00022F8B000000000002 /* house connectTests */,
+				B5AA39B32F8AD78300C1DC9C /* HouseConnectWidgets */,
+				B54477342F8AD24200386447 /* Frameworks */,
 				B54476AA2F89D16C00386447 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,8 +136,19 @@
 			isa = PBXGroup;
 			children = (
 				B54476A92F89D16C00386447 /* house connect.app */,
+				B5CC00012F8B000000000001 /* house connectTests.xctest */,
+				B5AA39B02F8AD78300C1DC9C /* HouseConnectWidgetsExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B54477342F8AD24200386447 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B54477352F8AD24200386447 /* WidgetKit.framework */,
+				B54477372F8AD24200386447 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -55,20 +161,68 @@
 				B54476A52F89D16C00386447 /* Sources */,
 				B54476A62F89D16C00386447 /* Frameworks */,
 				B54476A72F89D16C00386447 /* Resources */,
+				B544774A2F8AD24400386447 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B5AA39BE2F8AD78400C1DC9C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B54476AB2F89D16C00386447 /* house connect */,
 			);
 			name = "house connect";
 			packageProductDependencies = (
+				B54476F12F8AA84600386447 /* KeychainAccess */,
 			);
 			productName = "house connect";
 			productReference = B54476A92F89D16C00386447 /* house connect.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B5AA39AF2F8AD78300C1DC9C /* HouseConnectWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B5AA39C32F8AD78400C1DC9C /* Build configuration list for PBXNativeTarget "HouseConnectWidgetsExtension" */;
+			buildPhases = (
+				B5AA39AC2F8AD78300C1DC9C /* Sources */,
+				B5AA39AD2F8AD78300C1DC9C /* Frameworks */,
+				B5AA39AE2F8AD78300C1DC9C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B5AA39B32F8AD78300C1DC9C /* HouseConnectWidgets */,
+			);
+			name = HouseConnectWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = HouseConnectWidgetsExtension;
+			productReference = B5AA39B02F8AD78300C1DC9C /* HouseConnectWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B5CC00032F8B000000000003 /* house connectTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B5CC00092F8B000000000009 /* Build configuration list for PBXNativeTarget "house connectTests" */;
+			buildPhases = (
+				B5CC00042F8B000000000004 /* Sources */,
+				B5CC00052F8B000000000005 /* Frameworks */,
+				B5CC00062F8B000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B5CC000B2F8B00000000000B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B5CC00022F8B000000000002 /* house connectTests */,
+			);
+			name = "house connectTests";
+			packageProductDependencies = (
+			);
+			productName = "house connectTests";
+			productReference = B5CC00012F8B000000000001 /* house connectTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +237,13 @@
 					B54476A82F89D16C00386447 = {
 						CreatedOnToolsVersion = 26.4;
 					};
+					B5AA39AF2F8AD78300C1DC9C = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					B5CC00032F8B000000000003 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = B54476A82F89D16C00386447;
+					};
 				};
 			};
 			buildConfigurationList = B54476A42F89D16C00386447 /* Build configuration list for PBXProject "house connect" */;
@@ -94,18 +255,37 @@
 			);
 			mainGroup = B54476A02F89D16C00386447;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B54476F02F8AA84600386447 /* XCRemoteSwiftPackageReference "KeychainAccess" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B54476AA2F89D16C00386447 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				B54476A82F89D16C00386447 /* house connect */,
+				B5CC00032F8B000000000003 /* house connectTests */,
+				B5AA39AF2F8AD78300C1DC9C /* HouseConnectWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B54476A72F89D16C00386447 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5AA39AE2F8AD78300C1DC9C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5CC00062F8B000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +302,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B5AA39AC2F8AD78300C1DC9C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5CC00042F8B000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B5AA39BE2F8AD78400C1DC9C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B5AA39AF2F8AD78300C1DC9C /* HouseConnectWidgetsExtension */;
+			targetProxy = B5AA39BD2F8AD78400C1DC9C /* PBXContainerItemProxy */;
+		};
+		B5CC000B2F8B00000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B54476A82F89D16C00386447 /* house connect */;
+			targetProxy = B5CC000A2F8B00000000000A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B54476B22F89D16E00386447 /* Debug */ = {
@@ -246,6 +453,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "house connect/house connect.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
@@ -254,6 +462,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "house-connect-Info.plist";
+				INFOPLIST_KEY_NSHomeKitUsageDescription = "House Connect needs HomeKit access to show and control your home accessories.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "House Connect discovers Sonos speakers on your Wi-Fi.\nHouse Connect discovers Sonos speakers on your Wi-Fi.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -290,6 +501,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "house connect/house connect.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
@@ -298,6 +510,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "house-connect-Info.plist";
+				INFOPLIST_KEY_NSHomeKitUsageDescription = "House Connect needs HomeKit access to show and control your home accessories.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "House Connect discovers Sonos speakers on your Wi-Fi.\nHouse Connect discovers Sonos speakers on your Wi-Fi.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -329,6 +544,119 @@
 			};
 			name = Release;
 		};
+		B5AA39C02F8AD78400C1DC9C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HouseConnectWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HouseConnectWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "house-connect.house-connect.HouseConnectWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B5AA39C12F8AD78400C1DC9C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HouseConnectWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HouseConnectWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "house-connect.house-connect.HouseConnectWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B5CC00072F8B000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "house-connect.house-connectTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/house connect.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/house connect";
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		B5CC00082F8B000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2SD6Z2L5YZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "house-connect.house-connectTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/house connect.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/house connect";
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -350,7 +678,44 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B5AA39C32F8AD78400C1DC9C /* Build configuration list for PBXNativeTarget "HouseConnectWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B5AA39C02F8AD78400C1DC9C /* Debug */,
+				B5AA39C12F8AD78400C1DC9C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B5CC00092F8B000000000009 /* Build configuration list for PBXNativeTarget "house connectTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B5CC00072F8B000000000007 /* Debug */,
+				B5CC00082F8B000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B54476F02F8AA84600386447 /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kishikawakatsumi/KeychainAccess";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B54476F12F8AA84600386447 /* KeychainAccess */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B54476F02F8AA84600386447 /* XCRemoteSwiftPackageReference "KeychainAccess" */;
+			productName = KeychainAccess;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B54476A12F89D16C00386447 /* Project object */;
 }
