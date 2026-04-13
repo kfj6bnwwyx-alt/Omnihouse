@@ -30,93 +30,9 @@ struct SettingsView: View {
                     .accessibilityAddTraits(.isHeader)
 
                 profileCard
-
-                section(title: "HOME") {
-                    NavigationLink(value: SettingsDestination.providers) {
-                        SettingsRow(
-                            icon: "house.fill",
-                            title: "Connections",
-                            subtitle: providerSummary
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.networkTopology) {
-                        SettingsRow(
-                            icon: "wifi",
-                            title: "Network & Hubs",
-                            subtitle: "Topology, Wi-Fi, bridges"
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.rooms) {
-                        SettingsRow(
-                            icon: "square.grid.2x2.fill",
-                            title: "Rooms & Zones",
-                            subtitle: "Organize your spaces"
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.audioZones) {
-                        SettingsRow(
-                            icon: "hifispeaker.2.fill",
-                            title: "Audio Zones",
-                            subtitle: "Multi-room speaker map"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                section(title: "PREFERENCES") {
-                    NavigationLink(value: SettingsDestination.notifications) {
-                        SettingsRow(
-                            icon: "bell.fill",
-                            title: "Notifications",
-                            subtitle: "Alerts, sounds, badges"
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.scenes) {
-                        SettingsRow(
-                            icon: "sparkles",
-                            title: "Scenes",
-                            subtitle: "Cross-ecosystem presets"
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.appearance) {
-                        SettingsRow(
-                            icon: "paintbrush.fill",
-                            title: "Appearance",
-                            subtitle: "Theme, app icon, display"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                section(title: "SUPPORT") {
-                    NavigationLink(value: SettingsDestination.helpFAQ) {
-                        SettingsRow(
-                            icon: "questionmark.circle.fill",
-                            title: "Help & FAQ",
-                            subtitle: "Guides, troubleshooting"
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink(value: SettingsDestination.about) {
-                        SettingsRow(
-                            icon: "info.circle.fill",
-                            title: "About",
-                            subtitle: versionString
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+                homeSection
+                preferencesSection
+                supportSection
 
                 Spacer(minLength: 24)
             }
@@ -125,17 +41,117 @@ struct SettingsView: View {
         .background(Theme.color.pageBackground.ignoresSafeArea())
         .navigationBarHidden(true)
         .navigationDestination(for: SettingsDestination.self) { dest in
-            switch dest {
-            case .providers: ProvidersSettingsView()
-            case .rooms: AllRoomsView()
-            case .scenes: ScenesListView()
-            case .audioZones: AudioZonesMapView()
-            case .networkTopology: DeviceNetworkTopologyView()
-            case .about: AboutView()
-            case .helpFAQ: HelpFAQView()
-            case .notifications: NotificationPreferencesView()
-            case .appearance: AppearanceView()
+            settingsDestinationView(for: dest)
+        }
+    }
+
+    // MARK: - Sections
+
+    private var homeSection: some View {
+        section(title: "HOME") {
+            NavigationLink(value: SettingsDestination.providers) {
+                SettingsRow(
+                    icon: "house.fill",
+                    title: "Connections",
+                    subtitle: providerSummary
+                )
             }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.networkTopology) {
+                SettingsRow(
+                    icon: "wifi",
+                    title: "Network & Hubs",
+                    subtitle: "Topology, Wi-Fi, bridges"
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.rooms) {
+                SettingsRow(
+                    icon: "square.grid.2x2.fill",
+                    title: "Rooms & Zones",
+                    subtitle: "Organize your spaces"
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.audioZones) {
+                SettingsRow(
+                    icon: "hifispeaker.2.fill",
+                    title: "Audio Zones",
+                    subtitle: "Multi-room speaker map"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var preferencesSection: some View {
+        section(title: "PREFERENCES") {
+            NavigationLink(value: SettingsDestination.notifications) {
+                SettingsRow(
+                    icon: "bell.fill",
+                    title: "Notifications",
+                    subtitle: "Alerts, sounds, badges"
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.scenes) {
+                SettingsRow(
+                    icon: "sparkles",
+                    title: "Scenes",
+                    subtitle: "Cross-ecosystem presets"
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.appearance) {
+                SettingsRow(
+                    icon: "paintbrush.fill",
+                    title: "Appearance",
+                    subtitle: "Theme, app icon, display"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var supportSection: some View {
+        section(title: "SUPPORT") {
+            NavigationLink(value: SettingsDestination.helpFAQ) {
+                SettingsRow(
+                    icon: "questionmark.circle.fill",
+                    title: "Help & FAQ",
+                    subtitle: "Guides, troubleshooting"
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(value: SettingsDestination.about) {
+                SettingsRow(
+                    icon: "info.circle.fill",
+                    title: "About",
+                    subtitle: versionString
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func settingsDestinationView(for dest: SettingsDestination) -> some View {
+        switch dest {
+        case .providers: ProvidersSettingsView()
+        case .rooms: AllRoomsView()
+        case .scenes: ScenesListView()
+        case .audioZones: AudioZonesMapView()
+        case .networkTopology: DeviceNetworkTopologyView()
+        case .about: AboutView()
+        case .helpFAQ: HelpFAQView()
+        case .notifications: NotificationPreferencesView()
+        case .appearance: AppearanceView()
         }
     }
 
