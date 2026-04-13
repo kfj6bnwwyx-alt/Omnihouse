@@ -178,7 +178,9 @@ final class SmartThingsSSEClient {
             // Unrecognized event shape — skip silently. This handles
             // future event types SmartThings may add without breaking
             // the stream.
+            #if DEBUG
             print("[smartthings.sse] failed to decode event: \(error.localizedDescription)")
+            #endif
         }
     }
 

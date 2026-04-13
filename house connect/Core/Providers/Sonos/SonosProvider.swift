@@ -327,10 +327,14 @@ final class SonosProvider: AccessoryProvider {
             // 1400 so a firmware port change (unlikely but possible) doesn't
             // silently break grouped transport.
             if let coordPlayer = discovery.players.first(where: { $0.host == coordHost }) {
+                #if DEBUG
                 print("[sonos.route] rerouting transport from \(player.host) → coordinator \(coordHost):\(coordPlayer.port)")
+                #endif
                 return (coordPlayer.host, coordPlayer.port)
             }
+            #if DEBUG
             print("[sonos.route] coordinator \(coordHost) not in Bonjour set — using 1400")
+            #endif
             return (coordHost, 1400)
         }
         return (player.host, player.port)
@@ -448,16 +452,21 @@ final class SonosProvider: AccessoryProvider {
     private func refreshTopology() async {
         guard let first = discovery.players.first else {
             currentTopology = nil
+            #if DEBUG
             print("[sonos.topology] skip: no discovered players yet")
+            #endif
             return
         }
+        #if DEBUG
         print("[sonos.topology] fetching from \(first.displayName) @ \(first.host):\(first.port)")
+        #endif
         do {
             let topo = try await soap.getZoneGroupState(
                 host: first.host,
                 port: first.port
             )
             currentTopology = topo
+            #if DEBUG
             print("[sonos.topology] parsed \(topo.zoneGroups.count) zone group(s):")
             for (gi, group) in topo.zoneGroups.enumerated() {
                 print("  group[\(gi)] id=\(group.groupID) coord=\(group.coordinatorUUID) members=\(group.members.count)")
@@ -468,6 +477,7 @@ final class SonosProvider: AccessoryProvider {
                     print("    member[\(mi)] name=\"\(member.zoneName)\" host=\(member.locationHost ?? "?") uuid=\(member.uuid) satellites=[\(sats)]")
                 }
             }
+            #endif
             // Side-by-side host comparison: the #1 reason rebuild fails
             // to hide bonded satellites is that the Location URL host
             // doesn't match the Bonjour-reported host string for the
@@ -483,19 +493,25 @@ final class SonosProvider: AccessoryProvider {
                     }
                 }
             }
+            #if DEBUG
             print("[sonos.topology] bonjour hosts: \(bonjourHosts.sorted())")
             print("[sonos.topology] topology hosts: \(topoHosts.sorted())")
+            #endif
             let onlyInBonjour = bonjourHosts.subtracting(topoHosts)
             let onlyInTopo = topoHosts.subtracting(bonjourHosts)
+            #if DEBUG
             if !onlyInBonjour.isEmpty {
                 print("[sonos.topology] ⚠️ hosts in Bonjour but NOT in topology: \(onlyInBonjour.sorted())")
             }
             if !onlyInTopo.isEmpty {
                 print("[sonos.topology] ⚠️ hosts in topology but NOT in Bonjour: \(onlyInTopo.sorted())")
             }
+            #endif
         } catch {
             let msg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            #if DEBUG
             print("[sonos.topology] ❌ fetch failed: \(msg)")
+            #endif
             // Surface so Settings → Connections shows it distinctly.
             // Use the `[topology]` prefix so it's easy to grep for
             // and obviously different from core-read errors.
@@ -535,7 +551,9 @@ final class SonosProvider: AccessoryProvider {
         // coordinator, so this is always safe to call.
         let transport = transportTarget(for: player)
         if transport.host != player.host {
+            #if DEBUG
             print("[sonos.refresh] \(player.displayName): reading transport state from coordinator \(transport.host):\(transport.port)")
+            #endif
         }
 
         // --- Core reads (drive isReachable) ---
@@ -746,7 +764,9 @@ final class SonosProvider: AccessoryProvider {
         var metadata: [String: (groupedParts: [String]?, membership: SpeakerGroupMembership?)] = [:]
         var hiddenSatelliteHosts: Set<String> = []
 
+        #if DEBUG
         print("[sonos.rebuild] players=\(players.count) topology=\(topology == nil ? "nil" : "\(topology!.zoneGroups.count) groups")")
+        #endif
 
         if let topology {
             for group in topology.zoneGroups {
@@ -812,6 +832,7 @@ final class SonosProvider: AccessoryProvider {
         // survivors.
         // ------------------------------------------------------------
 
+        #if DEBUG
         print("[sonos.rebuild] hiddenSatelliteHosts=\(hiddenSatelliteHosts.sorted())")
         print("[sonos.rebuild] metadata keys=\(metadata.keys.sorted())")
         for (host, meta) in metadata {
@@ -819,6 +840,7 @@ final class SonosProvider: AccessoryProvider {
             let mbr = meta.membership.map { "[\($0.isCoordinator ? "coord" : "member")]+\($0.otherMemberNames.count)" } ?? "nil"
             print("[sonos.rebuild]   \(host): parts=[\(gp)] membership=\(mbr)")
         }
+        #endif
 
         // ------------------------------------------------------------
         // Step 2.5: Synthesize one Sonos "room" per unique visible
@@ -870,7 +892,9 @@ final class SonosProvider: AccessoryProvider {
         rooms = derivedRooms.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
+        #if DEBUG
         print("[sonos.rebuild] derived rooms: \(rooms.map(\.name))")
+        #endif
 
         accessories = players.compactMap { player -> Accessory? in
             // Bonded satellites never appear as their own tile. They're

@@ -432,8 +432,10 @@ final class SonosSOAPClient {
         // inline the topology, some wrap it as an entity-encoded string
         // inside <ZoneGroupState>) and we need visibility into which
         // variant this household speaks.
+        #if DEBUG
         print("[sonos.soap] GetZoneGroupState raw body (\(body.count) chars):")
         print(String(body.prefix(800)))
+        #endif
 
         // Sonos escapes the inner topology XML twice — once for the SOAP
         // envelope itself, and once more to stuff it inside a string
@@ -442,13 +444,19 @@ final class SonosSOAPClient {
         // into XMLParser.
         guard let inner = Self.extractElement(named: "ZoneGroupState", from: body),
               !inner.isEmpty else {
+            #if DEBUG
             print("[sonos.soap] ⚠️ no <ZoneGroupState> element found in response")
+            #endif
             return SonosTopology(zoneGroups: [])
         }
+        #if DEBUG
         print("[sonos.soap] inner ZoneGroupState (\(inner.count) chars):")
         print(String(inner.prefix(1200)))
+        #endif
         let topology = SonosTopologyParser.parse(inner)
+        #if DEBUG
         print("[sonos.soap] parser produced \(topology.zoneGroups.count) zone group(s)")
+        #endif
         return topology
     }
 
@@ -490,22 +498,28 @@ final class SonosSOAPClient {
         // line-in) hand back wildly different envelope shapes, and the
         // only way to know which scraper branch needs more slack is to
         // see the response text itself.
+        #if DEBUG
         print("[sonos.soap] GetPositionInfo @ \(host):\(port) → \(body.count) chars")
         if body.count < 1500 {
             print("[sonos.soap] raw body: \(body)")
         } else {
             print("[sonos.soap] raw body head: \(body.prefix(800))")
         }
+        #endif
 
         // TrackMetaData is DIDL-Lite XML embedded as an XML-escaped string.
         // extractElement already de-escapes common entities, so after
         // extraction we get real XML we can scrape again.
         guard let meta = Self.extractElement(named: "TrackMetaData", from: body),
               !meta.isEmpty, meta != "NOT_IMPLEMENTED" else {
+            #if DEBUG
             print("[sonos.soap] ⚠️ no usable TrackMetaData (empty or NOT_IMPLEMENTED)")
+            #endif
             return TrackSnapshot()
         }
+        #if DEBUG
         print("[sonos.soap] TrackMetaData (\(meta.count) chars): \(meta.prefix(500))")
+        #endif
 
         // DIDL-Lite uses namespaced element names (`dc:title`, `dc:creator`,
         // `upnp:album`, `upnp:albumArtURI`). Our scraper is not
@@ -525,7 +539,9 @@ final class SonosSOAPClient {
         let durationRaw = Self.extractElement(named: "TrackDuration", from: body)
         let duration = (durationRaw != nil && durationRaw != "NOT_IMPLEMENTED") ? durationRaw : nil
 
+        #if DEBUG
         print("[sonos.soap] parsed → title=\(title ?? "nil") artist=\(artist ?? "nil") album=\(album ?? "nil") art=\(art ?? "nil")")
+        #endif
         return TrackSnapshot(
             title: title?.isEmpty == false ? title : nil,
             artist: artist?.isEmpty == false ? artist : nil,
