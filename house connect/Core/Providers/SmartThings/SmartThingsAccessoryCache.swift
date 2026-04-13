@@ -67,7 +67,7 @@ final class SmartThingsAccessoryCache {
             let enc = JSONEncoder()
             enc.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try enc.encode(snapshot)
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         } catch {
             // Non-fatal. The app works fine without persistence — the
             // user just loses their "disconnected devices" view on next

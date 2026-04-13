@@ -191,7 +191,7 @@ final class SmokeAlarmEventStore {
             enc.outputFormatting = [.prettyPrinted, .sortedKeys]
             enc.dateEncodingStrategy = .iso8601
             let data = try enc.encode(eventsByDevice)
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         } catch {
             // Non-fatal.
         }
