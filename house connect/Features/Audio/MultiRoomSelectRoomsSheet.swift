@@ -34,6 +34,8 @@ struct MultiRoomSelectRoomsSheet: View {
     var coordinatorID: AccessoryID?
 
     @State private var selectedIDs: Set<AccessoryID> = []
+    @State private var isCommitting = false
+    @State private var commitError: String?
 
     var body: some View {
         ZStack {
@@ -365,28 +367,103 @@ struct MultiRoomSelectRoomsSheet: View {
     // MARK: - CTA
 
     private var ctaButton: some View {
-        Button {
-            // Commit selection — will wire to Sonos group API in Phase 3c
-            dismiss()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("Play on \(selectedCount) Room\(selectedCount == 1 ? "" : "s")")
-                    .font(.system(size: 16, weight: .semibold))
+        VStack(spacing: 8) {
+            if let error = commitError {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Theme.color.primary)
-            )
+            Button {
+                Task { await commitSelection() }
+            } label: {
+                HStack(spacing: 8) {
+                    if isCommitting {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    Text(isCommitting ? "Grouping…" : "Play on \(selectedCount) Room\(selectedCount == 1 ? "" : "s")")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Theme.color.primary)
+                )
+            }
+            .disabled(selectedCount == 0 || isCommitting)
+            .opacity(selectedCount > 0 && !isCommitting ? 1 : 0.5)
+            .accessibilityLabel(isCommitting ? "Grouping speakers" : "Play on \(selectedCount) room\(selectedCount == 1 ? "" : "s")")
+            .accessibilityHint(selectedCount > 0 ? "Groups the selected rooms and starts playback" : "Select at least one room to start playback")
         }
-        .disabled(selectedCount == 0)
-        .opacity(selectedCount > 0 ? 1 : 0.5)
-        .accessibilityLabel("Play on \(selectedCount) room\(selectedCount == 1 ? "" : "s")")
-        .accessibilityHint(selectedCount > 0 ? "Starts playback on the selected rooms" : "Select at least one room to start playback")
+    }
+
+    // MARK: - Group commit
+
+    /// Dispatches join/leave commands to form the desired group.
+    /// Joins are processed first (so the coordinator exists before
+    /// followers try to attach), then leaves. Serialized to avoid
+    /// topology race conditions on the Sonos side.
+    private func commitSelection() async {
+        isCommitting = true
+        commitError = nil
+        defer { isCommitting = false }
+
+        // Determine the coordinator — existing group's coordinator,
+        // or the first selected speaker if creating a new group.
+        let coordID: AccessoryID
+        if let existing = coordinatorID {
+            coordID = existing
+        } else if let first = selectedIDs.first {
+            coordID = first
+        } else {
+            return
+        }
+
+        // Determine which speakers need to join vs leave.
+        let currentGroupID = registry.allAccessories
+            .first(where: { $0.id == coordID })?.speakerGroup?.groupID
+
+        let currentMembers: Set<AccessoryID> = Set(
+            speakers.filter { speaker in
+                guard let group = speaker.speakerGroup else { return false }
+                return group.groupID == currentGroupID
+            }.map(\.id)
+        )
+
+        let toJoin = selectedIDs.subtracting(currentMembers).subtracting([coordID])
+        let toLeave = currentMembers.subtracting(selectedIDs).subtracting([coordID])
+
+        // Process joins first (serialize to avoid topology races)
+        for speakerID in toJoin {
+            do {
+                try await registry.execute(.joinSpeakerGroup(target: coordID), on: speakerID)
+            } catch {
+                commitError = "Failed to add \(speakerName(speakerID)): \(error.localizedDescription)"
+            }
+        }
+
+        // Then leaves
+        for speakerID in toLeave {
+            do {
+                try await registry.execute(.leaveSpeakerGroup, on: speakerID)
+            } catch {
+                commitError = "Failed to remove \(speakerName(speakerID)): \(error.localizedDescription)"
+            }
+        }
+
+        if commitError == nil {
+            dismiss()
+        }
+    }
+
+    private func speakerName(_ id: AccessoryID) -> String {
+        speakers.first(where: { $0.id == id })?.name ?? "speaker"
     }
 
     // MARK: - Helpers

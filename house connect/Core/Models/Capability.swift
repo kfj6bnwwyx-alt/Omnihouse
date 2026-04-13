@@ -32,6 +32,12 @@ struct NowPlaying: Hashable, Sendable, Codable {
     var artist: String?
     var album: String?
     var coverArtURL: URL?
+
+    // Extended metadata (Phase 3a+)
+    var trackNumber: Int?
+    var duration: String?       // "0:03:42" format from Sonos
+    var albumArtist: String?    // Preferred display artist for compilations
+    var source: String?         // Stream/service name (e.g. "Spotify", radio station)
 }
 
 /// Repeat mode for media players. Three-state enum because every real
@@ -205,6 +211,7 @@ extension Capability: Codable {
         // Payload keys — reused across cases where the type matches.
         case boolValue, doubleValue, intValue, stringValue
         case title, artist, album, coverArtURL
+        case trackNumber, duration, albumArtist, source
     }
 
     func encode(to encoder: Encoder) throws {
@@ -230,6 +237,10 @@ extension Capability: Codable {
             try c.encodeIfPresent(np.artist, forKey: .artist)
             try c.encodeIfPresent(np.album, forKey: .album)
             try c.encodeIfPresent(np.coverArtURL, forKey: .coverArtURL)
+            try c.encodeIfPresent(np.trackNumber, forKey: .trackNumber)
+            try c.encodeIfPresent(np.duration, forKey: .duration)
+            try c.encodeIfPresent(np.albumArtist, forKey: .albumArtist)
+            try c.encodeIfPresent(np.source, forKey: .source)
         case .shuffle(let v):            try c.encode(v, forKey: .boolValue)
         case .repeatMode(let v):         try c.encode(v.rawValue, forKey: .stringValue)
         case .smokeDetected(let v):      try c.encode(v, forKey: .boolValue)
@@ -271,7 +282,11 @@ extension Capability: Codable {
                 title: try c.decodeIfPresent(String.self, forKey: .title),
                 artist: try c.decodeIfPresent(String.self, forKey: .artist),
                 album: try c.decodeIfPresent(String.self, forKey: .album),
-                coverArtURL: try c.decodeIfPresent(URL.self, forKey: .coverArtURL)
+                coverArtURL: try c.decodeIfPresent(URL.self, forKey: .coverArtURL),
+                trackNumber: try c.decodeIfPresent(Int.self, forKey: .trackNumber),
+                duration: try c.decodeIfPresent(String.self, forKey: .duration),
+                albumArtist: try c.decodeIfPresent(String.self, forKey: .albumArtist),
+                source: try c.decodeIfPresent(String.self, forKey: .source)
             ))
         case .shuffle:            self = .shuffle(isOn: try c.decode(Bool.self, forKey: .boolValue))
         case .repeatMode:

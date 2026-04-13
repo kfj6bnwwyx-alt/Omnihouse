@@ -395,6 +395,17 @@ final class SonosProvider: AccessoryProvider {
         lastRefreshed = Date()
     }
 
+    /// Public convenience for callers (e.g. MultiRoomSelectRoomsSheet)
+    /// that need to refresh the topology after group changes. Includes a
+    /// short delay so Sonos has time to propagate group state internally
+    /// before we re-read it.
+    func refreshTopologyAndRebuild() async {
+        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms propagation delay
+        await refreshTopology()
+        rebuildAccessories(from: discovery.players, topology: currentTopology)
+        await refreshAllStatuses()
+    }
+
     private func refreshAllStatuses() async {
         for player in discovery.players {
             await refreshStatus(for: player)
@@ -649,9 +660,13 @@ final class SonosProvider: AccessoryProvider {
             }()
             caps.append(.nowPlaying(NowPlaying(
                 title: track.title,
-                artist: track.artist,
+                artist: track.albumArtist ?? track.artist,
                 album: track.album,
-                coverArtURL: coverURL
+                coverArtURL: coverURL,
+                trackNumber: track.trackNumber,
+                duration: track.duration,
+                albumArtist: track.albumArtist,
+                source: track.streamSource
             )))
         } else if let existingNowPlaying = existing.capability(of: .nowPlaying) {
             // Secondary read failed (or returned empty) — keep the previous

@@ -466,6 +466,13 @@ final class SonosSOAPClient {
         /// resolves this against the player's host:port before handing
         /// it to the UI.
         var albumArtRelativePath: String?
+
+        // Phase 3a+ extended fields — extracted from DIDL-Lite and
+        // the outer SOAP response. All optional, degrade gracefully.
+        var albumArtist: String?        // r:albumArtist (preferred display artist)
+        var trackNumber: Int?           // upnp:originalTrackNumber
+        var duration: String?           // TrackDuration from SOAP response (e.g. "0:03:42")
+        var streamSource: String?       // r:streamContent or service name
     }
 
     /// Pulls current track metadata from AVTransport::GetPositionInfo.
@@ -508,12 +515,26 @@ final class SonosSOAPClient {
         let artist = Self.extractElement(named: "dc:creator", from: meta)
         let album = Self.extractElement(named: "upnp:album", from: meta)
         let art = Self.extractElement(named: "upnp:albumArtURI", from: meta)
+
+        // Extended metadata — Phase 3a+
+        let albumArtist = Self.extractElement(named: "r:albumArtist", from: meta)
+        let trackNumStr = Self.extractElement(named: "upnp:originalTrackNumber", from: meta)
+        let streamContent = Self.extractElement(named: "r:streamContent", from: meta)
+
+        // Duration lives outside DIDL-Lite, in the outer SOAP response.
+        let durationRaw = Self.extractElement(named: "TrackDuration", from: body)
+        let duration = (durationRaw != nil && durationRaw != "NOT_IMPLEMENTED") ? durationRaw : nil
+
         print("[sonos.soap] parsed → title=\(title ?? "nil") artist=\(artist ?? "nil") album=\(album ?? "nil") art=\(art ?? "nil")")
         return TrackSnapshot(
             title: title?.isEmpty == false ? title : nil,
             artist: artist?.isEmpty == false ? artist : nil,
             album: album?.isEmpty == false ? album : nil,
-            albumArtRelativePath: art?.isEmpty == false ? art : nil
+            albumArtRelativePath: art?.isEmpty == false ? art : nil,
+            albumArtist: albumArtist?.isEmpty == false ? albumArtist : nil,
+            trackNumber: trackNumStr.flatMap(Int.init),
+            duration: duration,
+            streamSource: streamContent?.isEmpty == false ? streamContent : nil
         )
     }
 

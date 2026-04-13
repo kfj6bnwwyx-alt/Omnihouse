@@ -67,7 +67,16 @@ struct AudioZonesMapView: View {
                 .environment(registry)
         }
         .onChange(of: showSelectRooms) { _, isPresented in
-            if !isPresented { editCoordinatorID = nil }
+            if !isPresented {
+                editCoordinatorID = nil
+                // Refresh topology after the user committed group changes
+                // so the zone map picks up the new grouping.
+                Task {
+                    if let sonos = registry.provider(for: .sonos) as? SonosProvider {
+                        await sonos.refreshTopologyAndRebuild()
+                    }
+                }
+            }
         }
     }
 
