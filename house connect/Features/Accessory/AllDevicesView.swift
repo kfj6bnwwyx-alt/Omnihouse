@@ -59,6 +59,7 @@ import SwiftUI
 
 struct AllDevicesView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(MergedDeviceLookup.self) private var mergedLookup
 
     @State private var query: String = ""
 
@@ -514,6 +515,14 @@ struct AllDevicesView: View {
                 return room.name
             }
         )
+        // B6: Update the shared lookup so detail views can use smart
+        // routing for dual-homed devices. Side effect in a computed
+        // property is normally avoided, but this is the natural
+        // observation-driven merge point and the lookup is @Observable.
+        DispatchQueue.main.async { [merged] in
+            mergedLookup.update(from: merged)
+        }
+
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return merged }
         return merged.filter {
@@ -577,6 +586,29 @@ struct MergedDevice: Identifiable, Hashable {
     /// Casual zone-group membership on the representative accessory.
     /// Drives the "Playing with Kitchen, Office" overlay on the tile.
     let speakerGroup: SpeakerGroupMembership?
+
+    // MARK: - Capability union (B6)
+
+    /// Union of capabilities from ALL providers. For each kind, the
+    /// value comes from the preferred (or first reachable) provider.
+    let capabilities: [Capability]
+
+    /// Maps each capability kind to the AccessoryIDs of providers that
+    /// support it. Used by `SmartCommandRouter` to pick the best
+    /// target for each command.
+    let capabilityProviders: [Capability.Kind: [AccessoryID]]
+
+    /// All AccessoryIDs in this merged bucket, for fallback routing.
+    let allAccessoryIDs: [AccessoryID]
+
+    // Hashable: exclude capabilityProviders (dictionaries with array
+    // values don't auto-synthesize nicely). The `key` is already unique.
+    static func == (lhs: MergedDevice, rhs: MergedDevice) -> Bool {
+        lhs.key == rhs.key
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(key)
+    }
 }
 
 /// One provider section for Networks mode.
@@ -687,6 +719,21 @@ enum DeviceMerging {
 
             let anyReachable = group.contains(where: { $0.isReachable })
 
+            // B6: Capability union — collect capabilities from ALL
+            // providers, preferring values from reachable providers.
+            var capsByKind: [Capability.Kind: Capability] = [:]
+            var capProviders: [Capability.Kind: [AccessoryID]] = [:]
+            // Process representative first so its values are the default.
+            for acc in [representative] + group.filter({ $0.id != representative.id }) {
+                for cap in acc.capabilities {
+                    capProviders[cap.kind, default: []].append(acc.id)
+                    // Prefer the first reachable provider's value
+                    if capsByKind[cap.kind] == nil || (acc.isReachable && !group.first(where: { $0.id == representative.id })!.isReachable) {
+                        capsByKind[cap.kind] = cap
+                    }
+                }
+            }
+
             return MergedDevice(
                 key: matchKey(for: representative),
                 name: representative.name,
@@ -696,14 +743,11 @@ enum DeviceMerging {
                 providers: providers,
                 preferredID: representative.id,
                 // Grouping metadata comes from the representative only.
-                // The merge doesn't try to "union" bonded parts across
-                // providers — a single physical device can't be bonded
-                // on HomeKit AND on Sonos simultaneously, and even if
-                // it somehow were, the representative's provider is the
-                // one we're routing taps to, so its view of grouping is
-                // the one that matters for detail-screen consistency.
                 groupedParts: representative.groupedParts,
-                speakerGroup: representative.speakerGroup
+                speakerGroup: representative.speakerGroup,
+                capabilities: Array(capsByKind.values),
+                capabilityProviders: capProviders,
+                allAccessoryIDs: group.map(\.id)
             )
         }
 

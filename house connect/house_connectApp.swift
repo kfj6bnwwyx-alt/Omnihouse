@@ -33,6 +33,10 @@ struct house_connectApp: App {
     /// the same cached reading.
     @State private var weatherService = WeatherService()
 
+    /// Shared lookup for merged (dual-homed) device metadata. Populated
+    /// by AllDevicesView; consumed by detail views for smart routing.
+    @State private var mergedDeviceLookup = MergedDeviceLookup()
+
     /// Lifecycle owner for the smoke-alarm Live Activity. iOS-only —
     /// `ActivityKit` isn't available on macOS, and the app also builds
     /// for macOS, so we only instantiate the controller under iOS.
@@ -112,6 +116,7 @@ struct house_connectApp: App {
                 .environment(eventStore)
                 .environment(weatherService)
                 .environment(smokeAlarmEventStore)
+                .environment(mergedDeviceLookup)
                 #if os(iOS)
                 .environment(smokeAlertController)
                 #endif

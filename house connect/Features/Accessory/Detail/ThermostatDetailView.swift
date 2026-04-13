@@ -25,7 +25,9 @@ struct ThermostatDetailView: View {
     let accessoryID: AccessoryID
 
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(MergedDeviceLookup.self) private var mergedLookup
     @AppStorage("appearance.tempUnit") private var tempUnitRaw: String = "celsius"
+    @AppStorage("devices.preferredProvider") private var preferredProviderRaw: String = ProviderID.homeKit.rawValue
 
     @State private var errorMessage: String?
     /// True while a command is in-flight — disables controls to prevent
@@ -427,7 +429,13 @@ struct ThermostatDetailView: View {
         isExecuting = true
         defer { isExecuting = false }
         do {
-            try await registry.execute(command, on: accessory.id)
+            // B6: Use smart routing if this device is dual-homed.
+            if let merged = mergedLookup.merged(for: accessory.id) {
+                let preferred = ProviderID(rawValue: preferredProviderRaw) ?? .homeKit
+                try await registry.execute(command, onMerged: merged, preferredProvider: preferred)
+            } else {
+                try await registry.execute(command, on: accessory.id)
+            }
         } catch {
             errorMessage = "\(accessory.name): \(error)"
         }

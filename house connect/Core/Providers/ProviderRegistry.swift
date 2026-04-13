@@ -54,6 +54,45 @@ final class ProviderRegistry {
         try await provider.execute(command, on: accessoryID)
     }
 
+    /// Smart-routed execute for merged (multi-provider) devices. Picks
+    /// the best provider for the specific command and falls back to
+    /// alternates if the preferred one fails. Used by detail views when
+    /// a device is dual-homed.
+    func execute(
+        _ command: AccessoryCommand,
+        onMerged merged: MergedDevice,
+        preferredProvider: ProviderID
+    ) async throws {
+        let reachableIDs = Set(
+            merged.allAccessoryIDs.filter { id in
+                allAccessories.first(where: { $0.id == id })?.isReachable ?? false
+            }
+        )
+        let targets = SmartCommandRouter.bestTargets(
+            for: command,
+            capabilityProviders: merged.capabilityProviders,
+            reachableIDs: reachableIDs,
+            preferredProvider: preferredProvider
+        )
+
+        guard !targets.isEmpty else {
+            throw ProviderError.unsupportedCommand
+        }
+
+        var lastError: Error?
+        for target in targets {
+            do {
+                try await execute(command, on: target)
+                return // success — stop trying
+            } catch {
+                lastError = error
+                // Try next provider
+            }
+        }
+        // All providers failed — throw the last error
+        throw lastError ?? ProviderError.unsupportedCommand
+    }
+
     func rename(accessoryID: AccessoryID, to newName: String) async throws {
         guard let provider = provider(for: accessoryID.provider) else {
             throw ProviderError.accessoryNotFound

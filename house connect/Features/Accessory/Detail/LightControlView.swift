@@ -52,6 +52,9 @@ struct LightControlView: View {
     let accessoryID: AccessoryID
 
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(MergedDeviceLookup.self) private var mergedLookup
+
+    @AppStorage("devices.preferredProvider") private var preferredProviderRaw: String = ProviderID.homeKit.rawValue
 
     /// Draft brightness while the user is touch-dragging the bar row.
     /// We show this live for a responsive feel, then flush on
@@ -523,7 +526,13 @@ struct LightControlView: View {
         isExecuting = true
         defer { isExecuting = false }
         do {
-            try await registry.execute(command, on: accessoryID)
+            // B6: Use smart routing if this device is dual-homed.
+            if let merged = mergedLookup.merged(for: accessoryID) {
+                let preferred = ProviderID(rawValue: preferredProviderRaw) ?? .homeKit
+                try await registry.execute(command, onMerged: merged, preferredProvider: preferred)
+            } else {
+                try await registry.execute(command, on: accessoryID)
+            }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? error.localizedDescription
