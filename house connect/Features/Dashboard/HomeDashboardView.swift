@@ -38,6 +38,7 @@ struct HomeDashboardView: View {
 
     @State private var runningSceneID: UUID?
     @State private var toast: Toast?
+    @State private var showingCreateRoom = false
 
     var body: some View {
         ScrollView {
@@ -90,6 +91,9 @@ struct HomeDashboardView: View {
             }
         }
         .toast($toast)
+        .sheet(isPresented: $showingCreateRoom) {
+            CreateRoomSheet()
+        }
     }
 
     // MARK: - Header
@@ -322,7 +326,7 @@ struct HomeDashboardView: View {
                 // tab-switch environment key (see RootView). If the
                 // tab-switch hook isn't wired yet, the button still
                 // renders correctly and does nothing — harmless.
-                NoRoomsEmptyState(onAddRoom: { /* routed via RootView */ })
+                NoRoomsEmptyState(onAddRoom: { showingCreateRoom = true })
             } else {
                 LazyVGrid(
                     columns: [GridItem(.flexible(), spacing: 12),
