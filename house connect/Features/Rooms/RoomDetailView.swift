@@ -116,34 +116,12 @@ struct RoomDetailView: View {
             Theme.color.pageBackground.ignoresSafeArea()
 
             if let room {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        headerBar(room)
-                            .padding(.top, 8)
-
-                        summaryPill(room: room)
-
-                        devicesSection
-                    }
-                    .padding(.horizontal, Theme.space.screenHorizontal)
-                    .padding(.bottom, 120) // clearance for the FAB
-                }
-                .refreshable {
-                    await withTaskGroup(of: Void.self) { group in
-                        for provider in registry.providers {
-                            group.addTask { @MainActor in
-                                await provider.refresh()
-                            }
-                        }
-                    }
-                }
-
+                roomScrollContent(room)
                 fab
                     .padding(.trailing, Theme.space.screenHorizontal)
                     .padding(.bottom, 24)
             } else {
-                ContentUnavailableView("Room unavailable",
-                                       systemImage: "exclamationmark.triangle")
+                roomUnavailableView
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -157,21 +135,10 @@ struct RoomDetailView: View {
             if !showingRename { draftName = newValue }
         }
         .sheet(isPresented: $showingAddDevice) {
-            NavigationStack {
-                AddDeviceView()
-                    .environment(registry)
-            }
+            addDeviceSheet
         }
         .alert("Rename Room", isPresented: $showingRename) {
-            TextField("Room name", text: $draftName)
-                .textInputAutocapitalization(.words)
-            Button("Cancel", role: .cancel) {
-                draftName = room?.name ?? ""
-            }
-            Button("Save") {
-                if let room { Task { await commitRename(room) } }
-            }
-            .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            renameAlertContent
         } message: {
             Text("Enter a new name for this room.")
         }
@@ -191,14 +158,7 @@ struct RoomDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            // Empty room: simple confirm. Non-empty should be unreachable
-            // because the menu item is disabled, but keep the warning as
-            // a safety net in case state changes mid-tap.
-            if accessoriesInRoom.isEmpty {
-                Text("This room will be removed from \(room?.provider.displayLabel ?? "this provider").")
-            } else {
-                Text("This room still contains accessories. Move them out first.")
-            }
+            deleteRoomMessage
         }
         .confirmationDialog(
             "Remove from room?",
@@ -215,6 +175,69 @@ struct RoomDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: { accessory in
             Text("\u{201C}\(accessory.name)\u{201D} will no longer be assigned to this room.")
+        }
+    }
+
+    // MARK: - Body sub-views
+
+    private func roomScrollContent(_ room: Room) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                headerBar(room)
+                    .padding(.top, 8)
+
+                summaryPill(room: room)
+
+                devicesSection
+            }
+            .padding(.horizontal, Theme.space.screenHorizontal)
+            .padding(.bottom, 120) // clearance for the FAB
+        }
+        .refreshable {
+            await withTaskGroup(of: Void.self) { group in
+                for provider in registry.providers {
+                    group.addTask { @MainActor in
+                        await provider.refresh()
+                    }
+                }
+            }
+        }
+    }
+
+    private var roomUnavailableView: some View {
+        ContentUnavailableView("Room unavailable",
+                               systemImage: "exclamationmark.triangle")
+    }
+
+    private var addDeviceSheet: some View {
+        NavigationStack {
+            AddDeviceView()
+                .environment(registry)
+        }
+    }
+
+    @ViewBuilder
+    private var renameAlertContent: some View {
+        TextField("Room name", text: $draftName)
+            .textInputAutocapitalization(.words)
+        Button("Cancel", role: .cancel) {
+            draftName = room?.name ?? ""
+        }
+        Button("Save") {
+            if let room { Task { await commitRename(room) } }
+        }
+        .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    @ViewBuilder
+    private var deleteRoomMessage: some View {
+        // Empty room: simple confirm. Non-empty should be unreachable
+        // because the menu item is disabled, but keep the warning as
+        // a safety net in case state changes mid-tap.
+        if accessoriesInRoom.isEmpty {
+            Text("This room will be removed from \(room?.provider.displayLabel ?? "this provider").")
+        } else {
+            Text("This room still contains accessories. Move them out first.")
         }
     }
 
