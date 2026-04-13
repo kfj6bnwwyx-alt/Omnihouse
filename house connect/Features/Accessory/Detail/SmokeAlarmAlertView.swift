@@ -63,10 +63,15 @@ struct SmokeAlarmAlertView: View {
         .accessibilityAddTraits(.isHeader)
     }
 
+    /// Cached formatter — avoids allocating on every render.
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
     private var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return "Today, \(formatter.string(from: detectedAt))"
+        "Today, \(Self.timeFormatter.string(from: detectedAt))"
     }
 
     // MARK: - Bottom section
