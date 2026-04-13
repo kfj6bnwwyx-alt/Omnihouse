@@ -48,6 +48,7 @@ struct HomeDashboardView: View {
                 weatherCard
                 homeStatusRow
                 DisconnectedProviderBanners()
+                staleDataHint
                 quickScenesSection
                 roomsSection
                 Spacer(minLength: 24)
@@ -271,6 +272,39 @@ struct HomeDashboardView: View {
                 .shadow(color: Color.black.opacity(0.04),
                         radius: 4, x: 0, y: 2)
         )
+    }
+
+    // MARK: - Stale data hint
+
+    /// Subtle hint when the most recent successful refresh from any
+    /// poll-based provider is older than 5 minutes. Helps the user
+    /// understand that data may be outdated after network errors.
+    @ViewBuilder
+    private var staleDataHint: some View {
+        let threshold: TimeInterval = 5 * 60
+        let staleProviders = registry.providers.compactMap { provider -> String? in
+            if let st = provider as? SmartThingsProvider,
+               let last = st.lastRefreshed,
+               Date().timeIntervalSince(last) > threshold {
+                return st.displayName
+            }
+            if let nest = provider as? NestProvider,
+               let last = nest.lastRefreshed,
+               Date().timeIntervalSince(last) > threshold {
+                return nest.displayName
+            }
+            return nil
+        }
+        if !staleProviders.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 11))
+                Text("Data may be outdated — pull to refresh")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(Theme.color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     // MARK: - Quick Scenes

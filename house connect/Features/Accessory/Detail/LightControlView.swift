@@ -66,6 +66,9 @@ struct LightControlView: View {
     /// content so a failed command is visible without stealing focus.
     @State private var errorMessage: String?
 
+    /// True while a command is in-flight — used to show subtle feedback
+    /// on the power toggle and disable presets during execution.
+    @State private var isExecuting = false
     @State private var showRemoveConfirmation = false
     @State private var isRemoving = false
 
@@ -330,6 +333,8 @@ struct LightControlView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Quick Presets")
+        .disabled(isExecuting || !(accessory?.isReachable ?? false))
+        .opacity(isExecuting ? 0.6 : 1)
     }
 
     private func isActive(_ preset: LightPreset) -> Bool {
@@ -515,6 +520,8 @@ struct LightControlView: View {
     /// one place. Provider errors land in `errorMessage` and render
     /// in the banner at the top of the scroll view.
     private func send(_ command: AccessoryCommand) async {
+        isExecuting = true
+        defer { isExecuting = false }
         do {
             try await registry.execute(command, on: accessoryID)
         } catch {
