@@ -28,6 +28,9 @@ struct ThermostatDetailView: View {
     @AppStorage("appearance.tempUnit") private var tempUnitRaw: String = "celsius"
 
     @State private var errorMessage: String?
+    /// True while a command is in-flight — disables controls to prevent
+    /// double-taps and shows subtle feedback.
+    @State private var isExecuting = false
     /// Draft setpoint while the user is tapping +/-. Flushed after a
     /// short debounce so we don't hammer the provider with one command
     /// per tap.
@@ -116,7 +119,7 @@ struct ThermostatDetailView: View {
                     bigNudge(system: "minus")
                 }
                 .buttonStyle(.plain)
-                .disabled(targetC == nil || !accessory.isReachable)
+                .disabled(targetC == nil || !accessory.isReachable || isExecuting)
                 .accessibilityLabel("Decrease temperature")
                 .accessibilityHint(targetDisplay.map { "Current target is \(Int($0.rounded()))\(unitSuffix)" } ?? "No target set")
 
@@ -146,7 +149,7 @@ struct ThermostatDetailView: View {
                     bigNudge(system: "plus")
                 }
                 .buttonStyle(.plain)
-                .disabled(targetC == nil || !accessory.isReachable)
+                .disabled(targetC == nil || !accessory.isReachable || isExecuting)
                 .accessibilityLabel("Increase temperature")
                 .accessibilityHint(targetDisplay.map { "Current target is \(Int($0.rounded()))\(unitSuffix)" } ?? "No target set")
             }
@@ -421,6 +424,8 @@ struct ThermostatDetailView: View {
     // MARK: - Actions
 
     private func send(_ command: AccessoryCommand, accessory: Accessory) async {
+        isExecuting = true
+        defer { isExecuting = false }
         do {
             try await registry.execute(command, on: accessory.id)
         } catch {

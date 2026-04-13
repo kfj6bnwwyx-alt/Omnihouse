@@ -155,6 +155,22 @@ struct LightControlView: View {
                         .accessibilityElement(children: .contain)
                         .accessibilityLabel("\(accessory.name) light controls")
 
+                        if !accessory.isReachable {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Device offline — controls disabled")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundStyle(.orange)
+                            .padding(12)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
+                                    .fill(Color.orange.opacity(0.1))
+                            )
+                        }
+
                         if let errorMessage {
                             errorBanner(errorMessage)
                         }

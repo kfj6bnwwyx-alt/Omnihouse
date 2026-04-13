@@ -411,7 +411,10 @@ final class SmartThingsProvider: AccessoryProvider {
                 capabilities: SmartThingsCapabilityMapper.capabilities(from: status)
             )
         } catch {
-            // Swallow — command already succeeded; next full refresh will sync.
+            // Command succeeded but state refresh failed. Surface as a
+            // non-fatal hint so the detail view can show "state may be stale"
+            // rather than silently showing the old value.
+            self.lastError = "Device state may be outdated — pull to refresh"
         }
     }
 

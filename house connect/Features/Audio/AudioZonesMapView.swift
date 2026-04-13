@@ -135,6 +135,18 @@ struct AudioZonesMapView: View {
             let positions = layout(in: CGSize(width: w, height: h))
 
             ZStack {
+                // Empty state when no speakers are discovered.
+                if speakers.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "hifispeaker.slash")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Theme.color.muted)
+                        Text("No speakers found")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Theme.color.subtitle)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
                 // Group link lines. Drawn UNDER the nodes so they look
                 // like they originate behind each circle.
                 ForEach(Array(groupsByID.keys), id: \.self) { gid in

@@ -258,7 +258,7 @@ final class NestProvider: AccessoryProvider {
                 capabilities: NestCapabilityMapper.capabilities(from: device)
             )
         } catch {
-            // Swallow — command already succeeded.
+            self.lastError = "Device state may be outdated — pull to refresh"
         }
     }
 }

@@ -67,6 +67,15 @@ struct HomeDashboardView: View {
                     }
                 }
             }
+            // Surface a toast if any provider failed to refresh so the
+            // user knows the pull didn't silently fail.
+            let errors = registry.providers.compactMap { p in
+                (p as? SmartThingsProvider)?.lastError
+                    ?? (p as? NestProvider)?.lastError
+            }
+            if !errors.isEmpty {
+                toast = .error("Some providers couldn't refresh")
+            }
         }
         .navigationBarHidden(true)
         .navigationDestination(for: Room.self) { room in
