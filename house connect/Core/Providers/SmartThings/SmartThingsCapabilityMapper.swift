@@ -311,6 +311,61 @@ enum SmartThingsCapabilityMapper {
 
     // MARK: - Helpers
 
+    // MARK: - Single-event SSE mapping
+
+    /// Maps a single SSE device event into a Capability value. Returns nil
+    /// if the capability/attribute combination is unrecognized. Used by the
+    /// SSE event handler to apply incremental state updates without a full
+    /// device status re-fetch.
+    static func capability(
+        fromCapability capName: String,
+        attribute: String,
+        value: SmartThingsDTO.AttributeValue
+    ) -> Capability? {
+        switch (capName, attribute) {
+        case ("switch", "switch"):
+            return value.asBool.map { .power(isOn: $0) }
+        case ("switchLevel", "level"):
+            return value.asDouble.map { .brightness(value: max(0, min(1, $0 / 100.0))) }
+        case ("colorControl", "hue"):
+            return value.asDouble.map { .hue(degrees: $0 * 3.6) }
+        case ("colorControl", "saturation"):
+            return value.asDouble.map { .saturation(value: max(0, min(1, $0 / 100.0))) }
+        case ("colorTemperature", "colorTemperature"):
+            guard let k = value.asDouble, k > 0 else { return nil }
+            return .colorTemperature(mireds: Int((1_000_000.0 / k).rounded()))
+        case ("temperatureMeasurement", "temperature"):
+            return value.asDouble.map { .currentTemperature(celsius: $0) }
+        case ("thermostatHeatingSetpoint", "heatingSetpoint"):
+            return value.asDouble.map { .targetTemperature(celsius: $0) }
+        case ("thermostatCoolingSetpoint", "coolingSetpoint"):
+            return value.asDouble.map { .targetTemperature(celsius: $0) }
+        case ("thermostatMode", "thermostatMode"):
+            guard let raw = value.asString else { return nil }
+            switch raw.lowercased() {
+            case "off": return .hvacMode(.off)
+            case "heat", "emergency heat": return .hvacMode(.heat)
+            case "cool": return .hvacMode(.cool)
+            case "auto", "autochangeover": return .hvacMode(.auto)
+            default: return nil
+            }
+        case ("contactSensor", "contact"):
+            return value.asString.map { .contactSensor(isOpen: $0 == "open") }
+        case ("motionSensor", "motion"):
+            return value.asString.map { .motionSensor(isDetected: $0 == "active") }
+        case ("battery", "battery"):
+            return value.asInt.map { .batteryLevel(percent: $0) }
+        case ("mediaPlayback", "playbackStatus"):
+            return value.asString.map { .playback(state: playbackState(from: $0)) }
+        case ("audioVolume", "volume"):
+            return value.asInt.map { .volume(percent: max(0, min(100, $0))) }
+        case ("audioMute", "mute"):
+            return value.asString.map { .mute(isMuted: $0 == "muted") }
+        default:
+            return nil
+        }
+    }
+
     /// SmartThings temperature values are reported in the device's configured
     /// unit. We normalize to Celsius because that's what our `Capability`
     /// enum uses everywhere else.

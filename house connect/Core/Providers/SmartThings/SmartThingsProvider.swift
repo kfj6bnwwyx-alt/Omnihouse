@@ -48,6 +48,7 @@ final class SmartThingsProvider: AccessoryProvider {
     @ObservationIgnored private let tokenStore: KeychainTokenStore
     @ObservationIgnored private let client: SmartThingsAPIClient
     @ObservationIgnored private let cache: SmartThingsAccessoryCache
+    @ObservationIgnored private var sseClient: SmartThingsSSEClient?
     @ObservationIgnored private var didStart = false
 
     /// Coalesces slider-style writes (`setBrightness`, `setColorTemperature`,
@@ -104,6 +105,55 @@ final class SmartThingsProvider: AccessoryProvider {
             }
         }
         await refresh()
+        connectSSEIfAuthorized()
+    }
+
+    /// Starts the SSE stream for real-time device updates.
+    /// Idempotent — safe to call multiple times.
+    private func connectSSEIfAuthorized() {
+        guard authorizationState == .authorized else { return }
+        guard sseClient == nil else { return }
+
+        sseClient = SmartThingsSSEClient(
+            tokenProvider: { [tokenStore] in
+                tokenStore.token(for: .smartThingsPAT)
+            },
+            onEvent: { [weak self] event in
+                self?.applySSEEvent(event)
+            },
+            onAuthFailure: { [weak self] in
+                self?.authorizationState = .denied
+                self?.lastError = "SmartThings session expired — reconnect in Settings"
+                self?.accessories = self?.accessories.map {
+                    var a = $0; a.isReachable = false; return a
+                } ?? []
+            }
+        )
+        sseClient?.connect()
+    }
+
+    /// Applies a single SSE device event as an incremental capability
+    /// update. Finds the matching accessory by deviceId and replaces
+    /// the specific capability in-place so SwiftUI re-renders the tile.
+    private func applySSEEvent(_ event: SmartThingsDeviceEvent) {
+        guard let cap = SmartThingsCapabilityMapper.capability(
+            fromCapability: event.capability,
+            attribute: event.attribute,
+            value: event.value.inner
+        ) else { return }
+
+        guard let index = accessories.firstIndex(where: {
+            $0.id.nativeID == event.deviceId
+        }) else { return }
+
+        var accessory = accessories[index]
+        // Replace the existing capability of the same kind, or append.
+        if let capIndex = accessory.capabilities.firstIndex(where: { $0.kind == cap.kind }) {
+            accessory.capabilities[capIndex] = cap
+        } else {
+            accessory.capabilities.append(cap)
+        }
+        accessories[index] = accessory
     }
 
     func execute(_ command: AccessoryCommand, on accessoryID: AccessoryID) async throws {
@@ -277,6 +327,8 @@ final class SmartThingsProvider: AccessoryProvider {
     /// their token). Clears the disk cache so devices truly vanish —
     /// intentional disconnect should not leave ghost tiles.
     func disconnect() {
+        sseClient?.disconnect()
+        sseClient = nil
         cache.clear()
         homes = []
         rooms = []
@@ -373,6 +425,9 @@ final class SmartThingsProvider: AccessoryProvider {
             cache.save(SmartThingsCacheSnapshot(
                 homes: self.homes, rooms: allRooms, accessories: built
             ))
+            // (Re)connect SSE for real-time updates now that we have
+            // a known-good device list. Idempotent if already connected.
+            connectSSEIfAuthorized()
         } catch let error as SmartThingsError {
             self.lastError = error.localizedDescription
             if case .missingToken = error {
