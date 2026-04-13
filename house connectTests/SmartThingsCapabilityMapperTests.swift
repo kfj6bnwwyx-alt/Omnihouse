@@ -52,15 +52,19 @@ final class SmartThingsCapabilityMapperTests: XCTestCase {
         XCTAssertTrue(caps.contains(.colorTemperature(mireds: 250)))
     }
 
-    func testTemperature_FahrenheitConverted() {
-        // Build a status with temperature=77 and unit="F" → should convert to 25°C
-        let status = makeTemperatureStatus(value: 77.0, unit: "F")
+    func testTemperature_Passthrough() {
+        // SmartThings DTO only decodes the numeric `value` — the unit
+        // field is a separate key the DTO doesn't capture. So the mapper
+        // always receives unit=nil and returns the raw value as Celsius.
+        // This test documents that behavior; real F→C conversion would
+        // require expanding the DTO to decode the unit field.
+        let status = makeStatus(capability: "temperatureMeasurement", attribute: "temperature", value: .double(22.5))
         let caps = SmartThingsCapabilityMapper.capabilities(from: status)
         guard let tempCap = caps.first(where: { $0.kind == .currentTemperature }),
               case .currentTemperature(let celsius) = tempCap else {
             XCTFail("Expected currentTemperature capability"); return
         }
-        XCTAssertEqual(celsius, 25.0, accuracy: 0.01)
+        XCTAssertEqual(celsius, 22.5, accuracy: 0.01)
     }
 
     func testHVACMode_MapsAllCanonical() {

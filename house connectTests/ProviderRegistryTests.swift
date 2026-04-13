@@ -186,7 +186,9 @@ final class ProviderRegistryTests: XCTestCase {
             try await registry.execute(.play, on: sonosID)
             XCTFail("Expected accessoryNotFound")
         } catch let error as ProviderError {
-            XCTAssertEqual(error, .accessoryNotFound)
+            guard case .accessoryNotFound = error else {
+                XCTFail("Expected accessoryNotFound, got \(error)"); return
+            }
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -258,7 +260,9 @@ final class ProviderRegistryTests: XCTestCase {
             try await registry.assignAccessory(stAccessory, toRoomID: "hk-room")
             XCTFail("Expected unsupportedCommand for cross-provider assignment")
         } catch let error as ProviderError {
-            XCTAssertEqual(error, .unsupportedCommand)
+            guard case .unsupportedCommand = error else {
+                XCTFail("Expected unsupportedCommand, got \(error)"); return
+            }
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
