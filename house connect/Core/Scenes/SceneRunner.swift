@@ -65,6 +65,29 @@ struct SceneRunner {
             failures: failures
         )
     }
+    /// Retries only the actions that failed in a previous run. Returns a
+    /// new result reflecting the retry attempt. Actions that previously
+    /// succeeded are excluded — their devices are already in the desired
+    /// state. This keeps retry fast and avoids redundant commands.
+    func retryFailed(from scene: HCScene, previousResult: SceneRunResult) async -> SceneRunResult {
+        let failedIDs = Set(previousResult.failures.map(\.actionID))
+        let retryActions = scene.actions.filter { failedIDs.contains($0.id) }
+
+        guard !retryActions.isEmpty else {
+            return SceneRunResult(sceneID: scene.id,
+                                  total: 0,
+                                  succeeded: 0,
+                                  failures: [])
+        }
+
+        let retryScene = HCScene(
+            id: scene.id,
+            name: scene.name,
+            iconSystemName: scene.iconSystemName,
+            actions: retryActions
+        )
+        return await run(retryScene)
+    }
 }
 
 /// Outcome of running a scene — used by the UI to render a toast or an

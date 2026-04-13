@@ -24,6 +24,9 @@ struct ScenesListView: View {
 
     @State private var runningSceneID: UUID?
     @State private var toast: Toast?
+    /// Stored when a scene partially fails so the user can retry
+    /// just the failed actions without re-running successful ones.
+    @State private var lastFailedResult: (scene: HCScene, result: SceneRunResult)?
 
     var body: some View {
         ScrollView {
@@ -31,6 +34,28 @@ struct ScenesListView: View {
                 header
                     .padding(.top, 8)
                 scenesList
+                if lastFailedResult != nil {
+                    Button {
+                        retryFailed()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.counterclockwise")
+                            Text("Retry Failed Actions")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.color.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
+                                .fill(Theme.color.primary.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(runningSceneID != nil)
+                    .accessibilityLabel("Retry failed scene actions")
+                    .accessibilityHint("Re-runs only the actions that failed in the last scene execution")
+                }
                 Spacer(minLength: 24)
             }
             .padding(.horizontal, Theme.space.screenHorizontal)
@@ -146,6 +171,7 @@ struct ScenesListView: View {
 
     private func run(_ scene: HCScene) {
         guard runningSceneID == nil else { return }
+        lastFailedResult = nil
         runningSceneID = scene.id
         Task {
             let result = await SceneRunner(registry: registry).run(scene)
@@ -156,8 +182,28 @@ struct ScenesListView: View {
                 toast = .success("\(scene.name) ran successfully")
             } else if result.isCompleteFailure {
                 toast = .error("\(scene.name) failed: \(result.failures.first?.message ?? "unknown error")")
+                lastFailedResult = (scene, result)
             } else {
-                toast = .error("\(scene.name): \(result.succeeded)/\(result.total) actions succeeded")
+                toast = .error("\(scene.name): \(result.succeeded)/\(result.total) — tap Retry to re-run failed actions")
+                lastFailedResult = (scene, result)
+            }
+        }
+    }
+
+    private func retryFailed() {
+        guard let (scene, previousResult) = lastFailedResult else { return }
+        guard runningSceneID == nil else { return }
+        runningSceneID = scene.id
+        lastFailedResult = nil
+        Task {
+            let result = await SceneRunner(registry: registry)
+                .retryFailed(from: scene, previousResult: previousResult)
+            runningSceneID = nil
+            if result.isFullSuccess {
+                toast = .success("Retry succeeded")
+            } else if !result.failures.isEmpty {
+                toast = .error("Retry: \(result.succeeded)/\(result.total) succeeded")
+                lastFailedResult = (scene, result)
             }
         }
     }
