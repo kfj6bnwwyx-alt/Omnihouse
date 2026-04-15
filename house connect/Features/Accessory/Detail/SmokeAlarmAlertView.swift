@@ -56,7 +56,7 @@ struct SmokeAlarmAlertView: View {
             Spacer(minLength: 24)
         }
         .frame(maxWidth: .infinity)
-        .frame(minHeight: UIScreen.main.bounds.height * 0.40)
+        .containerRelativeFrame(.vertical) { height, _ in height * 0.40 }
         .background(Theme.color.danger.ignoresSafeArea(edges: .top))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Emergency: Smoke Detected in \(roomName). \(deviceName), \(formattedTimestamp)")

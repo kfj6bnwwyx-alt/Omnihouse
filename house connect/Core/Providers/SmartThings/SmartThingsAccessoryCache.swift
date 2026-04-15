@@ -24,10 +24,10 @@ struct SmartThingsCacheSnapshot: Codable {
 
 /// Disk-backed cache for SmartThings accessory state. Thread-safe by
 /// virtue of being called only from `@MainActor` SmartThingsProvider.
-final class SmartThingsAccessoryCache {
+final class SmartThingsAccessoryCache: Sendable {
     private let fileURL: URL
 
-    init(fileURL: URL? = nil) {
+    nonisolated init(fileURL: URL? = nil) {
         if let fileURL {
             self.fileURL = fileURL
         } else {

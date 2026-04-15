@@ -104,12 +104,7 @@ struct NestOAuthView: View {
             errorMessage = "Nest provider not configured"
             return
         }
-        guard let oauthManager = (registry.provider(for: .nest) as? NestProvider)
-            .flatMap({ _ in provider }) else { return }
 
-        // Build the private oauthManager reference through the provider
-        // We need the oauthManager which is internal to NestProvider.
-        // For now, use the provider's projectID to verify configuration.
         guard !provider.projectID.isEmpty else {
             errorMessage = "Google Device Access project not configured"
             return

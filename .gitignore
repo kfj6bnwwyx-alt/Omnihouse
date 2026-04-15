@@ -1,0 +1,26 @@
+# Xcode
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+*.xcuserdatad
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Secrets — keep these out of source control!
+# The Nest credentials live here. Duplicate from Secrets.example.xcconfig
+# to create your own copy.
+Secrets.xcconfig
+
+# Scratch / transient files
+RESUME.md
+hetzner-backend-architecture.md
+ios-architecture.md
+house-connect-Info.plist

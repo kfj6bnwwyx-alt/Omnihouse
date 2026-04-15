@@ -16,10 +16,10 @@ struct NestCacheSnapshot: Codable {
     var accessories: [Accessory]
 }
 
-final class NestAccessoryCache {
+final class NestAccessoryCache: Sendable {
     private let fileURL: URL
 
-    init(fileURL: URL? = nil) {
+    nonisolated init(fileURL: URL? = nil) {
         if let fileURL {
             self.fileURL = fileURL
         } else {
