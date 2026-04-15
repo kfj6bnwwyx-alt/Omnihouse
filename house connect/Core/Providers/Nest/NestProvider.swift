@@ -49,6 +49,24 @@ final class NestProvider: AccessoryProvider {
 
     var projectID: String { oauthManager.projectID }
 
+    // MARK: - OAuth delegation
+    //
+    // NestOAuthView talks to the provider (not to the manager directly) so
+    // the manager can stay private. These methods forward to the manager.
+
+    /// Builds the Google OAuth consent URL. The caller opens it in
+    /// ASWebAuthenticationSession and captures the `code` from the
+    /// redirect callback.
+    func buildAuthorizationURL(redirectURI: String) -> URL? {
+        oauthManager.buildAuthorizationURL(redirectURI: redirectURI)
+    }
+
+    /// Exchanges the authorization code returned from the consent flow
+    /// for access + refresh tokens. Persists them to the Keychain.
+    func exchangeOAuthCode(_ code: String, redirectURI: String) async throws {
+        try await oauthManager.exchangeCode(code, redirectURI: redirectURI)
+    }
+
     init(
         tokenStore: KeychainTokenStore,
         config: NestOAuthManager.Configuration,

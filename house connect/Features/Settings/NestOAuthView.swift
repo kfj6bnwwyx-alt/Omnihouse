@@ -23,10 +23,19 @@ struct NestOAuthView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+    #if os(iOS)
+    @State private var sessionCoordinator = WebAuthSessionCoordinator()
+    #endif
 
-    /// Custom URL scheme for the OAuth redirect (must match the one
-    /// registered in Info.plist and the Google Cloud Console).
-    private let redirectURI = "com.houseconnect.app:/oauth2callback"
+    /// Custom URL scheme for the OAuth redirect. The scheme portion
+    /// (`houseconnect`) must match:
+    ///   1. The URL Type registered in the project's Info settings
+    ///   2. The Authorized redirect URI configured in Google Cloud Console
+    /// Google requires an HTTPS redirect for Web-app OAuth clients OR a
+    /// custom URL scheme for installed-app clients — we use the custom
+    /// scheme approach since Apple's ASWebAuthenticationSession handles
+    /// the callback natively without needing a web server.
+    private let redirectURI = "houseconnect://oauth2callback"
 
     private var nestProvider: NestProvider? {
         registry.provider(for: .nest) as? NestProvider
@@ -110,34 +119,127 @@ struct NestOAuthView: View {
             return
         }
 
+        guard let authURL = provider.buildAuthorizationURL(redirectURI: redirectURI) else {
+            errorMessage = "Could not construct Google sign-in URL"
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
-        // In a real implementation, this would use ASWebAuthenticationSession
-        // to open the Google consent URL and capture the redirect callback.
-        // Since we can't test without actual OAuth credentials, we show the
-        // flow structure but leave the actual session as a TODO.
-        //
-        // TODO: Wire ASWebAuthenticationSession when credentials are available:
-        //   1. let url = oauthManager.buildAuthorizationURL(redirectURI: redirectURI)
-        //   2. ASWebAuthenticationSession(url: url, callbackURLScheme: "com.houseconnect.app")
-        //   3. Extract `code` from callback URL query params
-        //   4. await oauthManager.exchangeCode(code, redirectURI: redirectURI)
-        //   5. await provider.refresh()
-        //   6. dismiss()
-
-        Task {
-            // Placeholder — trigger a refresh to test the flow
-            await provider.refresh()
-            isLoading = false
-            if provider.authorizationState == .authorized {
-                dismiss()
-            } else {
-                errorMessage = provider.lastError ?? "Connection failed — check your credentials"
+        // Fire ASWebAuthenticationSession. The OS shows Google's consent
+        // page in a SFSafariViewController-style sheet, and when Google
+        // redirects to our custom scheme the completion handler fires
+        // with the callback URL. We extract `?code=...` from the query,
+        // exchange it for tokens, then refresh the provider.
+        sessionCoordinator.start(
+            authURL: authURL,
+            callbackScheme: "houseconnect"
+        ) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let callbackURL):
+                    await handleCallback(callbackURL, provider: provider)
+                case .failure(let error):
+                    isLoading = false
+                    // User cancel is the most common path — show a
+                    // friendlier message than the raw error description.
+                    if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
+                        errorMessage = nil
+                    } else {
+                        errorMessage = "Sign-in failed: \(error.localizedDescription)"
+                    }
+                }
             }
         }
         #else
         errorMessage = "OAuth sign-in requires iOS"
         #endif
     }
+
+    #if os(iOS)
+    /// Handles the redirect URL from Google, extracts the authorization
+    /// code, and exchanges it for tokens.
+    @MainActor
+    private func handleCallback(_ url: URL, provider: NestProvider) async {
+        defer { isLoading = false }
+
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+            // Check for error param (user denied consent, invalid scope, etc.)
+            let errorParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "error" })?.value
+            errorMessage = "Sign-in failed: \(errorParam ?? "no authorization code in response")"
+            return
+        }
+
+        do {
+            try await provider.exchangeOAuthCode(code, redirectURI: redirectURI)
+            await provider.refresh()
+
+            if provider.authorizationState == .authorized {
+                dismiss()
+            } else {
+                errorMessage = provider.lastError ?? "Token exchange succeeded but refresh failed"
+            }
+        } catch {
+            errorMessage = "Token exchange failed: \(error.localizedDescription)"
+        }
+    }
+    #endif
 }
+
+#if os(iOS)
+
+// MARK: - ASWebAuthenticationSession wrapper
+
+/// Bridges ASWebAuthenticationSession's completion-handler API into a
+/// value-type-friendly shape the SwiftUI view can own. Keeps a reference
+/// to the live session so it isn't deallocated mid-flow, and supplies
+/// the presentation anchor via the delegate protocol.
+@MainActor
+@Observable
+final class WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentationContextProviding {
+    @ObservationIgnored private var session: ASWebAuthenticationSession?
+
+    func start(
+        authURL: URL,
+        callbackScheme: String,
+        completion: @escaping (Result<URL, Error>) -> Void
+    ) {
+        let session = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: callbackScheme
+        ) { callbackURL, error in
+            if let error {
+                completion(.failure(error))
+            } else if let callbackURL {
+                completion(.success(callbackURL))
+            } else {
+                completion(.failure(NSError(domain: "NestOAuth", code: -1)))
+            }
+        }
+        session.presentationContextProvider = self
+        // prefersEphemeralWebBrowserSession keeps any prior Google cookies
+        // out of the flow — forces a fresh consent prompt every time.
+        // Set to false so returning users can use their existing session.
+        session.prefersEphemeralWebBrowserSession = false
+        self.session = session
+        session.start()
+    }
+
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        // ASPresentationAnchor is UIWindow on iOS. Use the key window of
+        // the connected scene. Fall back to a fresh UIWindow if somehow
+        // nothing is connected (shouldn't happen in normal app flow).
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .first(where: \.isKeyWindow)
+                ?? UIWindow()
+        }
+    }
+}
+
+#endif
