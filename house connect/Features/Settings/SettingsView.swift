@@ -107,6 +107,15 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
+            NavigationLink(value: SettingsDestination.automations) {
+                SettingsRow(
+                    icon: "gearshape.2",
+                    title: "Automations",
+                    subtitle: "Home Assistant automations"
+                )
+            }
+            .buttonStyle(.plain)
+
             NavigationLink(value: SettingsDestination.appearance) {
                 SettingsRow(
                     icon: "paintbrush.fill",
@@ -146,6 +155,7 @@ struct SettingsView: View {
         case .providers: ProvidersSettingsView()
         case .rooms: AllRoomsView()
         case .scenes: ScenesListView()
+        case .automations: AutomationsListView()
         case .audioZones: AudioZonesMapView()
         case .networkTopology: DeviceNetworkTopologyView()
         case .about: AboutView()
@@ -297,6 +307,7 @@ enum SettingsDestination: Hashable {
     case providers
     case rooms
     case scenes
+    case automations
     case audioZones
     case networkTopology
     case about

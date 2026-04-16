@@ -92,6 +92,7 @@ struct HomeDashboardView: View {
             case .providers: ProvidersSettingsView()
             case .rooms: AllRoomsView()
             case .scenes: ScenesListView()
+            case .automations: AutomationsListView()
             case .audioZones: AudioZonesMapView()
             case .networkTopology: DeviceNetworkTopologyView()
             case .about: AboutView()

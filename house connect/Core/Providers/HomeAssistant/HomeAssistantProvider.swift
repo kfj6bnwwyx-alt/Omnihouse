@@ -43,6 +43,9 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// HA scenes (scene.* entities) available for activation.
     private(set) var scenes: [HAScene] = []
 
+    /// HA automations (automation.* entities) available for triggering.
+    private(set) var automations: [HAAutomation] = []
+
     // MARK: - Internal state
 
     @ObservationIgnored private let tokenStore: KeychainTokenStore
@@ -289,6 +292,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         rebuildRooms()
         rebuildAccessories()
         rebuildScenes()
+        rebuildAutomations()
 
         lastRefreshed = Date()
         isRefreshing = false
@@ -491,6 +495,42 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
                 )
             }
             .sorted { $0.name < $1.name }
+    }
+
+    private func rebuildAutomations() {
+        automations = entityStates.values
+            .filter { $0.domain == "automation" }
+            .map { entity in
+                HAAutomation(
+                    entityID: entity.entityID,
+                    name: entity.attributes.friendlyName ?? entity.objectID
+                        .replacingOccurrences(of: "_", with: " ").capitalized,
+                    isEnabled: entity.state == "on",
+                    lastTriggered: entity.attributes.raw?["last_triggered"]?.stringValue
+                )
+            }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// Trigger an automation manually via the REST API.
+    func triggerAutomation(entityID: String) async throws {
+        guard let rest = restClient else {
+            throw ProviderError.notAuthorized
+        }
+        try await rest.triggerAutomation(entityID: entityID)
+    }
+
+    /// Enable or disable an automation.
+    func setAutomationEnabled(entityID: String, enabled: Bool) async throws {
+        guard let ws = wsClient else {
+            throw ProviderError.notAuthorized
+        }
+        let service = enabled ? "turn_on" : "turn_off"
+        try await ws.callService(
+            domain: "automation",
+            service: service,
+            entityID: entityID
+        )
     }
 
     /// Pick the most "important" entity from a device's entity list.

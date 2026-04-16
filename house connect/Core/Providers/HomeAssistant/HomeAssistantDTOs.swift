@@ -427,6 +427,17 @@ struct HAScene: Identifiable, Sendable {
     var id: String { entityID }
 }
 
+/// An HA automation entity. State is "on" (enabled) or "off" (disabled).
+/// Can be triggered manually, toggled on/off, or viewed for last-triggered time.
+struct HAAutomation: Identifiable, Sendable {
+    let entityID: String
+    let name: String
+    let isEnabled: Bool
+    let lastTriggered: String?
+
+    var id: String { entityID }
+}
+
 // MARK: - AnyCodableValue (heterogeneous JSON helper)
 
 /// Minimal type-erased Codable wrapper for HA's loosely-typed JSON.
