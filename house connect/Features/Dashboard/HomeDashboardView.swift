@@ -309,6 +309,19 @@ struct HomeDashboardView: View {
 
     // MARK: - Quick Scenes
 
+    /// Merged scene list: local HCScenes + Home Assistant scene entities.
+    /// HA scenes appear after local scenes so user-curated scenes stay on top.
+    private var unifiedScenes: [UnifiedScene] {
+        let local = sceneStore.scenes.map(UnifiedScene.init(from:))
+        let ha: [UnifiedScene] = {
+            guard let haProvider = registry.provider(for: .homeAssistant) as? HomeAssistantProvider else {
+                return []
+            }
+            return haProvider.scenes.map(UnifiedScene.init(from:))
+        }()
+        return local + ha
+    }
+
     private var quickScenesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Quick Scenes")
@@ -317,19 +330,14 @@ struct HomeDashboardView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(sceneStore.scenes) { scene in
-                        SceneTile(
-                            scene: scene,
-                            isRunning: runningSceneID == scene.id,
-                            onTap: { run(scene) }
-                        )
+                    ForEach(unifiedScenes) { unified in
+                        unifiedSceneTile(unified)
                     }
                     NavigationLink(value: ScenesDestination.list) {
                         SceneTile.newSceneTile
                     }
                     .buttonStyle(.plain)
                 }
-                // Slight overflow so the shadow on the leftmost card isn't clipped.
                 .padding(.vertical, 4)
             }
         }
@@ -338,6 +346,47 @@ struct HomeDashboardView: View {
             case .list: ScenesListView()
             case .editor(let sceneID): SceneEditorView(sceneID: sceneID)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func unifiedSceneTile(_ unified: UnifiedScene) -> some View {
+        switch unified.source {
+        case .local(let sceneID):
+            if let scene = sceneStore.scene(id: sceneID) {
+                SceneTile(
+                    scene: scene,
+                    isRunning: runningSceneID == sceneID,
+                    onTap: { run(scene) }
+                )
+            }
+        case .homeAssistant(let entityID):
+            Button {
+                runHAScene(entityID: entityID, name: unified.name)
+            } label: {
+                VStack(spacing: 8) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
+                            .fill(Theme.color.primary.opacity(0.12))
+                            .frame(width: 56, height: 56)
+                        Image(systemName: unified.iconSystemName)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(Theme.color.primary)
+                    }
+                    Text(unified.name)
+                        .font(Theme.font.cardSubtitle)
+                        .foregroundStyle(Theme.color.title)
+                        .lineLimit(1)
+                }
+                .frame(width: 84)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
+                        .fill(Theme.color.cardFill)
+                        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -418,6 +467,28 @@ struct HomeDashboardView: View {
                 toast = .error("\(scene.name) failed: \(result.failures.first?.message ?? "unknown error")")
             } else {
                 toast = .error("\(scene.name): \(result.succeeded)/\(result.total) actions succeeded")
+            }
+        }
+    }
+
+    /// Activate a Home Assistant scene via the REST API.
+    private func runHAScene(entityID: String, name: String) {
+        guard runningSceneID == nil else { return }
+        Task {
+            do {
+                guard let haProvider = registry.provider(for: .homeAssistant) as? HomeAssistantProvider else {
+                    toast = .error("Home Assistant not connected")
+                    return
+                }
+                try await haProvider.activateScene(entityID: entityID)
+                toast = .success("\(name) activated")
+                eventStore.post(
+                    kind: .automation,
+                    title: "\(name) scene activated",
+                    message: "Via Home Assistant"
+                )
+            } catch {
+                toast = .error("\(name) failed: \(error.localizedDescription)")
             }
         }
     }
