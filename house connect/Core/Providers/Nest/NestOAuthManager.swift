@@ -25,7 +25,15 @@ final class NestOAuthManager {
     struct Configuration {
         let projectID: String
         let clientID: String
-        let clientSecret: String
+        /// Optional — iOS OAuth clients (public clients) don't have a secret.
+        /// Only needed for "Web application" client types.
+        let clientSecret: String?
+
+        init(projectID: String, clientID: String, clientSecret: String? = nil) {
+            self.projectID = projectID
+            self.clientID = clientID
+            self.clientSecret = clientSecret
+        }
     }
 
     private let config: Configuration
@@ -77,13 +85,17 @@ final class NestOAuthManager {
     /// Exchanges an authorization code for access + refresh tokens.
     /// Called once after the user completes the OAuth consent flow.
     func exchangeCode(_ code: String, redirectURI: String) async throws {
-        let params: [String: String] = [
+        var params: [String: String] = [
             "client_id": config.clientID,
-            "client_secret": config.clientSecret,
             "code": code,
             "grant_type": "authorization_code",
             "redirect_uri": redirectURI,
         ]
+        // Only include client_secret for Web-app clients (confidential clients).
+        // iOS OAuth clients are "public" and don't have a secret.
+        if let secret = config.clientSecret, !secret.isEmpty {
+            params["client_secret"] = secret
+        }
         let response = try await postTokenRequest(params: params)
         try persistTokens(response)
     }
@@ -97,12 +109,14 @@ final class NestOAuthManager {
         guard let refreshToken = tokenStore.token(for: .nestRefreshToken) else {
             throw NestSDMError.missingToken
         }
-        let params: [String: String] = [
+        var params: [String: String] = [
             "client_id": config.clientID,
-            "client_secret": config.clientSecret,
             "refresh_token": refreshToken,
             "grant_type": "refresh_token",
         ]
+        if let secret = config.clientSecret, !secret.isEmpty {
+            params["client_secret"] = secret
+        }
         let response = try await postTokenRequest(params: params)
         try persistTokens(response)
         return response.accessToken

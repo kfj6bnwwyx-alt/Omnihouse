@@ -60,17 +60,24 @@ struct house_connectApp: App {
         // development) when they're absent.
         if let projectID = Bundle.main.infoDictionary?["NEST_PROJECT_ID"] as? String,
            let clientID = Bundle.main.infoDictionary?["NEST_CLIENT_ID"] as? String,
-           let clientSecret = Bundle.main.infoDictionary?["NEST_CLIENT_SECRET"] as? String,
-           !projectID.isEmpty {
+           !projectID.isEmpty, !clientID.isEmpty {
+            // clientSecret is optional — iOS OAuth clients (public) don't have one.
+            let clientSecret = Bundle.main.infoDictionary?["NEST_CLIENT_SECRET"] as? String
             let config = NestOAuthManager.Configuration(
                 projectID: projectID,
                 clientID: clientID,
-                clientSecret: clientSecret
+                clientSecret: clientSecret?.isEmpty == true ? nil : clientSecret
             )
             registry.register(NestProvider(tokenStore: store, config: config))
         } else {
             registry.register(DemoNestProvider())
         }
+
+        // Home Assistant — unified backend provider. Connects via
+        // WebSocket for real-time state, routes commands through HA's
+        // service call API. Replaces the need for per-ecosystem
+        // adapters when HA handles those integrations natively.
+        registry.register(HomeAssistantProvider(tokenStore: store))
 
         // Seed demo smoke alarm events so the Recent Events card has
         // content from the first launch. Only fires when the store is
