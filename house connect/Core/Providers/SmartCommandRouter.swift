@@ -78,6 +78,15 @@ enum SmartCommandRouter {
              .next, .previous:         return nil
         case .joinSpeakerGroup,
              .leaveSpeakerGroup:       return nil
+        case .selectSource:            return .currentSource
+        case .setPresetMode:           return .presetMode
+        case .setClimateFanMode:       return .climateFanMode
+        case .setFanSpeed:             return .fanSpeed
+        case .setFanDirection:         return .fanDirection
+        case .setCoverPosition:        return .coverPosition
+        case .playMedia:               return nil
+        case .seekTo:                  return .mediaPosition
+        case .setEffect:               return .currentEffect
         }
     }
 

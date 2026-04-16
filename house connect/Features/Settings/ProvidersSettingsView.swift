@@ -22,6 +22,8 @@ struct ProvidersSettingsView: View {
     @State private var confirmDisconnect = false
     @State private var showingNestOAuth = false
     @State private var confirmNestDisconnect = false
+    @State private var showingHASetup = false
+    @State private var confirmHADisconnect = false
 
     /// Mirror of the same `@AppStorage` key read by `AllDevicesView`.
     /// When a device is published by more than one ecosystem (e.g.
@@ -43,6 +45,10 @@ struct ProvidersSettingsView: View {
         registry.provider(for: .sonos) as? SonosProvider
     }
 
+    private var haProvider: HomeAssistantProvider? {
+        registry.provider(for: .homeAssistant) as? HomeAssistantProvider
+    }
+
     private var nestProvider: NestProvider? {
         registry.provider(for: .nest) as? NestProvider
     }
@@ -50,6 +56,7 @@ struct ProvidersSettingsView: View {
     var body: some View {
         Form {
             preferredNetworkSection
+            homeAssistantSection
             smartThingsSection
             nestSection
             sonosSection
@@ -62,6 +69,9 @@ struct ProvidersSettingsView: View {
         }
         .sheet(isPresented: $showingNestOAuth) {
             NestOAuthView()
+        }
+        .sheet(isPresented: $showingHASetup) {
+            HomeAssistantSetupView()
         }
     }
 
@@ -102,6 +112,107 @@ struct ProvidersSettingsView: View {
             get: { ProviderID(rawValue: preferredProviderRaw) ?? .homeKit },
             set: { preferredProviderRaw = $0.rawValue }
         )
+    }
+
+    // MARK: - Home Assistant
+
+    @ViewBuilder
+    private var homeAssistantSection: some View {
+        Section {
+            if let provider = haProvider {
+                HStack {
+                    Label("Home Assistant", systemImage: "house.lodge.fill")
+                    Spacer()
+                    statusBadge(for: provider.authorizationState)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Home Assistant, \(statusLabel(for: provider.authorizationState))")
+
+                if provider.authorizationState == .authorized {
+                    if let version = provider.haVersion {
+                        LabeledContent("Version", value: version)
+                    }
+
+                    if let url = provider.serverURL {
+                        LabeledContent("Server", value: url.host ?? url.absoluteString)
+                    }
+
+                    NavigationLink {
+                        ProviderDevicesListView(providerID: .homeAssistant)
+                            .environment(registry)
+                    } label: {
+                        LabeledContent("Devices", value: "\(provider.accessories.count)")
+                    }
+
+                    LabeledContent("Scenes", value: "\(provider.scenes.count)")
+
+                    if let ts = provider.lastRefreshed {
+                        LabeledContent("Last refreshed", value: ts.formatted(.relative(presentation: .named)))
+                            .accessibilityLabel("Last refreshed \(ts.formatted(.relative(presentation: .named)))")
+                    }
+
+                    HStack {
+                        Circle()
+                            .fill(provider.isConnected ? .green : .orange)
+                            .frame(width: 8, height: 8)
+                        Text(provider.isConnected ? "WebSocket connected" : "Reconnecting…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task { await provider.refresh() }
+                    } label: {
+                        if provider.isRefreshing {
+                            HStack { ProgressView(); Text("Refreshing…") }
+                        } else {
+                            Label("Refresh now", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(provider.isRefreshing)
+                    .accessibilityLabel("Refresh Home Assistant")
+
+                    Button(role: .destructive) {
+                        confirmHADisconnect = true
+                    } label: {
+                        Label("Disconnect", systemImage: "xmark.circle")
+                    }
+                    .accessibilityLabel("Disconnect Home Assistant")
+                } else {
+                    Button {
+                        showingHASetup = true
+                    } label: {
+                        Label("Connect to Home Assistant", systemImage: "plus.circle")
+                    }
+                    .accessibilityHint("Opens setup to discover and connect to a Home Assistant server on your network")
+                }
+
+                if let error = provider.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } else {
+                Text("Home Assistant provider not registered.")
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Home Assistant")
+        } footer: {
+            Text("Connects to your Home Assistant server via WebSocket for real-time device control. Unifies all integrations configured in HA (SmartThings, Nest, Sonos, Hue, etc.) under a single connection.")
+        }
+        .confirmationDialog(
+            "Disconnect Home Assistant?",
+            isPresented: $confirmHADisconnect,
+            titleVisibility: .visible
+        ) {
+            Button("Disconnect", role: .destructive) {
+                Task { await disconnectHA() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your access token will be removed and all Home Assistant devices will be cleared. Reconnect anytime.")
+        }
     }
 
     // MARK: - SmartThings
@@ -398,6 +509,14 @@ struct ProvidersSettingsView: View {
         try? tokenStore.delete(.smartThingsPAT)
         // Use disconnect() instead of refresh() so the disk cache is
         // cleared and devices truly vanish (intentional removal).
+        provider.disconnect()
+    }
+
+    private func disconnectHA() async {
+        guard let provider = haProvider else { return }
+        let tokenStore = KeychainTokenStore()
+        try? tokenStore.delete(.homeAssistantToken)
+        try? tokenStore.delete(.homeAssistantURL)
         provider.disconnect()
     }
 }

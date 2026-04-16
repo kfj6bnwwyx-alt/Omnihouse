@@ -99,6 +99,35 @@ enum Capability: Hashable, Sendable {
 
     // MARK: - Environment
     case humidity(percent: Int)               // 0 ... 100
+
+    // MARK: - HVAC action (what the system is doing NOW)
+    /// "heating", "cooling", "idle", "drying", "fan" — from HA's hvac_action
+    case hvacAction(String)
+
+    // MARK: - Climate presets / fan modes (Phase 3)
+    case presetMode(String)                   // Current preset: "eco", "away", "comfort", etc.
+    case presetModes([String])                // Available presets
+    case climateFanMode(String)               // "auto", "low", "medium", "high"
+    case climateFanModes([String])            // Available fan modes
+
+    // MARK: - Source / input selection (Phase 2)
+    case currentSource(String)                // Currently active source/input
+    case sourceList([String])                 // Available sources/inputs
+
+    // MARK: - Media position (Phase 4)
+    case mediaPosition(seconds: Double)       // Current playback position
+    case mediaDuration(seconds: Double)       // Total track duration
+
+    // MARK: - Light effects (Phase 4)
+    case currentEffect(String)                // Active effect name
+    case effectList([String])                 // Available effects
+
+    // MARK: - Fan speed (Phase 1)
+    case fanSpeed(percent: Int)               // 0 ... 100
+    case fanDirection(String)                 // "forward" / "reverse"
+
+    // MARK: - Cover position (Phase 1)
+    case coverPosition(percent: Int)          // 0 (closed) ... 100 (open)
 }
 
 extension Capability {
@@ -125,6 +154,20 @@ extension Capability {
         case smokeDetected
         case coDetected
         case humidity
+        case hvacAction
+        case presetMode
+        case presetModes
+        case climateFanMode
+        case climateFanModes
+        case currentSource
+        case sourceList
+        case mediaPosition
+        case mediaDuration
+        case currentEffect
+        case effectList
+        case fanSpeed
+        case fanDirection
+        case coverPosition
     }
 
     var kind: Kind {
@@ -149,6 +192,20 @@ extension Capability {
         case .smokeDetected: .smokeDetected
         case .coDetected: .coDetected
         case .humidity: .humidity
+        case .hvacAction: .hvacAction
+        case .presetMode: .presetMode
+        case .presetModes: .presetModes
+        case .climateFanMode: .climateFanMode
+        case .climateFanModes: .climateFanModes
+        case .currentSource: .currentSource
+        case .sourceList: .sourceList
+        case .mediaPosition: .mediaPosition
+        case .mediaDuration: .mediaDuration
+        case .currentEffect: .currentEffect
+        case .effectList: .effectList
+        case .fanSpeed: .fanSpeed
+        case .fanDirection: .fanDirection
+        case .coverPosition: .coverPosition
         }
     }
 }
@@ -198,6 +255,27 @@ enum AccessoryCommand: Hashable, Sendable {
     /// for smoke/CO alarms. Providers that don't support it throw
     /// `.unsupportedCommand`.
     case selfTest
+
+    // MARK: - Source / input selection (Phase 2)
+    case selectSource(String)
+
+    // MARK: - Climate presets / fan modes (Phase 3)
+    case setPresetMode(String)
+    case setClimateFanMode(String)
+
+    // MARK: - Fan control (Phase 1)
+    case setFanSpeed(Int)                    // 0 ... 100
+    case setFanDirection(String)             // "forward" / "reverse"
+
+    // MARK: - Cover control (Phase 1)
+    case setCoverPosition(Int)               // 0 (closed) ... 100 (open)
+
+    // MARK: - Media content (Phase 4)
+    case playMedia(contentID: String, contentType: String)
+    case seekTo(seconds: Double)
+
+    // MARK: - Light effects (Phase 4)
+    case setEffect(String)
 }
 
 // MARK: - Capability Codable
@@ -210,6 +288,7 @@ extension Capability: Codable {
         case kind
         // Payload keys — reused across cases where the type matches.
         case boolValue, doubleValue, intValue, stringValue
+        case stringArrayValue
         case title, artist, album, coverArtURL
         case trackNumber, duration, albumArtist, source
     }
@@ -246,6 +325,20 @@ extension Capability: Codable {
         case .smokeDetected(let v):      try c.encode(v, forKey: .boolValue)
         case .coDetected(let v):         try c.encode(v, forKey: .boolValue)
         case .humidity(let v):           try c.encode(v, forKey: .intValue)
+        case .hvacAction(let v):         try c.encode(v, forKey: .stringValue)
+        case .presetMode(let v):         try c.encode(v, forKey: .stringValue)
+        case .presetModes(let v):        try c.encode(v, forKey: .stringArrayValue)
+        case .climateFanMode(let v):     try c.encode(v, forKey: .stringValue)
+        case .climateFanModes(let v):    try c.encode(v, forKey: .stringArrayValue)
+        case .currentSource(let v):      try c.encode(v, forKey: .stringValue)
+        case .sourceList(let v):         try c.encode(v, forKey: .stringArrayValue)
+        case .mediaPosition(let v):      try c.encode(v, forKey: .doubleValue)
+        case .mediaDuration(let v):      try c.encode(v, forKey: .doubleValue)
+        case .currentEffect(let v):      try c.encode(v, forKey: .stringValue)
+        case .effectList(let v):         try c.encode(v, forKey: .stringArrayValue)
+        case .fanSpeed(let v):           try c.encode(v, forKey: .intValue)
+        case .fanDirection(let v):       try c.encode(v, forKey: .stringValue)
+        case .coverPosition(let v):      try c.encode(v, forKey: .intValue)
         }
     }
 
@@ -295,6 +388,20 @@ extension Capability: Codable {
         case .smokeDetected:      self = .smokeDetected(try c.decode(Bool.self, forKey: .boolValue))
         case .coDetected:         self = .coDetected(try c.decode(Bool.self, forKey: .boolValue))
         case .humidity:           self = .humidity(percent: try c.decode(Int.self, forKey: .intValue))
+        case .hvacAction:         self = .hvacAction(try c.decode(String.self, forKey: .stringValue))
+        case .presetMode:         self = .presetMode(try c.decode(String.self, forKey: .stringValue))
+        case .presetModes:        self = .presetModes(try c.decode([String].self, forKey: .stringArrayValue))
+        case .climateFanMode:     self = .climateFanMode(try c.decode(String.self, forKey: .stringValue))
+        case .climateFanModes:    self = .climateFanModes(try c.decode([String].self, forKey: .stringArrayValue))
+        case .currentSource:      self = .currentSource(try c.decode(String.self, forKey: .stringValue))
+        case .sourceList:         self = .sourceList(try c.decode([String].self, forKey: .stringArrayValue))
+        case .mediaPosition:      self = .mediaPosition(seconds: try c.decode(Double.self, forKey: .doubleValue))
+        case .mediaDuration:      self = .mediaDuration(seconds: try c.decode(Double.self, forKey: .doubleValue))
+        case .currentEffect:      self = .currentEffect(try c.decode(String.self, forKey: .stringValue))
+        case .effectList:         self = .effectList(try c.decode([String].self, forKey: .stringArrayValue))
+        case .fanSpeed:           self = .fanSpeed(percent: try c.decode(Int.self, forKey: .intValue))
+        case .fanDirection:       self = .fanDirection(try c.decode(String.self, forKey: .stringValue))
+        case .coverPosition:      self = .coverPosition(percent: try c.decode(Int.self, forKey: .intValue))
         }
     }
 }

@@ -35,6 +35,17 @@ struct CameraPreview: View {
             homeKitContent
         case .smartThings, .nest, .sonos:
             unavailable("Camera preview not yet implemented for this provider.")
+        case .homeAssistant:
+            if let haProvider = registry.provider(for: .homeAssistant) as? HomeAssistantProvider,
+               let proxyURL = haProvider.cameraProxyURL(entityID: accessoryID.nativeID) {
+                AsyncImage(url: proxyURL) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: {
+                    ProgressView()
+                }
+            } else {
+                unavailable("Camera not available via Home Assistant.")
+            }
         }
     }
 

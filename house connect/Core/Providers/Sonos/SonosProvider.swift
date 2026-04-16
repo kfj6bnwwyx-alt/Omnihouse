@@ -229,7 +229,16 @@ final class SonosProvider: AccessoryProvider {
                  .setColorTemperature,
                  .setTargetTemperature,
                  .setHVACMode,
-                 .selfTest:
+                 .selfTest,
+                 .selectSource,
+                 .setPresetMode,
+                 .setClimateFanMode,
+                 .setFanSpeed,
+                 .setFanDirection,
+                 .setCoverPosition,
+                 .playMedia,
+                 .seekTo,
+                 .setEffect:
                 throw ProviderError.unsupportedCommand
             }
         } catch let error as SonosSOAPError {

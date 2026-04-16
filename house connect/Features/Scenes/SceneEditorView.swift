@@ -268,6 +268,24 @@ func commandLabel(_ command: AccessoryCommand) -> String {
         return "Leave speaker group"
     case .selfTest:
         return "Run self-test"
+    case .selectSource(let s):
+        return "Select source: \(s)"
+    case .setPresetMode(let p):
+        return "Set preset: \(p)"
+    case .setClimateFanMode(let m):
+        return "Set fan mode: \(m)"
+    case .setFanSpeed(let pct):
+        return "Set fan speed to \(pct)%"
+    case .setFanDirection(let d):
+        return "Set fan direction: \(d)"
+    case .setCoverPosition(let pct):
+        return "Set cover to \(pct)%"
+    case .playMedia(let id, _):
+        return "Play: \(id)"
+    case .seekTo(let sec):
+        return "Seek to \(Int(sec))s"
+    case .setEffect(let e):
+        return "Set effect: \(e)"
     }
 }
 

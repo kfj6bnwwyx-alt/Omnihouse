@@ -40,6 +40,12 @@ final class KeychainTokenStore {
         /// Google OAuth 2.0 refresh token. Long-lived but may rotate
         /// on each refresh — always persist the latest one.
         case nestRefreshToken
+        /// Home Assistant long-lived access token. Created in HA's user
+        /// profile page. Valid for 10 years.
+        case homeAssistantToken
+        /// Home Assistant server URL (e.g. "http://192.168.4.23:8123").
+        /// Not a secret, but stored alongside tokens for convenience.
+        case homeAssistantURL
     }
 
     private let keychain: Keychain

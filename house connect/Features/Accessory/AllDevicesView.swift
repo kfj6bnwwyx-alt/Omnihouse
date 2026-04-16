@@ -937,6 +937,7 @@ private struct DeviceTile: View {
         case .smartThings: "ST"
         case .sonos: "SONOS"
         case .nest: "NEST"
+        case .homeAssistant: "HA"
         }
     }
 

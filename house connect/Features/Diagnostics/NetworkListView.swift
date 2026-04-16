@@ -210,6 +210,7 @@ struct NetworkListView: View {
         case .smartThings: "Wi-Fi"
         case .sonos: "Wi-Fi"
         case .nest: "Thread"
+        case .homeAssistant: "Home Assistant"
         }
     }
 
@@ -219,6 +220,7 @@ struct NetworkListView: View {
         case .smartThings: Color(red: 0.33, green: 0.77, blue: 0.49) // green
         case .sonos: Color(red: 0.33, green: 0.77, blue: 0.49) // green
         case .nest: Color(red: 0.55, green: 0.36, blue: 0.91) // purple
+        case .homeAssistant: Color(red: 0.18, green: 0.73, blue: 0.83) // cyan
         }
     }
 

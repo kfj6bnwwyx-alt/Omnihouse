@@ -67,7 +67,7 @@ extension AccessoryCommand: Codable {
     // Tagged-union encoding. `kind` names the case, `value` carries the
     // associated payload (or is absent for no-arg cases). Keeps the JSON
     // readable for debugging without locking us into a specific library.
-    enum CodingKeys: String, CodingKey { case kind, value }
+    enum CodingKeys: String, CodingKey { case kind, value, value2 }
 
     private enum Kind: String, Codable {
         case setPower, setBrightness, setHue, setSaturation
@@ -77,6 +77,9 @@ extension AccessoryCommand: Codable {
         case setShuffle, setRepeatMode
         case joinSpeakerGroup, leaveSpeakerGroup
         case selfTest
+        case selectSource, setPresetMode, setClimateFanMode
+        case setFanSpeed, setFanDirection, setCoverPosition
+        case playMedia, seekTo, setEffect
     }
 
     init(from decoder: Decoder) throws {
@@ -113,14 +116,32 @@ extension AccessoryCommand: Codable {
         case .setRepeatMode:
             self = .setRepeatMode(try c.decode(RepeatMode.self, forKey: .value))
         case .joinSpeakerGroup:
-            // Payload is a full AccessoryID (provider + nativeID). We
-            // piggyback on the AccessoryID Codable shim above so the
-            // JSON stays symmetric with other tagged-union cases.
             self = .joinSpeakerGroup(target: try c.decode(AccessoryID.self, forKey: .value))
         case .leaveSpeakerGroup:
             self = .leaveSpeakerGroup
         case .selfTest:
             self = .selfTest
+        case .selectSource:
+            self = .selectSource(try c.decode(String.self, forKey: .value))
+        case .setPresetMode:
+            self = .setPresetMode(try c.decode(String.self, forKey: .value))
+        case .setClimateFanMode:
+            self = .setClimateFanMode(try c.decode(String.self, forKey: .value))
+        case .setFanSpeed:
+            self = .setFanSpeed(try c.decode(Int.self, forKey: .value))
+        case .setFanDirection:
+            self = .setFanDirection(try c.decode(String.self, forKey: .value))
+        case .setCoverPosition:
+            self = .setCoverPosition(try c.decode(Int.self, forKey: .value))
+        case .playMedia:
+            self = .playMedia(
+                contentID: try c.decode(String.self, forKey: .value),
+                contentType: try c.decode(String.self, forKey: .value2)
+            )
+        case .seekTo:
+            self = .seekTo(seconds: try c.decode(Double.self, forKey: .value))
+        case .setEffect:
+            self = .setEffect(try c.decode(String.self, forKey: .value))
         }
     }
 
@@ -175,6 +196,34 @@ extension AccessoryCommand: Codable {
             try c.encode(Kind.leaveSpeakerGroup, forKey: .kind)
         case .selfTest:
             try c.encode(Kind.selfTest, forKey: .kind)
+        case .selectSource(let s):
+            try c.encode(Kind.selectSource, forKey: .kind)
+            try c.encode(s, forKey: .value)
+        case .setPresetMode(let s):
+            try c.encode(Kind.setPresetMode, forKey: .kind)
+            try c.encode(s, forKey: .value)
+        case .setClimateFanMode(let s):
+            try c.encode(Kind.setClimateFanMode, forKey: .kind)
+            try c.encode(s, forKey: .value)
+        case .setFanSpeed(let i):
+            try c.encode(Kind.setFanSpeed, forKey: .kind)
+            try c.encode(i, forKey: .value)
+        case .setFanDirection(let s):
+            try c.encode(Kind.setFanDirection, forKey: .kind)
+            try c.encode(s, forKey: .value)
+        case .setCoverPosition(let i):
+            try c.encode(Kind.setCoverPosition, forKey: .kind)
+            try c.encode(i, forKey: .value)
+        case .playMedia(let contentID, let contentType):
+            try c.encode(Kind.playMedia, forKey: .kind)
+            try c.encode(contentID, forKey: .value)
+            try c.encode(contentType, forKey: .value2)
+        case .seekTo(let seconds):
+            try c.encode(Kind.seekTo, forKey: .kind)
+            try c.encode(seconds, forKey: .value)
+        case .setEffect(let s):
+            try c.encode(Kind.setEffect, forKey: .kind)
+            try c.encode(s, forKey: .value)
         }
     }
 }

@@ -223,6 +223,7 @@ struct AboutView: View {
         case .smartThings: return "cpu"
         case .nest: return "thermometer"
         case .sonos: return "hifispeaker.fill"
+        case .homeAssistant: return "house.lodge.fill"
         }
     }
 

@@ -103,7 +103,9 @@ final class HomeKitProvider: NSObject, AccessoryProvider {
                                           value: NSNumber(value: raw))
         case .play, .pause, .stop, .next, .previous,
              .setVolume, .setGroupVolume, .setMute, .setShuffle, .setRepeatMode,
-             .joinSpeakerGroup, .leaveSpeakerGroup, .selfTest:
+             .joinSpeakerGroup, .leaveSpeakerGroup, .selfTest,
+             .selectSource, .setPresetMode, .setClimateFanMode, .setFanSpeed,
+             .setFanDirection, .setCoverPosition, .playMedia, .seekTo, .setEffect:
             // HomeKit has no unified media-transport characteristics. If we
             // ever want HomeKit-side media control, the linked native
             // provider (Sonos / Samsung TV / ...) handles it directly via

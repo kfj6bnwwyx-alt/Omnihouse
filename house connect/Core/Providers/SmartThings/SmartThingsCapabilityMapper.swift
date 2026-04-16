@@ -306,6 +306,12 @@ enum SmartThingsCapabilityMapper {
             // equivalent — return empty so the provider surfaces
             // `.unsupportedCommand`.
             return []
+
+        case .selectSource, .setPresetMode, .setClimateFanMode, .setFanSpeed,
+             .setFanDirection, .setCoverPosition, .playMedia, .seekTo, .setEffect:
+            // These commands have no SmartThings capability mapping yet.
+            // Return empty so the provider surfaces `.unsupportedCommand`.
+            return []
         }
     }
 
