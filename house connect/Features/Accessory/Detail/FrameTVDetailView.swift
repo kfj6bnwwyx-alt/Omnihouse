@@ -3,18 +3,18 @@
 //  house connect
 //
 //  Bespoke detail screen for the Samsung Frame TV. Matches Pencil node
-//  `GrzJY`. SCAFFOLD ONLY — the Samsung Frame TV provider is Phase 8.
-//  Not currently reachable from `DeviceDetailView` because our unified
-//  vocabulary does not yet distinguish "TV" from the generic `.speaker`
-//  category. When the Frame TV provider lands:
-//    - Add `.television` to `Accessory.Category`.
-//    - Route that category here from `DeviceDetailView.routedView`.
-//    - Add HDMI-source / Art-mode commands to `AccessoryCommand`.
-//    - Pipe `currentInput` into a capability case.
+//  `GrzJY`. Now data-driven from Home Assistant `media_player` entities
+//  via the unified Capability model.
 //
-//  Until then this file exists so the design is captured in code and we
-//  don't have to remember what went where. It compiles, previews, and
-//  reads the accessory off the registry like every other detail screen.
+//  HA Samsung TV integration exposes:
+//    - Power on/off (state: on/off/standby)
+//    - Source selection (source + source_list attributes)
+//    - Volume control (volume_level, is_volume_muted)
+//    - Now playing (media_title, media_artist, entity_picture)
+//    - Art Mode (appears as a source in the source_list)
+//
+//  The view reads all values reactively from the Accessory's capabilities
+//  and routes commands through the ProviderRegistry.
 //
 
 import SwiftUI
@@ -23,25 +23,11 @@ struct FrameTVDetailView: View {
     let accessoryID: AccessoryID
 
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(MergedDeviceLookup.self) private var mergedLookup
+    @AppStorage("devices.preferredProvider") private var preferredProviderRaw: String = ProviderID.homeKit.rawValue
 
-    @State private var selectedInput: Input = .hdmi1
-    @State private var brightness: Double = 0.5
-    @State private var colorTone: Double = 0.5
-
-    enum Input: String, CaseIterable, Hashable {
-        case hdmi1 = "HDMI 1"
-        case hdmi2 = "HDMI 2"
-        case airplay = "AirPlay"
-        case artMode = "Art Mode"
-
-        var systemImage: String {
-            switch self {
-            case .hdmi1, .hdmi2: "cable.connector"
-            case .airplay: "airplayvideo"
-            case .artMode: "photo.artframe"
-            }
-        }
-    }
+    @State private var errorMessage: String?
+    @State private var isExecuting = false
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -58,35 +44,51 @@ struct FrameTVDetailView: View {
         ZStack {
             Theme.color.pageBackground.ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    DeviceDetailHeader(
-                        title: accessory?.name ?? "The Frame",
-                        subtitle: roomName,
-                        isOn: accessory?.isOn ?? false,
-                        onTogglePower: { _ in
-                            // Wire to .setPower when Frame TV provider lands.
-                        }
-                    )
-                    .padding(.top, 8)
+            if let accessory {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        DeviceDetailHeader(
+                            title: accessory.name,
+                            subtitle: roomName,
+                            isOn: accessory.isOn,
+                            onTogglePower: { on in
+                                Task { await send(.setPower(on)) }
+                            }
+                        )
+                        .padding(.top, 8)
 
-                    artPreviewCard
-                    artCaptionCard
-                    inputsCard
-                    quickButtonsCard
-                    slidersCard
-                    RemoveDeviceSection(accessoryID: accessoryID)
+                        if !accessory.isReachable {
+                            offlineBanner
+                        }
+
+                        if let error = errorMessage {
+                            errorBanner(error)
+                        }
+
+                        heroCard(for: accessory)
+                        statusRow(for: accessory)
+                        inputSourceCard(for: accessory)
+                        remoteButtonsCard(for: accessory)
+                        volumeCard(for: accessory)
+                        RemoveDeviceSection(accessoryID: accessoryID)
+                    }
+                    .padding(.horizontal, Theme.space.screenHorizontal)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, Theme.space.screenHorizontal)
-                .padding(.bottom, 24)
+            } else {
+                ContentUnavailableView(
+                    "TV unavailable",
+                    systemImage: "tv.slash",
+                    description: Text("This device is no longer reported by its provider.")
+                )
             }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    // MARK: - Art preview
+    // MARK: - Hero (art preview / now playing)
 
-    private var artPreviewCard: some View {
+    private func heroCard(for accessory: Accessory) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
                 .fill(
@@ -97,9 +99,7 @@ struct FrameTVDetailView: View {
                 )
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
 
-            // Starry-night-ish painterly mood: radial halo + swirl glyph
-            // keeps the hero feeling like a framed artwork rather than a
-            // TV signal test pattern.
+            // Starry-night gradient ambiance
             RadialGradient(
                 colors: [
                     Color(red: 0.22, green: 0.32, blue: 0.58).opacity(0.55),
@@ -110,116 +110,188 @@ struct FrameTVDetailView: View {
                 endRadius: 200
             )
 
-            VStack(spacing: 10) {
-                Image(systemName: "swirl.circle.fill")
-                    .font(.system(size: 56, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.96, green: 0.82, blue: 0.38),
-                                Color(red: 0.62, green: 0.72, blue: 0.98)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Text("Starry Night")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.82))
-                Text("Vincent van Gogh")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+            // Show now-playing info or art mode placeholder
+            if let np = accessory.nowPlaying, np.title != nil || np.artist != nil {
+                nowPlayingOverlay(np, accessory: accessory)
+            } else if isArtMode(accessory) {
+                artModeOverlay
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "tv")
+                        .font(.system(size: 40, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.4))
+                    if accessory.isOn == false {
+                        Text("TV Off")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                }
             }
         }
         .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 8)
     }
 
-    // MARK: - Art caption
+    private func nowPlayingOverlay(_ np: NowPlaying, accessory: Accessory) -> some View {
+        VStack(spacing: 8) {
+            // Cover art from HA entity_picture (if available via REST proxy)
+            if let url = np.coverArtURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.clear
+                }
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
 
-    /// Small subtitle row under the hero that mirrors the Pencil layout:
-    /// a status pill ("Art Mode · On") and the piece/artist label.
-    private var artCaptionCard: some View {
+            if let title = np.title {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            if let artist = np.artist {
+                Text(artist)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .padding()
+    }
+
+    private var artModeOverlay: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "photo.artframe")
+                .font(.system(size: 48, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.96, green: 0.82, blue: 0.38),
+                            Color(red: 0.62, green: 0.72, blue: 0.98)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Text("Art Mode")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.82))
+        }
+    }
+
+    // MARK: - Status row
+
+    private func statusRow(for accessory: Accessory) -> some View {
         HStack(spacing: 12) {
+            // Power status
             HStack(spacing: 6) {
                 Circle()
-                    .fill(Color.green)
+                    .fill(accessory.isOn == true ? Color.green : Color.gray)
                     .frame(width: 7, height: 7)
-                Text("Art Mode · On")
+                Text(statusText(for: accessory))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Theme.color.title)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(
-                Capsule().fill(Theme.color.iconChipFill)
-            )
+            .background(Capsule().fill(Theme.color.iconChipFill))
 
             Spacer(minLength: 8)
 
-            Text("Van Gogh — Starry Night")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Theme.color.subtitle)
-                .lineLimit(1)
+            // Current source
+            if let source = accessory.currentSource {
+                Text(source)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.color.subtitle)
+                    .lineLimit(1)
+            }
         }
         .hcCard()
     }
 
-    // MARK: - Inputs
+    private func statusText(for accessory: Accessory) -> String {
+        if isArtMode(accessory) { return "Art Mode · On" }
+        if accessory.isOn == true {
+            if let source = accessory.currentSource {
+                return source
+            }
+            return "On"
+        }
+        return "Off"
+    }
 
-    private var inputsCard: some View {
+    // MARK: - Input source selector
+
+    private func inputSourceCard(for accessory: Accessory) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Input Source")
                 .font(Theme.font.cardTitle)
                 .foregroundStyle(Theme.color.title)
 
-            // Horizontal scroll so the pill row never clips on small
-            // phones even if we add more inputs later.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Input.allCases, id: \.self) { input in
-                        inputChip(input)
+            if let sources = accessory.sourceList, !sources.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(sources, id: \.self) { source in
+                            sourceChip(source, isSelected: source == accessory.currentSource)
+                        }
                     }
                 }
+            } else {
+                Text("No sources available")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.color.muted)
             }
         }
         .hcCard()
     }
 
-    private func inputChip(_ input: Input) -> some View {
-        let selected = selectedInput == input
-        return Button {
-            selectedInput = input
+    private func sourceChip(_ source: String, isSelected: Bool) -> some View {
+        Button {
+            Task { await send(.selectSource(source)) }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: input.systemImage)
+                Image(systemName: sourceIcon(source))
                     .font(.system(size: 13, weight: .semibold))
-                Text(input.rawValue)
+                Text(source)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
             }
-            .foregroundStyle(selected ? .white : Theme.color.subtitle)
+            .foregroundStyle(isSelected ? .white : Theme.color.subtitle)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
             .background(
                 Capsule(style: .continuous)
-                    .fill(selected ? Theme.color.primary : Theme.color.iconChipFill)
+                    .fill(isSelected ? Theme.color.primary : Theme.color.iconChipFill)
             )
         }
         .buttonStyle(.plain)
+        .disabled(isExecuting || !(accessory?.isReachable ?? false))
     }
 
-    // MARK: - Quick buttons (power/vol-/vol+/mute)
+    // MARK: - Remote buttons
 
-    /// Pencil GrzJY shows a horizontal row of four circular remote-style
-    /// buttons. Re-implemented as round filled IconChips so it reads as a
-    /// hardware remote rather than four labeled tiles.
-    private var quickButtonsCard: some View {
+    private func remoteButtonsCard(for accessory: Accessory) -> some View {
         HStack(spacing: 16) {
             Spacer(minLength: 0)
-            circleButton(icon: "power", tint: Theme.color.primary)
-            circleButton(icon: "speaker.wave.1.fill")
-            circleButton(icon: "speaker.wave.3.fill")
-            circleButton(icon: "speaker.slash.fill")
+            circleButton(icon: "power", tint: Theme.color.primary) {
+                Task { await send(.setPower(!(accessory.isOn ?? false))) }
+            }
+            circleButton(icon: "speaker.wave.1.fill") {
+                Task {
+                    let current = accessory.volumePercent ?? 50
+                    await send(.setVolume(max(0, current - 10)))
+                }
+            }
+            circleButton(icon: "speaker.wave.3.fill") {
+                Task {
+                    let current = accessory.volumePercent ?? 50
+                    await send(.setVolume(min(100, current + 10)))
+                }
+            }
+            circleButton(icon: accessory.isMuted == true ? "speaker.slash.fill" : "speaker.fill") {
+                Task { await send(.setMute(!(accessory.isMuted ?? false))) }
+            }
             Spacer(minLength: 0)
         }
         .padding(.vertical, 14)
@@ -227,10 +299,12 @@ struct FrameTVDetailView: View {
         .hcCard(padding: 0)
     }
 
-    private func circleButton(icon: String, tint: Color? = nil) -> some View {
-        Button {
-            // Hook up to real commands when Frame TV provider lands.
-        } label: {
+    private func circleButton(
+        icon: String,
+        tint: Color? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             ZStack {
                 Circle()
                     .fill(tint ?? Theme.color.iconChipFill)
@@ -241,36 +315,108 @@ struct FrameTVDetailView: View {
             }
         }
         .buttonStyle(.plain)
+        .disabled(isExecuting || !(accessory?.isReachable ?? false))
     }
 
-    // MARK: - Sliders
+    // MARK: - Volume card
 
-    private var slidersCard: some View {
+    private func volumeCard(for accessory: Accessory) -> some View {
         VStack(spacing: 14) {
-            sliderRow(icon: "sun.max.fill",
-                      label: "Brightness",
-                      value: $brightness)
-            sliderRow(icon: "paintpalette.fill",
-                      label: "Color Tone",
-                      value: $colorTone)
+            if let vol = accessory.volumePercent {
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.color.primary)
+                    Text("Volume")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.color.title)
+                    Spacer()
+                    Text("\(vol)%")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.color.subtitle)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Volume, \(vol) percent")
+            }
         }
         .hcCard()
     }
 
-    private func sliderRow(
-        icon: String,
-        label: String,
-        value: Binding<Double>
-    ) -> some View {
-        HStack(spacing: 12) {
-            IconChip(systemName: icon, size: 32)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(label)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.color.title)
-                Slider(value: value, in: 0...1)
-                    .tint(Theme.color.primary)
+    // MARK: - Offline / error banners
+
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 14, weight: .semibold))
+            Text("TV offline — controls disabled")
+                .font(.system(size: 13, weight: .medium))
+        }
+        .foregroundStyle(.orange)
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
+                .fill(Color.orange.opacity(0.1))
+        )
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.color.title)
+            Spacer()
+            Button { errorMessage = nil } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(Theme.color.muted)
             }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
+                .fill(Color.red.opacity(0.08))
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func isArtMode(_ accessory: Accessory) -> Bool {
+        guard let source = accessory.currentSource else { return false }
+        let lower = source.lowercased()
+        return lower.contains("art") || lower.contains("ambient")
+    }
+
+    private func sourceIcon(_ source: String) -> String {
+        let lower = source.lowercased()
+        if lower.contains("hdmi") { return "cable.connector" }
+        if lower.contains("airplay") { return "airplayvideo" }
+        if lower.contains("art") || lower.contains("ambient") { return "photo.artframe" }
+        if lower.contains("tv") || lower.contains("dtv") { return "antenna.radiowaves.left.and.right" }
+        if lower.contains("usb") { return "externaldrive.fill" }
+        if lower.contains("bluetooth") { return "wave.3.right" }
+        if lower.contains("wifi") || lower.contains("screen mirror") { return "wifi" }
+        return "rectangle.on.rectangle"
+    }
+
+    // MARK: - Command dispatch
+
+    private func send(_ command: AccessoryCommand) async {
+        isExecuting = true
+        defer { isExecuting = false }
+        do {
+            if let merged = mergedLookup.merged(for: accessoryID) {
+                let preferred = ProviderID(rawValue: preferredProviderRaw) ?? .homeKit
+                try await registry.execute(command, onMerged: merged, preferredProvider: preferred)
+            } else {
+                try await registry.execute(command, on: accessoryID)
+            }
+            errorMessage = nil
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
         }
     }
 }

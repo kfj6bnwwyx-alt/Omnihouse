@@ -21,6 +21,7 @@ enum ProviderID: String, Hashable, Sendable, CaseIterable, Codable {
     case smartThings
     case sonos
     case nest
+    case homeAssistant
 
     /// User-facing brand label. Kept on the enum (not in a random view
     /// file) so every screen pulls the same string.
@@ -30,6 +31,7 @@ enum ProviderID: String, Hashable, Sendable, CaseIterable, Codable {
         case .smartThings: "SmartThings"
         case .sonos: "Sonos"
         case .nest: "Nest"
+        case .homeAssistant: "Home Assistant"
         }
     }
 }
@@ -224,6 +226,18 @@ extension Accessory {
 
     var humidityPercent: Int? {
         if case .humidity(let p) = capability(of: .humidity) { return p }
+        return nil
+    }
+
+    // MARK: - Source / input helpers (TV, media player)
+
+    var currentSource: String? {
+        if case .currentSource(let s) = capability(of: .currentSource) { return s }
+        return nil
+    }
+
+    var sourceList: [String]? {
+        if case .sourceList(let list) = capability(of: .sourceList) { return list }
         return nil
     }
 }
