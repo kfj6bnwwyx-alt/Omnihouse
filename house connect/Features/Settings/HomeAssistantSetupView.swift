@@ -2,10 +2,10 @@
 //  HomeAssistantSetupView.swift
 //  house connect
 //
-//  Setup sheet for connecting to a Home Assistant instance. Two paths:
-//  1. Auto-discover HA on the local network via Bonjour
-//  2. Manual URL entry
-//  Then enter a long-lived access token (created in HA user profile).
+//  Setup sheet for connecting to a Home Assistant instance.
+//  Auto-discovers HA on the local network and defaults to the first
+//  found instance. A segmented control lets the user switch between
+//  discovered and manual URL entry.
 //
 
 import SwiftUI
@@ -15,21 +15,35 @@ struct HomeAssistantSetupView: View {
     @Environment(ProviderRegistry.self) private var registry
 
     @State private var discovery = HomeAssistantDiscovery()
-    @State private var selectedURL: String = ""
     @State private var token: String = ""
     @State private var manualURL: String = ""
     @State private var isConnecting: Bool = false
     @State private var error: String?
-    @State private var showManualEntry: Bool = false
+    @State private var connectionMode: ConnectionMode = .discovered
+
+    enum ConnectionMode: String, CaseIterable {
+        case discovered = "Discovered"
+        case manual = "Manual URL"
+    }
+
+    /// The effective URL based on the current mode.
+    private var effectiveURL: String {
+        switch connectionMode {
+        case .discovered:
+            return discovery.instances.first?.url.absoluteString ?? ""
+        case .manual:
+            return manualURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                discoverySection
+                serverSection
                 tokenSection
-                connectButton
+                connectSection
             }
-            .navigationTitle("Connect to Home Assistant")
+            .navigationTitle("Home Assistant")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -45,132 +59,118 @@ struct HomeAssistantSetupView: View {
         }
     }
 
-    // MARK: - Discovery
+    // MARK: - Server Section
 
-    @ViewBuilder
-    private var discoverySection: some View {
+    private var serverSection: some View {
         Section {
-            if discovery.isSearching && discovery.instances.isEmpty {
-                HStack {
-                    ProgressView()
-                    Text("Scanning your network…")
-                        .foregroundStyle(.secondary)
+            // Segmented control: Discovered vs Manual
+            Picker("Connection", selection: $connectionMode) {
+                ForEach(ConnectionMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
                 }
             }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
 
-            ForEach(discovery.instances) { instance in
-                // Use an HStack with onTapGesture instead of Button —
-                // Button inside Form sometimes triggers navigation or
-                // sheet dismissal depending on the Form's context.
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(instance.name)
-                            .fontWeight(.medium)
-                        Text("\(instance.url.absoluteString) — v\(instance.version)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if selectedURL == instance.url.absoluteString {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Image(systemName: "circle")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedURL = instance.url.absoluteString
-                    showManualEntry = false
-                }
-                .accessibilityLabel("\(instance.name), version \(instance.version)")
-                .accessibilityAddTraits(selectedURL == instance.url.absoluteString ? .isSelected : [])
-                .accessibilityHint("Double tap to select this server")
-            }
-
-            if !discovery.isSearching && discovery.instances.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("No instances found")
-                        .foregroundStyle(.secondary)
-                    Text("Make sure Home Assistant is running and your iPhone is on the same Wi-Fi network.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Manual URL toggle
-            HStack {
-                Label(
-                    showManualEntry ? "Use discovered instance" : "Enter URL manually",
-                    systemImage: showManualEntry ? "antenna.radiowaves.left.and.right" : "keyboard"
-                )
-                .foregroundStyle(Theme.color.primary)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation {
-                    showManualEntry.toggle()
-                    if showManualEntry {
-                        selectedURL = ""
-                        // Pre-fill with discovered URL if available
-                        if let first = discovery.instances.first {
-                            manualURL = first.url.absoluteString
-                            selectedURL = manualURL
-                        }
-                    }
-                }
-            }
-
-            if showManualEntry {
-                TextField("http://192.168.1.100:8123", text: $manualURL)
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .onChange(of: manualURL) { _, newValue in
-                        selectedURL = newValue
-                    }
-            }
-
-            // Show selected URL clearly
-            if !selectedURL.isEmpty {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Selected: \(selectedURL)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            switch connectionMode {
+            case .discovered:
+                discoveredContent
+            case .manual:
+                manualContent
             }
         } header: {
-            Text("Home Assistant Server")
-        } footer: {
-            Text(selectedURL.isEmpty
-                 ? "Select a discovered instance or enter the URL manually."
-                 : "Now enter your long-lived access token below, then tap Connect.")
+            Text("Server")
         }
     }
 
-    // MARK: - Token
+    // MARK: - Discovered mode
+
+    @ViewBuilder
+    private var discoveredContent: some View {
+        if discovery.isSearching && discovery.instances.isEmpty {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Scanning your network…")
+                    .foregroundStyle(.secondary)
+            }
+        } else if let instance = discovery.instances.first {
+            // Auto-selected — show the found instance with a green badge
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(instance.name)
+                            .fontWeight(.semibold)
+                    }
+                    Text(instance.url.absoluteString)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Version \(instance.version)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(instance.name) found at \(instance.url.absoluteString)")
+
+            // If multiple found, show count
+            if discovery.instances.count > 1 {
+                Text("\(discovery.instances.count) instances found — using first")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("No instances found")
+                    .fontWeight(.medium)
+                Text("Make sure Home Assistant is running and your phone is on the same Wi-Fi.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                discovery.startScan()
+            } label: {
+                Label("Scan Again", systemImage: "arrow.clockwise")
+            }
+        }
+    }
+
+    // MARK: - Manual mode
+
+    private var manualContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField("http://192.168.1.100:8123", text: $manualURL)
+                .keyboardType(.URL)
+                .textContentType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel("Home Assistant server URL")
+        }
+    }
+
+    // MARK: - Token Section
 
     private var tokenSection: some View {
         Section {
-            SecureField("Long-lived access token", text: $token)
+            SecureField("Paste your long-lived access token", text: $token)
                 .textContentType(.password)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .accessibilityLabel("Long-lived access token")
         } header: {
             Text("Access Token")
         } footer: {
-            Text("Create a long-lived access token in Home Assistant: Profile → Security → Long-Lived Access Tokens → Create Token.")
+            Text("In Home Assistant: Profile → Security → Long-Lived Access Tokens → Create Token. Copy the full token and paste here.")
         }
     }
 
-    // MARK: - Connect
+    // MARK: - Connect Section
 
-    @ViewBuilder
-    private var connectButton: some View {
+    private var connectSection: some View {
         Section {
             Button {
                 Task { await connect() }
@@ -179,6 +179,7 @@ struct HomeAssistantSetupView: View {
                     Spacer()
                     if isConnecting {
                         ProgressView()
+                            .padding(.trailing, 4)
                         Text("Connecting…")
                     } else {
                         Text("Connect")
@@ -187,50 +188,61 @@ struct HomeAssistantSetupView: View {
                     Spacer()
                 }
             }
-            .disabled(selectedURL.isEmpty || token.isEmpty || isConnecting)
+            .disabled(effectiveURL.isEmpty || token.isEmpty || isConnecting)
 
             if let error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+                Label {
+                    Text(error)
+                        .font(.caption)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+                .foregroundStyle(.red)
             }
         }
     }
+
+    // MARK: - Connect logic
 
     private func connect() async {
         isConnecting = true
         error = nil
 
         // Normalize URL
-        var urlString = selectedURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        var urlString = effectiveURL
         if !urlString.hasPrefix("http") {
             urlString = "http://\(urlString)"
         }
-        // Remove trailing slash
         if urlString.hasSuffix("/") {
             urlString = String(urlString.dropLast())
         }
 
         guard let url = URL(string: urlString) else {
-            error = "Invalid URL."
+            error = "Invalid URL: \(urlString)"
             isConnecting = false
             return
         }
 
-        // Test the connection
+        // Step 1: Check basic reachability
         let testClient = HomeAssistantRESTClient(baseURL: url, token: token)
         let reachable = await testClient.checkConnection()
 
         guard reachable else {
-            error = "Can't reach Home Assistant at \(urlString). Check the URL and make sure you're on the same network."
+            // Try to give a more helpful error
+            error = "Can't reach Home Assistant at \(urlString). "
+                + "Check: (1) your phone is on the same Wi-Fi, "
+                + "(2) HA is running, "
+                + "(3) the URL is correct."
             isConnecting = false
             return
         }
 
-        // Verify the token works by fetching config
+        // Step 2: Verify token by fetching config
         do {
-            _ = try await testClient.getConfig()
-            // Token works — save credentials
+            let config = try await testClient.getConfig()
+
+            // Save credentials to Keychain
             let tokenStore = KeychainTokenStore()
             try tokenStore.set(token, for: .homeAssistantToken)
             try tokenStore.set(urlString, for: .homeAssistantURL)
@@ -242,7 +254,9 @@ struct HomeAssistantSetupView: View {
 
             dismiss()
         } catch {
-            self.error = "Connected to server but token was rejected. Make sure you copied the full token."
+            self.error = "Server reached but authentication failed. "
+                + "Make sure you copied the FULL token (it's very long). "
+                + "Error: \(error.localizedDescription)"
             isConnecting = false
         }
     }

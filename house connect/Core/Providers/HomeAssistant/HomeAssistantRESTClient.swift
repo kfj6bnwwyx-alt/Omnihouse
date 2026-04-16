@@ -23,10 +23,21 @@ final class HomeAssistantRESTClient: Sendable {
 
     // MARK: - Health / Config
 
-    /// Quick connectivity check. Returns true if the server responds.
+    /// Quick connectivity check. Returns true if the server responds
+    /// with a 2xx status. Accepts 401 as "reachable but needs auth" —
+    /// the token check happens in getConfig().
     func checkConnection() async -> Bool {
-        guard let (_, response) = try? await request(path: "/api/") else { return false }
-        return (response as? HTTPURLResponse)?.statusCode == 200
+        do {
+            let (_, response) = try await request(path: "/api/")
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            // 200 = OK, 401 = reachable but token will be verified next
+            return (200..<500).contains(status)
+        } catch {
+            #if DEBUG
+            print("[ha.rest] checkConnection failed: \(error.localizedDescription)")
+            #endif
+            return false
+        }
     }
 
     /// Fetch HA config (location name, version, unit system, etc.).
