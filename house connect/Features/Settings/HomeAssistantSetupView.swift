@@ -16,7 +16,8 @@ struct HomeAssistantSetupView: View {
 
     @State private var discovery = HomeAssistantDiscovery()
     @State private var token: String = ""
-    @State private var manualURL: String = ""
+    /// Pre-filled with the known HA address. The user can edit it.
+    @State private var manualURL: String = "http://192.168.4.23:8123"
     @State private var isConnecting: Bool = false
     @State private var error: String?
     @State private var connectionMode: ConnectionMode = .discovered
@@ -52,6 +53,18 @@ struct HomeAssistantSetupView: View {
             }
             .onAppear {
                 discovery.startScan()
+                // Pre-fill manual URL from Keychain if available
+                if manualURL.isEmpty || manualURL == "http://192.168.4.23:8123" {
+                    if let savedURL = KeychainTokenStore().token(for: .homeAssistantURL),
+                       !savedURL.isEmpty {
+                        manualURL = savedURL
+                    }
+                }
+                // Default to manual mode since discovery is unreliable
+                // on some networks
+                if discovery.instances.isEmpty {
+                    connectionMode = .manual
+                }
             }
             .onDisappear {
                 discovery.stopScan()
