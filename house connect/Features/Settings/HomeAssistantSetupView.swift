@@ -59,28 +59,34 @@ struct HomeAssistantSetupView: View {
             }
 
             ForEach(discovery.instances) { instance in
-                Button {
-                    selectedURL = instance.url.absoluteString
-                    showManualEntry = false
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(instance.name)
-                                .fontWeight(.medium)
-                            Text("\(instance.url.absoluteString) — v\(instance.version)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if selectedURL == instance.url.absoluteString {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        }
+                // Use an HStack with onTapGesture instead of Button —
+                // Button inside Form sometimes triggers navigation or
+                // sheet dismissal depending on the Form's context.
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(instance.name)
+                            .fontWeight(.medium)
+                        Text("\(instance.url.absoluteString) — v\(instance.version)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if selectedURL == instance.url.absoluteString {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Image(systemName: "circle")
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .tint(.primary)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedURL = instance.url.absoluteString
+                    showManualEntry = false
+                }
                 .accessibilityLabel("\(instance.name), version \(instance.version)")
                 .accessibilityAddTraits(selectedURL == instance.url.absoluteString ? .isSelected : [])
+                .accessibilityHint("Double tap to select this server")
             }
 
             if !discovery.isSearching && discovery.instances.isEmpty {
@@ -93,14 +99,27 @@ struct HomeAssistantSetupView: View {
                 }
             }
 
-            Button {
-                showManualEntry.toggle()
-                if showManualEntry { selectedURL = "" }
-            } label: {
+            // Manual URL toggle
+            HStack {
                 Label(
                     showManualEntry ? "Use discovered instance" : "Enter URL manually",
                     systemImage: showManualEntry ? "antenna.radiowaves.left.and.right" : "keyboard"
                 )
+                .foregroundStyle(Theme.color.primary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation {
+                    showManualEntry.toggle()
+                    if showManualEntry {
+                        selectedURL = ""
+                        // Pre-fill with discovered URL if available
+                        if let first = discovery.instances.first {
+                            manualURL = first.url.absoluteString
+                            selectedURL = manualURL
+                        }
+                    }
+                }
             }
 
             if showManualEntry {
@@ -113,10 +132,23 @@ struct HomeAssistantSetupView: View {
                         selectedURL = newValue
                     }
             }
+
+            // Show selected URL clearly
+            if !selectedURL.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Selected: \(selectedURL)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         } header: {
             Text("Home Assistant Server")
         } footer: {
-            Text("Select a discovered instance or enter the URL manually.")
+            Text(selectedURL.isEmpty
+                 ? "Select a discovered instance or enter the URL manually."
+                 : "Now enter your long-lived access token below, then tap Connect.")
         }
     }
 
