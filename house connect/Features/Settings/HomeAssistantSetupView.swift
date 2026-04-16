@@ -82,6 +82,12 @@ struct HomeAssistantSetupView: View {
         } header: {
             Text("Server")
         }
+        .onChange(of: connectionMode) { _, mode in
+            if mode == .manual, manualURL.isEmpty,
+               let first = discovery.instances.first {
+                manualURL = first.url.absoluteString
+            }
+        }
     }
 
     // MARK: - Discovered mode
@@ -200,6 +206,22 @@ struct HomeAssistantSetupView: View {
                 }
                 .foregroundStyle(.red)
             }
+
+            // Debug info — shows why Connect may be disabled
+            #if DEBUG
+            VStack(alignment: .leading, spacing: 2) {
+                Text("URL: \(effectiveURL.isEmpty ? "(empty)" : effectiveURL)")
+                    .font(.caption2)
+                Text("Token: \(token.isEmpty ? "(empty)" : "\(token.prefix(8))…")")
+                    .font(.caption2)
+                Text("Mode: \(connectionMode.rawValue)")
+                    .font(.caption2)
+                Text("Button enabled: \(!effectiveURL.isEmpty && !token.isEmpty ? "YES" : "NO")")
+                    .font(.caption2)
+                    .foregroundStyle(!effectiveURL.isEmpty && !token.isEmpty ? .green : .red)
+            }
+            .foregroundStyle(.secondary)
+            #endif
         }
     }
 
