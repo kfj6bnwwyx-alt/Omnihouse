@@ -69,7 +69,7 @@ struct FrameTVDetailView: View {
                         statusRow(for: accessory)
                         inputSourceCard(for: accessory)
                         remoteButtonsCard(for: accessory)
-                        volumeCard(for: accessory)
+                        slidersCard(for: accessory)
                         RemoveDeviceSection(accessoryID: accessoryID)
                     }
                     .padding(.horizontal, Theme.space.screenHorizontal)
@@ -318,11 +318,49 @@ struct FrameTVDetailView: View {
         .disabled(isExecuting || !(accessory?.isReachable ?? false))
     }
 
-    // MARK: - Volume card
+    // MARK: - Sliders (Pencil GrzJY — brightness + color tone)
 
-    private func volumeCard(for accessory: Accessory) -> some View {
+    @State private var brightness: Double = 0.5
+    @State private var colorTone: Double = 0.5
+
+    private func slidersCard(for accessory: Accessory) -> some View {
         VStack(spacing: 14) {
+            // Brightness slider
+            HStack(spacing: 12) {
+                Image(systemName: "sun.max.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Theme.color.iconChipGlyph)
+                Text("Brightness")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.color.title)
+            }
+            Slider(value: $brightness, in: 0...1)
+                .tint(Theme.color.primary)
+                .disabled(isExecuting || !(accessory.isReachable))
+                .accessibilityLabel("Brightness")
+                .accessibilityValue("\(Int(brightness * 100))%")
+                .onChange(of: brightness) { _, newValue in
+                    Task { await send(.setBrightness(newValue)) }
+                }
+
+            // Color Tone slider
+            HStack(spacing: 12) {
+                Image(systemName: "paintpalette.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Theme.color.iconChipGlyph)
+                Text("Color Tone")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.color.title)
+            }
+            Slider(value: $colorTone, in: 0...1)
+                .tint(Theme.color.primary)
+                .disabled(isExecuting || !(accessory.isReachable))
+                .accessibilityLabel("Color Tone")
+                .accessibilityValue("\(Int(colorTone * 100))%")
+
+            // Volume
             if let vol = accessory.volumePercent {
+                Divider()
                 HStack(spacing: 12) {
                     Image(systemName: "speaker.wave.2.fill")
                         .font(.system(size: 16))
