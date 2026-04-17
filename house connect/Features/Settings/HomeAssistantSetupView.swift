@@ -18,6 +18,7 @@ struct HomeAssistantSetupView: View {
     @State private var token: String = ""
     /// Pre-filled with the known HA address. The user can edit it.
     @State private var manualURL: String = "http://192.168.4.23:8123"
+    @State private var remoteURL: String = "http://100.67.208.9:8123"
     @State private var isConnecting: Bool = false
     @State private var error: String?
     @State private var connectionMode: ConnectionMode = .discovered
@@ -41,6 +42,7 @@ struct HomeAssistantSetupView: View {
         NavigationStack {
             Form {
                 serverSection
+                remoteSection
                 tokenSection
                 connectSection
             }
@@ -53,15 +55,15 @@ struct HomeAssistantSetupView: View {
             }
             .onAppear {
                 discovery.startScan()
-                // Pre-fill manual URL from Keychain if available
-                if manualURL.isEmpty || manualURL == "http://192.168.4.23:8123" {
-                    if let savedURL = KeychainTokenStore().token(for: .homeAssistantURL),
-                       !savedURL.isEmpty {
-                        manualURL = savedURL
-                    }
+                let store = KeychainTokenStore()
+                // Pre-fill URLs from Keychain if available
+                if let savedURL = store.token(for: .homeAssistantURL), !savedURL.isEmpty {
+                    manualURL = savedURL
+                }
+                if let savedRemote = store.token(for: .homeAssistantRemoteURL), !savedRemote.isEmpty {
+                    remoteURL = savedRemote
                 }
                 // Default to manual mode since discovery is unreliable
-                // on some networks
                 if discovery.instances.isEmpty {
                     connectionMode = .manual
                 }
@@ -171,6 +173,23 @@ struct HomeAssistantSetupView: View {
         }
     }
 
+    // MARK: - Remote URL (Tailscale)
+
+    private var remoteSection: some View {
+        Section {
+            TextField("http://100.x.x.x:8123", text: $remoteURL)
+                .keyboardType(.URL)
+                .textContentType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel("Remote URL (Tailscale)")
+        } header: {
+            Text("Remote Access (Optional)")
+        } footer: {
+            Text("Tailscale or external URL for when you're away from home. The app tries the local URL first, then falls back to this one.")
+        }
+    }
+
     // MARK: - Token Section
 
     private var tokenSection: some View {
@@ -267,7 +286,16 @@ struct HomeAssistantSetupView: View {
             try tokenStore.set(token, for: .homeAssistantToken)
             try tokenStore.set(urlString, for: .homeAssistantURL)
 
-            // Start the provider
+            // Save remote/Tailscale URL if provided
+            let trimmedRemote = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedRemote.isEmpty {
+                var remote = trimmedRemote
+                if !remote.hasPrefix("http") { remote = "http://\(remote)" }
+                if remote.hasSuffix("/") { remote = String(remote.dropLast()) }
+                try tokenStore.set(remote, for: .homeAssistantRemoteURL)
+            }
+
+            // Start the provider — it will try local first, then remote
             if let provider = registry.provider(for: .homeAssistant) as? HomeAssistantProvider {
                 await provider.start()
             }

@@ -43,9 +43,12 @@ final class KeychainTokenStore {
         /// Home Assistant long-lived access token. Created in HA's user
         /// profile page. Valid for 10 years.
         case homeAssistantToken
-        /// Home Assistant server URL (e.g. "http://192.168.4.23:8123").
-        /// Not a secret, but stored alongside tokens for convenience.
+        /// Home Assistant local server URL (e.g. "http://192.168.4.23:8123").
+        /// Used when on the same Wi-Fi network — fastest path.
         case homeAssistantURL
+        /// Home Assistant remote/Tailscale URL (e.g. "http://100.67.208.9:8123").
+        /// Fallback when local URL is unreachable (away from home).
+        case homeAssistantRemoteURL
     }
 
     private let keychain: Keychain

@@ -89,23 +89,55 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     // MARK: - AccessoryProvider
 
     func start() async {
-        guard let token = tokenStore.token(for: .homeAssistantToken),
-              let urlString = tokenStore.token(for: .homeAssistantURL),
-              let baseURL = URL(string: urlString) else {
+        guard let token = tokenStore.token(for: .homeAssistantToken) else {
             authorizationState = .notDetermined
+            return
+        }
+
+        // Collect candidate URLs: local first (fastest), remote/Tailscale as fallback.
+        var candidates: [(label: String, url: URL)] = []
+        if let local = tokenStore.token(for: .homeAssistantURL),
+           let url = URL(string: local) {
+            candidates.append(("local", url))
+        }
+        if let remote = tokenStore.token(for: .homeAssistantRemoteURL),
+           let url = URL(string: remote) {
+            candidates.append(("remote", url))
+        }
+
+        guard !candidates.isEmpty else {
+            authorizationState = .notDetermined
+            lastError = "No Home Assistant URL configured"
+            return
+        }
+
+        // Try each URL in order — first reachable one wins.
+        var connectedURL: URL?
+        for (label, url) in candidates {
+            let testClient = HomeAssistantRESTClient(baseURL: url, token: token)
+            let reachable = await testClient.checkConnection()
+            if reachable {
+                #if DEBUG
+                print("[ha.provider] connected via \(label): \(url)")
+                #endif
+                connectedURL = url
+                break
+            } else {
+                #if DEBUG
+                print("[ha.provider] \(label) unreachable: \(url)")
+                #endif
+            }
+        }
+
+        guard let baseURL = connectedURL else {
+            let urls = candidates.map(\.url.absoluteString).joined(separator: ", ")
+            authorizationState = .unavailable(reason: "Can't reach Home Assistant")
+            lastError = "Tried \(urls) — all unreachable. Check your network."
             return
         }
 
         let rest = HomeAssistantRESTClient(baseURL: baseURL, token: token)
         restClient = rest
-
-        // Quick connectivity check
-        let reachable = await rest.checkConnection()
-        guard reachable else {
-            authorizationState = .unavailable(reason: "Can't reach Home Assistant at \(urlString)")
-            lastError = "Can't reach Home Assistant at \(urlString)"
-            return
-        }
 
         // Fetch config for the home name
         if let config = try? await rest.getConfig() {
