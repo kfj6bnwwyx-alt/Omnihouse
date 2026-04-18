@@ -35,6 +35,12 @@ struct T3SettingsTabView: View {
                 settingsRow(icon: "square.grid.2x2", title: "Rooms", sub: "\(registry.allRooms.count) rooms", destination: .rooms)
                 settingsRow(icon: "sparkles", title: "Scenes", sub: "Cross-ecosystem presets", destination: .scenes)
                 settingsRow(icon: "gearshape.2", title: "Automations", sub: "Home Assistant automations", destination: .automations)
+                // TODO(wave-D): audioZones SettingsDestination currently
+                // routes to legacy `AudioZonesMapView` in `T3RootView.swift`.
+                // A T3 port exists at `T3AudioZonesMapView` (which pushes
+                // `T3MultiRoomNowPlayingView`) — swap the case in T3RootView
+                // once routing ownership consolidates. Parallel agent owns
+                // that file; not touched here to avoid conflict.
                 settingsRow(icon: "music.note", title: "Audio Zones", sub: "Multi-room audio", destination: .audioZones)
 
                 // Network
