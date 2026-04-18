@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct T3ThermostatView: View {
     let accessoryID: AccessoryID
@@ -17,6 +20,8 @@ struct T3ThermostatView: View {
 
     @State private var targetDraft: Int?
     @State private var selectedMode: HVACMode = .heat
+    @State private var repeatTimer: Timer?
+    @State private var didRepeat: Bool = false
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -82,9 +87,7 @@ struct T3ThermostatView: View {
 
                             HStack(spacing: 10) {
                                 // Minus button — outlined circle
-                                Button {
-                                    adjustTarget(by: -1)
-                                } label: {
+                                adjustButton(delta: -1) {
                                     Circle()
                                         .stroke(T3.rule, lineWidth: 1)
                                         .fill(T3.panel)
@@ -95,12 +98,9 @@ struct T3ThermostatView: View {
                                                 .foregroundStyle(T3.ink)
                                         )
                                 }
-                                .buttonStyle(.plain)
 
                                 // Plus button — orange filled circle
-                                Button {
-                                    adjustTarget(by: 1)
-                                } label: {
+                                adjustButton(delta: 1) {
                                     Circle()
                                         .fill(T3.accent)
                                         .frame(width: 52, height: 52)
@@ -110,7 +110,6 @@ struct T3ThermostatView: View {
                                                 .foregroundStyle(T3.page)
                                         )
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.top, 8)
@@ -302,6 +301,63 @@ struct T3ThermostatView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Adjust Button (tap or long-press repeat)
+
+    @ViewBuilder
+    private func adjustButton<Label: View>(delta: Int, @ViewBuilder label: () -> Label) -> some View {
+        let view = label()
+        view
+            .contentShape(Circle())
+            .onTapGesture {
+                // Only fire single-tap if a repeat didn't already occur
+                guard !didRepeat else {
+                    didRepeat = false
+                    return
+                }
+                #if canImport(UIKit)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
+                adjustTarget(by: delta)
+            }
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        beginRepeat(delta: delta)
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { _ in
+                        endRepeatIfActive()
+                    }
+            )
+    }
+
+    private func beginRepeat(delta: Int) {
+        didRepeat = true
+        repeatTimer?.invalidate()
+        // Fire first tick immediately
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+        adjustTarget(by: delta)
+        repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { _ in
+            #if canImport(UIKit)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            #endif
+            adjustTarget(by: delta)
+        }
+    }
+
+    private func endRepeatIfActive() {
+        guard repeatTimer != nil else { return }
+        repeatTimer?.invalidate()
+        repeatTimer = nil
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
     }
 
     // MARK: - Actions
