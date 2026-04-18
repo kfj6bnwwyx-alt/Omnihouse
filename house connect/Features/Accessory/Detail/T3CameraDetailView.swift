@@ -81,7 +81,7 @@ struct T3CameraDetailView: View {
             Spacer()
             HStack(spacing: 8) {
                 Rectangle()
-                    .fill(Color(red: 0.88, green: 0.20, blue: 0.18))
+                    .fill(T3.danger)
                     .frame(width: 6, height: 6)
                 TLabel(text: "REC  ·  \(clockString)")
             }
@@ -129,7 +129,7 @@ struct T3CameraDetailView: View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 // Dark feed background
-                Rectangle().fill(Color(red: 0.09, green: 0.09, blue: 0.08))
+                Rectangle().fill(T3.ink)
 
                 // Corner brackets
                 bracket(at: .topLeading, width: geo.size.width)
@@ -257,18 +257,19 @@ struct T3CameraDetailView: View {
     private var controlsSection: some View {
         VStack(spacing: 0) {
             HStack {
-                controlButton(label: "SNAP", filled: false) {
+                controlButton(label: "SNAP", filled: false, a11y: "Take snapshot") {
                     cameraController.takeSnapshot()
                 }
                 Spacer()
-                controlButton(label: "TALK", filled: isTalking) {
+                controlButton(label: "TALK", filled: isTalking, a11y: "Push to talk") {
                     cameraController.toggleMicrophone()
                     isTalking.toggle()
                 }
                 Spacer()
-                controlButton(label: "SIREN", filled: false) { }
+                controlButton(label: "SIREN", filled: false, a11y: "Activate siren") { }
                 Spacer()
-                controlButton(label: isArmed ? "ARMED" : "ARM", filled: isArmed) {
+                controlButton(label: isArmed ? "ARMED" : "ARM", filled: isArmed,
+                              a11y: isArmed ? "Disarm camera" : "Arm camera") {
                     isArmed.toggle()
                 }
             }
@@ -279,20 +280,25 @@ struct T3CameraDetailView: View {
         }
     }
 
-    private func controlButton(label: String, filled: Bool, action: @escaping () -> Void) -> some View {
+    private func controlButton(label: String, filled: Bool, a11y: String,
+                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Circle()
                     .fill(filled ? T3.ink : T3.page)
                     .overlay(Circle().stroke(T3.ink, lineWidth: 1))
-                    .frame(width: 42, height: 42)
+                    .frame(width: 44, height: 44)
                 Text(label)
                     .font(T3.mono(9))
                     .tracking(1.4)
                     .foregroundStyle(T3.ink)
             }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(a11y)
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Recent clips
@@ -319,7 +325,7 @@ struct T3CameraDetailView: View {
     private func clipRow(title: String, meta: String, badge: String) -> some View {
         HStack(spacing: 14) {
             Rectangle()
-                .fill(Color(red: 0.09, green: 0.09, blue: 0.08))
+                .fill(T3.ink)
                 .frame(width: 56, height: 38)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
