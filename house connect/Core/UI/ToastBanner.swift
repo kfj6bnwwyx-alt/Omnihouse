@@ -82,10 +82,10 @@ private struct ToastBannerView: View {
         HStack(spacing: 10) {
             T3IconImage(systemName: toast.glyph)
                 .frame(width: 16, height: 16)
-                .foregroundStyle(.white)
+                .foregroundStyle(T3.panel)
             Text(toast.message)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(T3.panel)
                 .lineLimit(2)
             Spacer()
         }
