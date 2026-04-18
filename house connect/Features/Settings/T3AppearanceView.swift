@@ -1,15 +1,20 @@
 //
-//  AppearanceView.swift
+//  T3AppearanceView.swift
 //  house connect
 //
-//  Settings → Preferences → Appearance. T3/Swiss rewrite 2026-04-18.
-//  Three radio groups (theme / units / density), all @AppStorage-backed,
-//  same keys as before so the preferences persist across the migration.
+//  Settings → Preferences → Appearance. T3 rename 2026-04-18 with a11y
+//  polish (.isSelected traits on the active radio, Dynamic Type clamp)
+//  and the shared TToggle for the compact-layout switch.
+//
+//  @AppStorage keys preserved verbatim:
+//    - appearance.colorScheme
+//    - appearance.tempUnit
+//    - appearance.compactDashboard
 //
 
 import SwiftUI
 
-struct AppearanceView: View {
+struct T3AppearanceView: View {
     @AppStorage("appearance.colorScheme") private var colorSchemeRaw: String = "system"
     @AppStorage("appearance.tempUnit") private var tempUnitRaw: String = "celsius"
     @AppStorage("appearance.compactDashboard") private var compactDashboard = false
@@ -36,15 +41,16 @@ struct AppearanceView: View {
                          isOn: tempUnitRaw == "fahrenheit", isLast: true) { tempUnitRaw = "fahrenheit" }
 
                 // Density
-                TSectionHead(title: "Dashboard", count: "")
-                densityToggle(title: "Compact layout",
-                              sub: "TIGHTER SPACING · MORE ON SCREEN",
-                              isOn: $compactDashboard, isLast: true)
+                TSectionHead(title: "Dashboard", count: nil)
+                densityToggleRow(title: "Compact layout",
+                                 sub: "TIGHTER SPACING · MORE ON SCREEN",
+                                 isOn: $compactDashboard, isLast: true)
 
                 Spacer(minLength: 120)
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     private func radioRow(title: String, sub: String, isOn: Bool,
@@ -78,10 +84,12 @@ struct AppearanceView: View {
         .buttonStyle(.plain)
         .overlay(alignment: .top) { TRule() }
         .overlay(alignment: .bottom) { if isLast { TRule() } }
+        .accessibilityLabel("\(title). \(sub)")
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
     }
 
-    private func densityToggle(title: String, sub: String, isOn: Binding<Bool>,
-                               isLast: Bool = false) -> some View {
+    private func densityToggleRow(title: String, sub: String,
+                                  isOn: Binding<Bool>, isLast: Bool = false) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -90,9 +98,7 @@ struct AppearanceView: View {
                 TLabel(text: sub)
             }
             Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .tint(T3.accent)
+            TToggle(isOn: isOn, accessibilityLabel: title)
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 12)

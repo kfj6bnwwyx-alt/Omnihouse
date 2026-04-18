@@ -59,7 +59,7 @@ struct T3RootView: View {
                     case .about: T3AboutView()
                     case .helpFAQ: T3HelpFAQView()
                     case .notifications: NotificationPreferencesView()
-                    case .appearance: AppearanceView()
+                    case .appearance: T3AppearanceView()
                     }
                 }
             }
