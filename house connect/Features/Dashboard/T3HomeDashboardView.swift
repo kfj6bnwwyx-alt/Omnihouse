@@ -115,6 +115,8 @@ struct T3HomeDashboardView: View {
                             .offset(x: 2, y: -2)
                     }
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
