@@ -49,12 +49,19 @@ struct T3SmokeAlarmDetailView: View {
             .name
     }
 
-    private var batteryPercent: Int {
-        guard let accessory else { return 87 }
+    /// Battery level reported by the provider, or nil if this detector
+    /// doesn't expose a battery capability (e.g. a hard-wired unit, or
+    /// a provider that doesn't surface battery at all).
+    private var batteryPercent: Int? {
+        guard let accessory else { return nil }
         if case .batteryLevel(let p) = accessory.capability(of: .batteryLevel) {
             return p
         }
-        return 87
+        return nil
+    }
+
+    private var batteryDisplay: String {
+        batteryPercent.map { "\($0)%" } ?? "—"
     }
 
     private enum AlarmState { case clear, alarm, fault }
@@ -117,7 +124,7 @@ struct T3SmokeAlarmDetailView: View {
 
                         // Stats strip
                         HStack(spacing: 18) {
-                            statCell(label: "Battery", value: "\(batteryPercent)%")
+                            statCell(label: "Battery", value: batteryDisplay)
                             statCell(label: "Signal", value: signalValue)
                             statCell(label: "Tested", value: lastTestedValue)
                         }
