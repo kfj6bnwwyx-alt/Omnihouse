@@ -104,13 +104,14 @@ struct T3CreateRoomSheet: View {
                                     .overlay(alignment: .bottom) { TRule() }
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityAddTraits(selectedHomeID == home.id ? [.isSelected, .isButton] : .isButton)
                             }
                         }
                         .overlay(alignment: .top) { TRule() }
                     }
 
                     // Icon
-                    TSectionHead(title: "Icon", count: "08")
+                    TSectionHead(title: "Icon", count: String(format: "%02d", Self.iconChoices.count))
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(Self.iconChoices, id: \.sf) { choice in
@@ -131,6 +132,8 @@ struct T3CreateRoomSheet: View {
                                     }
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(choice.label)
+                                .accessibilityAddTraits(selectedIcon == choice.sf ? [.isSelected, .isButton] : .isButton)
                             }
                         }
                         .padding(.horizontal, T3.screenPadding)
@@ -162,12 +165,15 @@ struct T3CreateRoomSheet: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!canCreate)
+                    .accessibilityLabel("Create room")
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.top, 24)
 
                     Spacer(minLength: 120)
                 }
             }
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .interactiveDismissDisabled(isSaving)
             .background(T3.page.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -196,7 +202,8 @@ struct T3CreateRoomSheet: View {
             _ = try await registry.createRoom(named: trimmed, inHomeWithID: homeID)
             dismiss()
         } catch {
-            errorMessage = "Could not create room: \(error)"
+            if error is CancellationError { return }
+            errorMessage = "Could not create room: \(error.localizedDescription)"
         }
     }
 }
