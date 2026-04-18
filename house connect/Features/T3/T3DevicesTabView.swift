@@ -60,9 +60,12 @@ struct T3DevicesTabView: View {
                     .padding(.bottom, 16)
                 }
 
-                // Device rows
+                // Device rows — tap navigates to detail
                 ForEach(Array(devices.enumerated()), id: \.element.id) { i, device in
-                    T3DeviceRow(device: device, index: i, isLast: i == devices.count - 1)
+                    NavigationLink(value: device.id) {
+                        T3DeviceRow(device: device, index: i, isLast: i == devices.count - 1)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Add device dashed button

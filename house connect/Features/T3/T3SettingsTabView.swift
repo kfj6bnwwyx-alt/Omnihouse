@@ -2,7 +2,7 @@
 //  T3SettingsTabView.swift
 //  house connect
 //
-//  T3/Swiss Settings tab — grouped rows with section headers.
+//  T3/Swiss Settings tab — grouped rows with navigation.
 //
 
 import SwiftUI
@@ -16,37 +16,33 @@ struct T3SettingsTabView: View {
                 TTitle(title: "Settings.")
 
                 // Account
-                settingsSection(title: "Account", count: "01", rows: [
-                    ("person", "Profile", "Name, email, preferences"),
-                ])
+                TSectionHead(title: "Account", count: "01")
+                settingsRow(icon: "person", title: "Profile", sub: "Name, email, preferences", destination: nil)
 
                 // Connections
-                settingsSection(title: "Connections", count: "04", rows: [
-                    ("wifi", "HomeKit", "6 accessories"),
-                    ("bolt", "SmartThings", "4 accessories"),
-                    ("hifispeaker", "Sonos", "3 speakers"),
-                    ("house", "Home Assistant", "Connected"),
-                ])
+                TSectionHead(title: "Connections", count: String(format: "%02d", registry.providers.count))
+                settingsRow(icon: "wifi", title: "Connections", sub: "\(registry.providers.count) providers", destination: .providers)
+
+                // Home
+                TSectionHead(title: "Home", count: "04")
+                settingsRow(icon: "square.grid.2x2", title: "Rooms", sub: "\(registry.allRooms.count) rooms", destination: .rooms)
+                settingsRow(icon: "sparkles", title: "Scenes", sub: "Cross-ecosystem presets", destination: .scenes)
+                settingsRow(icon: "gearshape.2", title: "Automations", sub: "Home Assistant automations", destination: .automations)
+                settingsRow(icon: "music.note", title: "Audio Zones", sub: "Multi-room audio", destination: .audioZones)
+
+                // Network
+                TSectionHead(title: "Network", count: "01")
+                settingsRow(icon: "point.3.connected.trianglepath.dotted", title: "Network Topology", sub: "Devices + diagnostics", destination: .networkTopology)
 
                 // Preferences
-                settingsSection(title: "Preferences", count: "03", rows: [
-                    ("paintbrush", "Appearance", "Light · Fahrenheit"),
-                    ("bell", "Notifications", "All enabled"),
-                    ("lock.shield", "Privacy", "Standard"),
-                ])
+                TSectionHead(title: "Preferences", count: "02")
+                settingsRow(icon: "paintbrush", title: "Appearance", sub: "Theme · Units", destination: .appearance)
+                settingsRow(icon: "bell", title: "Notifications", sub: "Alert preferences", destination: .notifications)
 
-                // Automation
-                settingsSection(title: "Automation", count: "02", rows: [
-                    ("sparkles", "Scenes", "5 scenes"),
-                    ("gearshape.2", "Automations", "3 active"),
-                ])
-
-                // System
-                settingsSection(title: "System", count: "03", rows: [
-                    ("map", "Network", "Topology + diagnostics"),
-                    ("externaldrive", "Backup", "Last: Today"),
-                    ("arrow.triangle.2.circlepath", "Updates", "Up to date"),
-                ])
+                // Support
+                TSectionHead(title: "Support", count: "02")
+                settingsRow(icon: "questionmark.circle", title: "Help & FAQ", sub: "Common questions", destination: .helpFAQ)
+                settingsRow(icon: "info.circle", title: "About", sub: "Version · Credits", destination: .about)
 
                 // Version footer
                 HStack {
@@ -62,39 +58,42 @@ struct T3SettingsTabView: View {
         .background(T3.page.ignoresSafeArea())
     }
 
-    private func settingsSection(title: String, count: String, rows: [(String, String, String)]) -> some View {
-        VStack(spacing: 0) {
-            TSectionHead(title: title, count: count)
-
-            ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
-                HStack(spacing: 14) {
-                    Image(systemName: row.0)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(T3.ink)
-                        .frame(width: 28)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(row.1)
-                            .font(T3.inter(15, weight: .medium))
-                            .foregroundStyle(T3.ink)
-                        Text(row.2)
-                            .font(.system(size: 11))
-                            .foregroundStyle(T3.sub)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(T3.sub)
-                }
-                .padding(.horizontal, T3.screenPadding)
-                .padding(.vertical, T3.rowVerticalPad)
-                .overlay(alignment: .top) { TRule() }
-                .overlay(alignment: .bottom) {
-                    if i == rows.count - 1 { TRule() }
-                }
+    @ViewBuilder
+    private func settingsRow(icon: String, title: String, sub: String, destination: SettingsDestination?) -> some View {
+        if let dest = destination {
+            NavigationLink(value: dest) {
+                rowContent(icon: icon, title: title, sub: sub)
             }
+            .buttonStyle(.plain)
+        } else {
+            rowContent(icon: icon, title: title, sub: sub)
         }
+    }
+
+    private func rowContent(icon: String, title: String, sub: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .light))
+                .foregroundStyle(T3.ink)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(T3.inter(15, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                Text(sub)
+                    .font(.system(size: 11))
+                    .foregroundStyle(T3.sub)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .light))
+                .foregroundStyle(T3.sub)
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, T3.rowVerticalPad)
+        .overlay(alignment: .top) { TRule() }
     }
 }

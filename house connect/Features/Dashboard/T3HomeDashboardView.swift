@@ -19,8 +19,11 @@ struct T3HomeDashboardView: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(SceneStore.self) private var sceneStore
     @Environment(WeatherService.self) private var weather
+    @Environment(AppEventStore.self) private var eventStore
 
     @State private var selectedSceneIndex: Int = 0
+    @State private var runningSceneID: UUID?
+    @State private var toast: Toast?
 
     private var rooms: [Room] {
         let allRooms = registry.allRooms
@@ -56,18 +59,45 @@ struct T3HomeDashboardView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .refreshable {
+            weather.fetchIfNeeded()
+            await withTaskGroup(of: Void.self) { group in
+                for provider in registry.providers {
+                    group.addTask { @MainActor in await provider.refresh() }
+                }
+            }
+        }
+        .toast($toast)
     }
 
     // MARK: - Masthead
 
     private var masthead: some View {
-        HStack {
+        HStack(spacing: 12) {
             TLabel(text: registry.allHomes.first?.name.uppercased() ?? "HOME")
             Spacer()
             TLabel(text: Date.now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
+
+            // Notification bell
+            NavigationLink(value: HomeDestination.notifications) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 16, weight: .light))
+                        .foregroundStyle(T3.ink)
+                    if eventStore.unreadCount > 0 {
+                        TDot(size: 6)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.top, 8)
+    }
+
+    enum HomeDestination: Hashable {
+        case notifications
     }
 
     // MARK: - Greeting
@@ -183,8 +213,10 @@ struct T3HomeDashboardView: View {
 
     private func sceneChip(_ scene: HCScene, index: Int) -> some View {
         let selected = index == selectedSceneIndex
+        let isRunning = runningSceneID == scene.id
         return Button {
             selectedSceneIndex = index
+            runScene(scene)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: scene.iconSystemName)
@@ -279,6 +311,26 @@ struct T3HomeDashboardView: View {
         if lower.contains("bath") { return "shower.fill" }
         if lower.contains("office") || lower.contains("study") { return "desktopcomputer" }
         if lower.contains("garage") { return "car.fill" }
-        return "square.grid.2x2.fill"
+        return "square.grid.2x2"
+    }
+
+    // MARK: - Scene execution
+
+    private func runScene(_ scene: HCScene) {
+        guard runningSceneID == nil else { return }
+        guard !scene.actions.isEmpty else {
+            toast = .error("\(scene.name) is empty")
+            return
+        }
+        runningSceneID = scene.id
+        Task {
+            let result = await SceneRunner(registry: registry).run(scene)
+            runningSceneID = nil
+            if result.isFullSuccess {
+                toast = .success("\(scene.name) ran")
+            } else {
+                toast = .error("\(scene.name): \(result.succeeded)/\(result.total)")
+            }
+        }
     }
 }

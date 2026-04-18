@@ -39,6 +39,11 @@ struct T3RootView: View {
                 .navigationDestination(for: Room.self) { room in
                     T3RoomDetailView(roomID: room.id, providerID: room.provider)
                 }
+                .navigationDestination(for: T3HomeDashboardView.HomeDestination.self) { dest in
+                    switch dest {
+                    case .notifications: T3NotificationsView()
+                    }
+                }
                 .navigationDestination(for: SettingsDestination.self) { dest in
                     switch dest {
                     case .providers: T3ProvidersView()
