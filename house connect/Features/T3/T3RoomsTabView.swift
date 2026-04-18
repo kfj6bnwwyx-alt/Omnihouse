@@ -76,7 +76,7 @@ struct T3RoomsTabView: View {
                                 }
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.t3Row)
                     }
                 }
 

@@ -65,7 +65,7 @@ struct T3DevicesTabView: View {
                     NavigationLink(value: device.id) {
                         T3DeviceRow(device: device, index: i, isLast: i == devices.count - 1)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.t3Row)
                 }
 
                 // Add device dashed button

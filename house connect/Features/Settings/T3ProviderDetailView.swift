@@ -138,7 +138,7 @@ struct T3ProviderDetailView: View {
                     configRow(icon: "link", title: "Connection",
                               sub: "URL · token · Tailscale fallback")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.t3Row)
 
             case .smartThings:
                 NavigationLink {
@@ -147,7 +147,7 @@ struct T3ProviderDetailView: View {
                     configRow(icon: "key", title: "Access token",
                               sub: "Personal Access Token from SmartThings")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.t3Row)
 
             case .nest:
                 #if os(iOS)
@@ -157,7 +157,7 @@ struct T3ProviderDetailView: View {
                     configRow(icon: "lock", title: "Reauthorize",
                               sub: "Google SDM OAuth flow")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.t3Row)
                 #else
                 EmptyView()
                 #endif
@@ -217,7 +217,7 @@ struct T3ProviderDetailView: View {
                     NavigationLink(value: accessory.id) {
                         deviceRow(i: i, accessory: accessory)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.t3Row)
                 }
             }
         }

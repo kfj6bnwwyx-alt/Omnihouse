@@ -29,7 +29,7 @@ struct T3ProvidersView: View {
                             providerRow(index: i, provider: provider,
                                         isLast: i == registry.providers.count - 1)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.t3Row)
                     }
 
                     Spacer(minLength: 120)

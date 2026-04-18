@@ -70,7 +70,7 @@ struct T3SettingsTabView: View {
             NavigationLink(value: dest) {
                 rowContent(icon: icon, title: title, sub: sub)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.t3Row)
         } else {
             rowContent(icon: icon, title: title, sub: sub)
         }
