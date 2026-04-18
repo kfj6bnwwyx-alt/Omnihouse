@@ -48,6 +48,7 @@ struct T3AccessoryDetailView: View {
                     title: (accessory?.name ?? "Device") + ".",
                     subtitle: "\(providerLabel)  ·  \(roomName.uppercased())"
                 )
+                .t3ScreenTopPad()
 
                 TSectionHead(title: "State")
                 stateBlock
@@ -83,6 +84,7 @@ struct T3AccessoryDetailView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         // Applies T3 cream panel background when this view is presented
         // as a sheet (iOS 16.4+). No-op when pushed onto a nav stack.

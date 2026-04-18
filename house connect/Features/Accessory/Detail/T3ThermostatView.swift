@@ -115,7 +115,7 @@ struct T3ThermostatView: View {
                         .padding(.top, 8)
                     }
                     .padding(.horizontal, T3.screenPadding)
-                    .padding(.top, 28)
+                    .padding(.top, 22)
                     .padding(.bottom, 8)
 
                     // Tick scale

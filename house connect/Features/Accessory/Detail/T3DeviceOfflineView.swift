@@ -45,22 +45,7 @@ struct T3DeviceOfflineView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Masthead
-                HStack {
-                    HStack(spacing: 8) {
-                        Rectangle()
-                            .fill(T3.danger)
-                            .frame(width: 6, height: 6)
-                        TLabel(text: "OFFLINE  ·  \(providerLabel)",
-                               color: T3.danger)
-                    }
-                    Spacer()
-                    TLabel(text: offlineDuration)
-                }
-                .padding(.horizontal, T3.screenPadding + 4)
-                .padding(.top, 24)
-
-                // Hero
+                // Hero — primary title block
                 VStack(alignment: .leading, spacing: 10) {
                     Text("can't reach")
                         .font(T3.inter(44, weight: .medium))
@@ -81,7 +66,23 @@ struct T3DeviceOfflineView: View {
                         .padding(.top, 8)
                 }
                 .padding(.horizontal, T3.screenPadding + 4)
-                .padding(.top, 42)
+                .padding(.top, 22)
+                .t3ScreenTopPad()
+
+                // Status strip — below hero so it doesn't shift the title
+                HStack {
+                    HStack(spacing: 8) {
+                        Rectangle()
+                            .fill(T3.danger)
+                            .frame(width: 6, height: 6)
+                        TLabel(text: "OFFLINE  ·  \(providerLabel)",
+                               color: T3.danger)
+                    }
+                    Spacer()
+                    TLabel(text: offlineDuration)
+                }
+                .padding(.horizontal, T3.screenPadding + 4)
+                .padding(.top, 20)
 
                 Spacer(minLength: 32)
 
@@ -180,6 +181,7 @@ struct T3DeviceOfflineView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var heroTarget: String {

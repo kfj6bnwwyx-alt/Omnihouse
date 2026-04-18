@@ -59,8 +59,9 @@ struct T3CameraDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                masthead
                 title
+                    .t3ScreenTopPad()
+                masthead
                 feedPanel
                 timelineSection
                 controlsSection
@@ -69,6 +70,7 @@ struct T3CameraDetailView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .onReceive(clockTimer) { now = $0 }
         .onAppear { cameraController.attach(accessoryID: accessoryID, registry: registry) }
     }
@@ -87,7 +89,7 @@ struct T3CameraDetailView: View {
             }
         }
         .padding(.horizontal, T3.screenPadding)
-        .padding(.top, 8)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Title
