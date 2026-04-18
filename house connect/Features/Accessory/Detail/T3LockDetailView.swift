@@ -7,14 +7,23 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct T3LockDetailView: View {
     let accessoryID: AccessoryID
 
     @Environment(ProviderRegistry.self) private var registry
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isLocked: Bool = true
+    @State private var holdProgress: Double = 0
+    @State private var isHolding: Bool = false
+    @State private var commitFlash: Bool = false
+    @State private var holdTimer: Timer?
+    private let holdDuration: TimeInterval = 0.4
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -52,38 +61,7 @@ struct T3LockDetailView: View {
                     // Centered circular button
                     HStack {
                         Spacer()
-                        Button {
-                            withAnimation(.linear(duration: 0.15)) {
-                                isLocked.toggle()
-                            }
-                            Task {
-                                try? await registry.execute(.setPower(!isLocked), on: accessoryID)
-                            }
-                        } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(isLocked ? T3.panel : T3.ink)
-                                    .frame(width: 220, height: 220)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(isLocked ? T3.ink : .clear, lineWidth: 1)
-                                    )
-
-                                VStack(spacing: 8) {
-                                    T3IconImage(systemName: isLocked ? "lock.fill" : "lock.open.fill")
-                                        .frame(width: 54, height: 54)
-                                        .foregroundStyle(isLocked ? T3.ink : T3.accent)
-
-                                    if !isLocked {
-                                        Text("Tap to lock")
-                                            .font(T3.mono(10))
-                                            .foregroundStyle(T3.page)
-                                            .tracking(1)
-                                    }
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
+                        lockCircle
                         Spacer()
                     }
                     .padding(.bottom, 30)
@@ -141,6 +119,149 @@ struct T3LockDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    // MARK: - Lock Circle
+
+    private var lockCircle: some View {
+        ZStack {
+            // Base circle
+            Circle()
+                .fill(commitFlash ? T3.accent : (isLocked ? T3.panel : T3.ink))
+                .frame(width: 220, height: 220)
+                .overlay(
+                    Circle()
+                        .stroke(isLocked ? T3.ink : .clear, lineWidth: 1)
+                )
+
+            // Long-press progress ring (only when locked + holding)
+            if isLocked {
+                Circle()
+                    .trim(from: 0, to: holdProgress)
+                    .stroke(T3.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 220, height: 220)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: holdProgress)
+            }
+
+            VStack(spacing: 8) {
+                T3IconImage(systemName: isLocked ? "lock.fill" : "lock.open.fill")
+                    .frame(width: 54, height: 54)
+                    .foregroundStyle(commitFlash ? T3.page : (isLocked ? T3.ink : T3.accent))
+
+                if isLocked {
+                    Text("Hold to unlock")
+                        .font(T3.mono(10))
+                        .foregroundStyle(commitFlash ? T3.page : T3.sub)
+                        .tracking(1)
+                } else {
+                    Text("Tap to lock")
+                        .font(T3.mono(10))
+                        .foregroundStyle(commitFlash ? T3.page : T3.page)
+                        .tracking(1)
+                }
+            }
+        }
+        .contentShape(Circle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(isLocked ? "Lock, secured" : "Lock, unlocked")
+        .accessibilityHint(isLocked ? "Hold to unlock" : "Double tap to lock")
+        // Tap to lock (when unlocked)
+        .onTapGesture {
+            guard !isLocked else { return }
+            commitLock()
+        }
+        // Long-press to unlock (when locked)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: holdDuration)
+                .onChanged { _ in
+                    guard isLocked, !isHolding else { return }
+                    beginHold()
+                }
+                .onEnded { _ in
+                    guard isLocked else { return }
+                    commitUnlock()
+                }
+        )
+        // Abort hold on drag-away / release without completion
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    if isHolding && holdProgress < 1.0 {
+                        cancelHold()
+                    }
+                }
+        )
+    }
+
+    private func beginHold() {
+        isHolding = true
+        holdProgress = 0
+        holdTimer?.invalidate()
+        let start = Date()
+        holdTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { t in
+            let elapsed = Date().timeIntervalSince(start)
+            let p = min(1.0, elapsed / holdDuration)
+            holdProgress = p
+            if p >= 1.0 {
+                t.invalidate()
+            }
+        }
+    }
+
+    private func cancelHold() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        isHolding = false
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+            holdProgress = 0
+        }
+    }
+
+    private func commitUnlock() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        isHolding = false
+        holdProgress = 1.0
+
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
+
+        // Flash orange, then settle to unlocked (ink)
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
+            commitFlash = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                commitFlash = false
+                isLocked = false
+                holdProgress = 0
+            }
+            Task {
+                try? await registry.execute(.setPower(true), on: accessoryID)
+            }
+        }
+    }
+
+    private func commitLock() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
+            commitFlash = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                commitFlash = false
+                isLocked = true
+            }
+            Task {
+                try? await registry.execute(.setPower(false), on: accessoryID)
+            }
+        }
     }
 
     private func statCell(label: String, value: String) -> some View {
