@@ -2,18 +2,10 @@
 //  SmartThingsTokenEntryView.swift
 //  house connect
 //
-//  Presented as a sheet from SettingsView. Collects a SmartThings Personal
-//  Access Token via SecureField, stores it in Keychain, then kicks off a
-//  provider refresh so the dashboard fills in.
-//
-//  Design choices:
-//    - SecureField — obvious, but worth noting: this is the only place in
-//      the app the token is ever typed. It never touches UserDefaults, never
-//      leaves the device, and is handed straight to KeychainTokenStore.
-//    - We don't "validate" the token by parsing it — SmartThings PATs aren't
-//      a fixed format. Instead we save it and immediately trigger a refresh;
-//      if the refresh reports an auth error, we show it and let the user fix
-//      the token.
+//  SmartThings PAT entry. T3/Swiss rewrite 2026-04-18 — pushed from
+//  T3ProviderDetailView. Form → ScrollView with T3 primitives. All
+//  keychain + refresh semantics preserved; tokens still never touch
+//  UserDefaults.
 //
 
 import SwiftUI
@@ -25,73 +17,118 @@ struct SmartThingsTokenEntryView: View {
     @State private var token: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @FocusState private var focused: Bool
 
     private var smartThingsProvider: SmartThingsProvider? {
         registry.provider(for: .smartThings) as? SmartThingsProvider
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField("Personal Access Token", text: $token)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                TTitle(title: "SmartThings.", subtitle: "Personal Access Token")
+
+                TSectionHead(title: "Access Token", count: "")
+                VStack(alignment: .leading, spacing: 10) {
+                    TLabel(text: "PAT FROM SMARTTHINGS DEVELOPER PORTAL")
+                    SecureField("Paste your token", text: $token)
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-                        .accessibilityLabel("SmartThings Personal Access Token")
-                        .accessibilityHint("Enter your personal access token from the SmartThings developer portal")
-                } header: {
-                    Text("Access token")
-                } footer: {
-                    Text("Create at account.smartthings.com → Personal Access Tokens. Required scopes: Devices (read/write), Locations (read), Rooms (read). The token is stored in the iOS Keychain on this device only.")
+                        .focused($focused)
+                        .font(T3.inter(15, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                    Rectangle()
+                        .fill(focused ? T3.accent : T3.rule)
+                        .frame(height: focused ? 1.5 : 1)
+                        .animation(.easeOut(duration: 0.18), value: focused)
+
+                    Text("Create at account.smartthings.com → Personal Access Tokens. Required scopes: Devices (read/write), Locations (read), Rooms (read). Token is stored in the iOS Keychain on this device only.")
+                        .font(T3.inter(12, weight: .regular))
+                        .foregroundStyle(T3.sub)
+                        .lineSpacing(3)
+                        .padding(.top, 4)
                 }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 14)
+                .overlay(alignment: .top) { TRule() }
+                .overlay(alignment: .bottom) { TRule() }
 
                 if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                            .font(.callout)
-                            .accessibilityLabel("Error: \(errorMessage)")
+                    HStack(alignment: .top, spacing: 10) {
+                        Rectangle()
+                            .fill(Color(red: 0.77, green: 0.25, blue: 0.20))
+                            .frame(width: 2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            TLabel(text: "TOKEN REJECTED",
+                                   color: Color(red: 0.77, green: 0.25, blue: 0.20))
+                            Text(errorMessage)
+                                .font(T3.inter(13, weight: .regular))
+                                .foregroundStyle(T3.ink)
+                                .lineSpacing(3)
+                        }
+                        Spacer()
                     }
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.vertical, 14)
                 }
 
-                Section {
-                    Link(destination: URL(string: "https://account.smartthings.com/tokens")!) {
-                        Label("Open SmartThings tokens page", systemImage: "safari")
+                // External link
+                TSectionHead(title: "Reference", count: "")
+                if let url = URL(string: "https://account.smartthings.com/tokens") {
+                    Link(destination: url) {
+                        HStack(spacing: 14) {
+                            T3IconImage(systemName: "arrow.up.right")
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(T3.ink)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Open SmartThings tokens page")
+                                    .font(T3.inter(15, weight: .medium))
+                                    .foregroundStyle(T3.ink)
+                                TLabel(text: "ACCOUNT.SMARTTHINGS.COM/TOKENS")
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
                     }
-                    .accessibilityHint("Opens the SmartThings website in Safari to create a personal access token")
+                    .buttonStyle(.plain)
+                    .overlay(alignment: .top) { TRule() }
+                    .overlay(alignment: .bottom) { TRule() }
                 }
-            }
-            .navigationTitle("Connect SmartThings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .disabled(isSaving)
-                        .accessibilityLabel("Cancel")
-                        .accessibilityHint("Dismiss without saving the token")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task { await save() }
+
+                // Save
+                Button {
+                    focused = false
+                    Task { await save() }
+                } label: {
+                    HStack(spacing: 10) {
+                        if isSaving { ProgressView().tint(T3.page).scaleEffect(0.8) }
+                        Text(isSaving ? "CONNECTING…" : "SAVE TOKEN")
+                            .font(T3.mono(12))
+                            .tracking(2)
+                            .foregroundStyle(T3.page)
                     }
-                    .disabled(token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
-                    .accessibilityLabel("Save token")
-                    .accessibilityHint("Save the access token and connect to SmartThings")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(canSave ? T3.ink : T3.ink.opacity(0.3))
                 }
-            }
-            .overlay {
-                if isSaving {
-                    ProgressView("Connecting…")
-                        .padding()
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .accessibilityLabel("Connecting to SmartThings")
-                }
+                .buttonStyle(.plain)
+                .disabled(!canSave)
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.top, 24)
+
+                Spacer(minLength: 120)
             }
         }
+        .background(T3.page.ignoresSafeArea())
     }
 
-    // MARK: - Actions
+    private var canSave: Bool {
+        !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+    }
 
     private func save() async {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -111,12 +148,10 @@ struct SmartThingsTokenEntryView: View {
         await provider.refresh()
 
         if provider.authorizationState == .authorized {
-            // Clear the token from memory before dismissing.
             token = ""
             dismiss()
         } else {
             errorMessage = provider.lastError ?? "Couldn't reach SmartThings with that token. Double-check its scopes."
-            // Remove the bad token so the connect button reappears cleanly.
             try? store.delete(.smartThingsPAT)
         }
     }
