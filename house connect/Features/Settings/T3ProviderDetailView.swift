@@ -152,7 +152,7 @@ struct T3ProviderDetailView: View {
             case .nest:
                 #if os(iOS)
                 NavigationLink {
-                    NestOAuthView()
+                    T3NestOAuthView()
                 } label: {
                     configRow(icon: "lock", title: "Reauthorize",
                               sub: "Google SDM OAuth flow")

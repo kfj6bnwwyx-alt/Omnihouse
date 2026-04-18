@@ -68,7 +68,7 @@ struct ProvidersSettingsView: View {
             SmartThingsTokenEntryView()
         }
         .sheet(isPresented: $showingNestOAuth) {
-            NestOAuthView()
+            T3NestOAuthView()
         }
         .sheet(isPresented: $showingHASetup) {
             HomeAssistantSetupView()
