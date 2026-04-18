@@ -51,7 +51,7 @@ struct T3TabBar: View {
                 .shadow(color: T3.tabBarShadow, radius: 2, x: 0, y: 1)
         )
         .padding(.horizontal, 20)
-        .padding(.bottom, 22)
+        .padding(.bottom, 8)
     }
 }
 
