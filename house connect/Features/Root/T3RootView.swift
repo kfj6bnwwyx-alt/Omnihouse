@@ -41,10 +41,10 @@ struct T3RootView: View {
                 }
                 .navigationDestination(for: SettingsDestination.self) { dest in
                     switch dest {
-                    case .providers: ProvidersSettingsView()
+                    case .providers: T3ProvidersView()
                     case .rooms: T3RoomsTabView()
-                    case .scenes: ScenesListView()
-                    case .automations: AutomationsListView()
+                    case .scenes: T3ScenesListView()
+                    case .automations: T3AutomationsView()
                     case .audioZones: AudioZonesMapView()
                     case .networkTopology: DeviceNetworkTopologyView()
                     case .about: AboutView()
