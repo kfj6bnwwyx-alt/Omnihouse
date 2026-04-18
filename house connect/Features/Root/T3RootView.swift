@@ -68,6 +68,9 @@ struct T3RootView: View {
             // Floating T3 tab bar
             T3TabBar(selection: $selectedTab)
         }
+        .task {
+            await registry.startAll()
+        }
         #if os(iOS)
         .fullScreenCover(
             isPresented: Binding(
