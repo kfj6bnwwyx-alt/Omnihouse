@@ -1,15 +1,15 @@
 //
-//  AboutView.swift
+//  T3AboutView.swift
 //  house connect
 //
-//  Settings → Support → About. T3/Swiss rewrite 2026-04-18 — dropped
-//  the rounded-card + gradient-icon layout in favor of hairline rows
-//  with mono captions, matching the rest of the T3 surface.
+//  Settings → Support → About. T3 rename of AboutView 2026-04-18 with
+//  accessibility polish: Dynamic Type clamp, a11y labels/traits on the
+//  tappable links, and `nil` counts on the sections that don't have one.
 //
 
 import SwiftUI
 
-struct AboutView: View {
+struct T3AboutView: View {
     @Environment(ProviderRegistry.self) private var registry
 
     var body: some View {
@@ -18,21 +18,22 @@ struct AboutView: View {
                 TTitle(title: "About.", subtitle: "House Connect")
 
                 // App
-                TSectionHead(title: "App", count: "")
+                TSectionHead(title: "App", count: nil)
                 infoRow(icon: "house", title: "House Connect", sub: versionString)
                 infoRow(icon: "pencil", title: "Unified smart home control",
                         sub: "ONE APP · EVERY ECOSYSTEM")
-                Rectangle().fill(T3.rule).frame(height: 1)
+                TRule()
 
                 // Ecosystems
-                TSectionHead(title: "Ecosystems", count: String(format: "%02d", registry.providers.count))
+                TSectionHead(title: "Ecosystems",
+                             count: String(format: "%02d", registry.providers.count))
                 ForEach(Array(registry.providers.enumerated()), id: \.element.id) { i, provider in
                     ecosystemRow(index: i, provider: provider,
                                  isLast: i == registry.providers.count - 1)
                 }
 
                 // Resources
-                TSectionHead(title: "Resources", count: "")
+                TSectionHead(title: "Resources", count: nil)
                 linkRow(icon: "shield-check", title: "Privacy Policy",
                         sub: "How we handle your data", url: "https://example.com/privacy")
                 linkRow(icon: "pencil", title: "Terms of Service",
@@ -40,7 +41,8 @@ struct AboutView: View {
                 linkRow(icon: "sparkles", title: "Acknowledgments",
                         sub: "Open-source libraries", url: "https://example.com/oss")
                 linkRow(icon: "mail", title: "Contact support",
-                        sub: "Get help or send feedback", url: "mailto:support@example.com", isLast: true)
+                        sub: "Get help or send feedback",
+                        url: "mailto:support@example.com", isLast: true)
 
                 // Foot
                 VStack(spacing: 4) {
@@ -54,6 +56,7 @@ struct AboutView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     private func infoRow(icon: String, title: String, sub: String) -> some View {
@@ -73,6 +76,7 @@ struct AboutView: View {
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 14)
         .overlay(alignment: .top) { TRule() }
+        .accessibilityElement(children: .combine)
     }
 
     private func ecosystemRow(index i: Int, provider: any AccessoryProvider, isLast: Bool) -> some View {
@@ -88,9 +92,10 @@ struct AboutView: View {
                     .font(T3.inter(15, weight: .medium))
                     .foregroundStyle(T3.ink)
                 HStack(spacing: 8) {
-                    TDot(size: 5, color: provider.authorizationState == .authorized
-                         ? Color(red: 0.29, green: 0.56, blue: 0.36)
-                         : T3.sub)
+                    TDot(size: 5,
+                         color: provider.authorizationState == .authorized
+                            ? T3.accent
+                            : T3.sub)
                     TLabel(text: statusLabel(for: provider.authorizationState))
                 }
             }
@@ -104,10 +109,13 @@ struct AboutView: View {
         .padding(.vertical, 12)
         .overlay(alignment: .top) { TRule() }
         .overlay(alignment: .bottom) { if isLast { TRule() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(provider.displayName), \(statusLabel(for: provider.authorizationState)), \(provider.accessories.count) accessories")
     }
 
     @ViewBuilder
-    private func linkRow(icon: String, title: String, sub: String, url: String, isLast: Bool = false) -> some View {
+    private func linkRow(icon: String, title: String, sub: String,
+                         url: String, isLast: Bool = false) -> some View {
         if let link = URL(string: url) {
             Link(destination: link) {
                 HStack(spacing: 14) {
@@ -133,6 +141,8 @@ struct AboutView: View {
             .buttonStyle(.plain)
             .overlay(alignment: .top) { TRule() }
             .overlay(alignment: .bottom) { if isLast { TRule() } }
+            .accessibilityLabel("\(title). \(sub). Opens external link.")
+            .accessibilityAddTraits(.isButton)
         }
     }
 
