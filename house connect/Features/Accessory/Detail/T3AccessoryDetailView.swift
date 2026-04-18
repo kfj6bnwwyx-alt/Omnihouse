@@ -84,6 +84,9 @@ struct T3AccessoryDetailView: View {
         }
         .background(T3.page.ignoresSafeArea())
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        // Applies T3 cream panel background when this view is presented
+        // as a sheet (iOS 16.4+). No-op when pushed onto a nav stack.
+        .modifier(T3SheetChromeModifier())
     }
 
     // MARK: - State

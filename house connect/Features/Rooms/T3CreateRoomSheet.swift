@@ -188,6 +188,9 @@ struct T3CreateRoomSheet: View {
                 }
             }
         }
+        // Swap system chrome for the T3 cream panel + ink scrim.
+        // iOS 16.4+ only — older versions fall back to system material.
+        .modifier(T3SheetChromeModifier())
     }
 
     private func createRoom() async {

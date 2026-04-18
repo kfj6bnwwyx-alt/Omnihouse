@@ -253,3 +253,20 @@ extension View {
         modifier(ShimmerModifier())
     }
 }
+
+// MARK: - Sheet chrome
+
+/// Replaces the default sheet material with a T3 cream panel and
+/// an ink-tinted scrim behind it, so presented sheets read as T3
+/// instead of system gray. iOS 16.4+ only — falls through silently
+/// on older OS versions. Pair with `.sheet { Content().modifier(T3SheetChromeModifier()) }`.
+struct T3SheetChromeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content
+                .presentationBackground(T3.page)
+        } else {
+            content
+        }
+    }
+}
