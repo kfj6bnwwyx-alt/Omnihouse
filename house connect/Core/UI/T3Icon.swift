@@ -54,6 +54,9 @@ enum T3Icon {
         "rectangle.portrait.and.arrow.right": "log-out",
         "line.3.horizontal.decrease": "sliders-horizontal",
         "pencil": "pencil",
+        "key": "key",
+        "server.rack": "server",
+        "server": "server",
 
         // Tabs / app chrome
         "house": "house",

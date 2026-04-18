@@ -44,6 +44,9 @@ struct T3RootView: View {
                     case .notifications: T3NotificationsView()
                     }
                 }
+                .navigationDestination(for: ProviderID.self) { providerID in
+                    T3ProviderDetailView(providerID: providerID)
+                }
                 .navigationDestination(for: SettingsDestination.self) { dest in
                     switch dest {
                     case .profile: T3ProfileView()
