@@ -59,8 +59,7 @@ struct T3DeviceDetailView: View {
         case .speaker:
             if accessory.id.provider == .sonos,
                let parts = accessory.groupedParts, parts.count > 1 {
-                // Bonded group — fall back to old view for now
-                SonosBondedGroupDetailView(accessoryID: accessoryID)
+                T3SonosBondedGroupDetailView(accessoryID: accessoryID)
             } else {
                 T3SpeakerDetailView(accessoryID: accessoryID)
             }
