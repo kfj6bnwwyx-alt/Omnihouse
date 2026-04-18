@@ -279,9 +279,10 @@ final class T3WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentati
             }
         }
         session.presentationContextProvider = self
-        // prefersEphemeralWebBrowserSession keeps any prior Google cookies
-        // out of the flow — forces a fresh consent prompt every time.
-        // Set to false so returning users can use their existing session.
+        // prefersEphemeralWebBrowserSession = false reuses the system
+        // browser's existing session/cookies, so returning users who are
+        // already signed into Google get a quick re-auth (usually just a
+        // consent confirmation) rather than a full login each time.
         session.prefersEphemeralWebBrowserSession = false
         self.session = session
         session.start()
