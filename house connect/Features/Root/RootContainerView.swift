@@ -25,10 +25,10 @@ struct RootContainerView: View {
     var body: some View {
         ZStack {
             if isReady {
-                RootTabView()
+                T3RootView()
                     .transition(.opacity)
             } else {
-                SplashView()
+                T3SplashView()
                     .transition(.opacity)
             }
         }
