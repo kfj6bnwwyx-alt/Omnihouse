@@ -20,7 +20,7 @@ enum T3 {
     static let page   = Color(hex: 0xF2F1ED)  // warm cream — primary background
     static let panel  = Color.white             // cards, tab bar
     static let ink    = Color(hex: 0x0E0E0D)   // primary text, on-state track
-    static let sub    = Color(hex: 0x86847E)   // secondary text, inactive
+    static let sub    = Color(hex: 0x6E6C66)   // secondary text, inactive — darkened 2026-04-18 from 0x86847E (3.1:1) to meet WCAG AA body contrast (~4.5:1) against T3.page
     static let rule   = Color(hex: 0xD9D7D0)   // hairline dividers
     static let accent = Color(hex: 0xE7591A)   // Braun orange — single restrained accent
 
