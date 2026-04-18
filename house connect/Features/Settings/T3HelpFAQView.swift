@@ -1,14 +1,15 @@
 //
-//  HelpFAQView.swift
+//  T3HelpFAQView.swift
 //  house connect
 //
-//  Settings → Support → Help & FAQ. T3/Swiss rewrite 2026-04-18.
-//  Static content grouped into sections, each item is tap-to-expand.
+//  Settings → Support → Help & FAQ. T3 rename 2026-04-18 with a11y
+//  polish and Dynamic Type clamp. Tap rows expand inline with an
+//  .easeOut(0.2) animation; only one question open at a time.
 //
 
 import SwiftUI
 
-struct HelpFAQView: View {
+struct T3HelpFAQView: View {
     @State private var expandedQuestion: String?
 
     var body: some View {
@@ -22,7 +23,7 @@ struct HelpFAQView: View {
                 faqSection(title: "Troubleshooting", items: troubleshootingItems)
 
                 // Contact
-                TSectionHead(title: "Still stuck", count: "")
+                TSectionHead(title: "Still stuck", count: nil)
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Reach out to support")
                         .font(T3.inter(15, weight: .medium))
@@ -31,21 +32,25 @@ struct HelpFAQView: View {
                         .font(T3.inter(13, weight: .regular))
                         .foregroundStyle(T3.sub)
                         .lineSpacing(3)
-                    Link(destination: URL(string: "mailto:support@example.com")!) {
-                        HStack(spacing: 10) {
-                            T3IconImage(systemName: "envelope.fill")
-                                .frame(width: 14, height: 14)
-                                .foregroundStyle(T3.page)
-                            Text("EMAIL SUPPORT")
-                                .font(T3.mono(11))
-                                .tracking(2)
-                                .foregroundStyle(T3.page)
+                    if let mail = URL(string: "mailto:support@example.com") {
+                        Link(destination: mail) {
+                            HStack(spacing: 10) {
+                                T3IconImage(systemName: "envelope.fill")
+                                    .frame(width: 14, height: 14)
+                                    .foregroundStyle(T3.page)
+                                Text("EMAIL SUPPORT")
+                                    .font(T3.mono(11))
+                                    .tracking(2)
+                                    .foregroundStyle(T3.page)
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(T3.ink)
                         }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
-                        .background(T3.ink)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Email support")
+                        .accessibilityAddTraits(.isButton)
                     }
-                    .buttonStyle(.plain)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, T3.screenPadding)
@@ -57,6 +62,7 @@ struct HelpFAQView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     @ViewBuilder
@@ -91,6 +97,9 @@ struct HelpFAQView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(item.question)
+            .accessibilityHint(expanded ? "Collapses answer" : "Expands answer")
+            .accessibilityAddTraits(expanded ? [.isButton, .isSelected] : .isButton)
 
             if expanded {
                 Text(item.answer)

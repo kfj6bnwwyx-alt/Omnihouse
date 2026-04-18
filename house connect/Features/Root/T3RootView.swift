@@ -57,7 +57,7 @@ struct T3RootView: View {
                     case .audioZones: AudioZonesMapView()
                     case .networkTopology: DeviceNetworkTopologyView()
                     case .about: T3AboutView()
-                    case .helpFAQ: HelpFAQView()
+                    case .helpFAQ: T3HelpFAQView()
                     case .notifications: NotificationPreferencesView()
                     case .appearance: AppearanceView()
                     }
