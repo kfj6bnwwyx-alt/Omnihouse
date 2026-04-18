@@ -111,7 +111,7 @@ struct T3ScenesListView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toast($toast)
         .sheet(isPresented: $showCreateSceneSheet) {
-            T3CreateSceneSheet()
+            T3SceneEditorView()
         }
     }
 
