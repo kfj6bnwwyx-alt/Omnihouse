@@ -241,3 +241,77 @@ extension Accessory {
         return nil
     }
 }
+
+// MARK: - User-facing labels
+//
+// Kept next to the model so every screen pulls the same string. Used by
+// `T3AccessoryDetailView` (and any future generic fallback) to render
+// capability rows and category identifiers without hard-coding strings
+// in view files.
+
+extension Accessory.Category {
+    var displayLabel: String {
+        switch self {
+        case .light: "Light"
+        case .switch: "Switch"
+        case .outlet: "Outlet"
+        case .thermostat: "Thermostat"
+        case .lock: "Lock"
+        case .sensor: "Sensor"
+        case .camera: "Camera"
+        case .fan: "Fan"
+        case .blinds: "Blinds"
+        case .speaker: "Speaker"
+        case .television: "Television"
+        case .smokeAlarm: "Smoke Alarm"
+        case .other: "Other"
+        }
+    }
+}
+
+extension Capability.Kind {
+    var displayLabel: String {
+        switch self {
+        case .power: "Power"
+        case .brightness: "Brightness"
+        case .hue: "Hue"
+        case .saturation: "Saturation"
+        case .colorTemperature: "Color Temperature"
+        case .currentTemperature: "Current Temperature"
+        case .targetTemperature: "Target Temperature"
+        case .hvacMode: "HVAC Mode"
+        case .contactSensor: "Contact Sensor"
+        case .motionSensor: "Motion Sensor"
+        case .batteryLevel: "Battery Level"
+        case .playback: "Playback"
+        case .volume: "Volume"
+        case .mute: "Mute"
+        case .nowPlaying: "Now Playing"
+        case .shuffle: "Shuffle"
+        case .repeatMode: "Repeat Mode"
+        case .smokeDetected: "Smoke Detection"
+        case .coDetected: "CO Detection"
+        case .humidity: "Humidity"
+        case .hvacAction: "HVAC Action"
+        case .presetMode: "Preset Mode"
+        case .presetModes: "Preset Modes"
+        case .climateFanMode: "Climate Fan Mode"
+        case .climateFanModes: "Climate Fan Modes"
+        case .currentSource: "Source"
+        case .sourceList: "Source List"
+        case .mediaPosition: "Media Position"
+        case .mediaDuration: "Media Duration"
+        case .currentEffect: "Effect"
+        case .effectList: "Effect List"
+        case .fanSpeed: "Fan Speed"
+        case .fanDirection: "Fan Direction"
+        case .coverPosition: "Cover Position"
+        }
+    }
+}
+
+extension Capability {
+    /// Convenience so view code can stay at the enum level without
+    /// peeking at `.kind`.
+    var displayLabel: String { kind.displayLabel }
+}

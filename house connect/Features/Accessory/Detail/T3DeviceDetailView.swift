@@ -75,8 +75,7 @@ struct T3DeviceDetailView: View {
             T3CameraDetailView(accessoryID: accessoryID)
 
         case .sensor, .switch, .outlet, .fan, .blinds, .other:
-            // Fall back to old generic view for categories without T3 detail
-            AccessoryDetailView(accessoryID: accessoryID)
+            T3AccessoryDetailView(accessoryID: accessoryID)
         }
     }
 }
