@@ -111,8 +111,8 @@ struct T3DeviceRow: View {
             TLabel(text: String(format: "%02d", index + 1))
                 .frame(width: 28)
 
-            Image(systemName: categoryIcon(device.category))
-                .font(T3.inter(18, weight: .medium))
+            T3IconImage(systemName: categoryIcon(device.category))
+                .frame(width: 18, height: 18)
                 .foregroundStyle(T3.ink)
                 .frame(width: 28)
 

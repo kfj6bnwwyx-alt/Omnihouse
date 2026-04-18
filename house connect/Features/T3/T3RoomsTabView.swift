@@ -43,8 +43,8 @@ struct T3RoomsTabView: View {
                         NavigationLink(value: room) {
                             VStack(alignment: .leading, spacing: 0) {
                                 HStack {
-                                    Image(systemName: roomIcon(room.name))
-                                        .font(T3.inter(22, weight: .medium))
+                                    T3IconImage(systemName: roomIcon(room.name))
+                                        .frame(width: 22, height: 22)
                                         .foregroundStyle(T3.ink)
                                     Spacer()
                                     TLabel(text: String(format: "%02d", i + 1))

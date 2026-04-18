@@ -28,8 +28,8 @@ struct T3ActivityView: View {
                                 .monospacedDigit()
                                 .frame(width: 56, alignment: .leading)
 
-                            Image(systemName: eventIcon(event.kind))
-                                .font(T3.inter(18, weight: .medium))
+                            T3IconImage(systemName: eventIcon(event.kind))
+                                .frame(width: 18, height: 18)
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
 

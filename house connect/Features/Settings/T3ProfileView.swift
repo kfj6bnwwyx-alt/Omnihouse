@@ -40,8 +40,8 @@ struct T3ProfileView: View {
                                 firstName = ""
                                 focused = true
                             } label: {
-                                Image(systemName: "xmark")
-                                    .font(T3.inter(13, weight: .regular))
+                                T3IconImage(systemName: "xmark")
+                                    .frame(width: 13, height: 13)
                                     .foregroundStyle(T3.sub)
                                     .frame(width: 32, height: 32)
                             }
