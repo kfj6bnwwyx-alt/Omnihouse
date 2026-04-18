@@ -20,18 +20,18 @@ struct T3TabBar: View {
                 } label: {
                     VStack(spacing: 3) {
                         ZStack(alignment: .topTrailing) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 20, weight: selection == tab ? .semibold : .regular))
+                            T3IconImage(systemName: tab.icon)
+                                .frame(width: 22, height: 22)
                                 .foregroundStyle(selection == tab ? T3.ink : T3.sub)
 
                             if selection == tab {
                                 TDot(size: 5)
-                                    .offset(x: 4, y: -2)
+                                    .offset(x: 6, y: -1)
                             }
                         }
 
                         Text(tab.label)
-                            .font(T3.inter(10, weight: .medium))
+                            .font(T3.inter(10, weight: selection == tab ? .semibold : .regular))
                             .foregroundStyle(selection == tab ? T3.ink : T3.sub)
                     }
                     .frame(maxWidth: .infinity)
