@@ -18,9 +18,28 @@ xcuserdata/
 # The Nest credentials live here. Duplicate from Secrets.example.xcconfig
 # to create your own copy.
 Secrets.xcconfig
+house-connect-Info.plist
+
+# Defensive — anything that commonly holds secrets or signing material.
+# Add a Secrets.example.* sibling if you want to check in a template.
+.env
+.env.*
+!.env.example
+*.xcconfig.local
+secrets.json
+credentials.json
+GoogleService-Info.plist
+
+# Apple signing / notarization material — never commit
+*.p8
+*.p12
+*.pem
+*.cer
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
 
 # Scratch / transient files
 RESUME.md
 hetzner-backend-architecture.md
 ios-architecture.md
-house-connect-Info.plist
