@@ -294,34 +294,39 @@ struct AudioZonesMapView: View {
         let names = members.map(\.name).joined(separator: " + ")
         let coord = members.first { $0.speakerGroup?.isCoordinator == true } ?? members[0]
         let nowPlaying = coord.nowPlaying?.title ?? "Paused"
-        return HStack(spacing: 12) {
-            IconChip(systemName: "music.note", size: 40)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(names)
-                    .font(Theme.font.cardTitle)
-                    .foregroundStyle(Theme.color.title)
-                    .lineLimit(1)
-                Text(nowPlaying)
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
-                    .lineLimit(1)
+        return NavigationLink {
+            MultiRoomNowPlayingView(coordinatorID: coord.id)
+        } label: {
+            HStack(spacing: 12) {
+                IconChip(systemName: "music.note", size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(names)
+                        .font(Theme.font.cardTitle)
+                        .foregroundStyle(Theme.color.title)
+                        .lineLimit(1)
+                    Text(nowPlaying)
+                        .font(Theme.font.cardSubtitle)
+                        .foregroundStyle(Theme.color.subtitle)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button("Edit Zone") {
+                    editCoordinatorID = coord.id
+                    showSelectRooms = true
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(Theme.color.primary))
+                .accessibilityLabel("Edit zone for \(names)")
+                .accessibilityHint("Opens room selection to modify this audio zone")
             }
-            Spacer()
-            Button("Edit Zone") {
-                editCoordinatorID = coord.id
-                showSelectRooms = true
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(Theme.color.primary))
-            .accessibilityLabel("Edit zone for \(names)")
-            .accessibilityHint("Opens room selection to modify this audio zone")
+            .hcCard()
         }
-        .hcCard()
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
         .accessibilityLabel("\(names), now playing \(nowPlaying)")
+        .accessibilityHint("Double tap to open now playing controls")
     }
 }
 

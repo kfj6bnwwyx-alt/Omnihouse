@@ -51,6 +51,7 @@ struct DeviceNetworkTopologyView: View {
                         listCard
                     }
                     activeConnectionsSection
+                    quickLinksRow
                     Spacer(minLength: 24)
                 }
                 .padding(.horizontal, Theme.space.screenHorizontal)
@@ -58,6 +59,44 @@ struct DeviceNetworkTopologyView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    // MARK: - Quick links
+
+    private var quickLinksRow: some View {
+        HStack(spacing: 12) {
+            NavigationLink {
+                NetworkListView(accessories: registry.allAccessories)
+            } label: {
+                quickLinkTile(icon: "list.bullet", title: "Device List")
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                NetworkDiagnosticsView()
+            } label: {
+                quickLinkTile(icon: "waveform.path.ecg", title: "Diagnostics")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func quickLinkTile(icon: String, title: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Theme.color.primary)
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.color.title)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
+                .fill(Theme.color.cardFill)
+                .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        )
     }
 
     // MARK: - Header
@@ -89,10 +128,14 @@ struct DeviceNetworkTopologyView: View {
 
             Spacer()
 
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Theme.color.muted)
-                .accessibilityLabel("Settings")
+            NavigationLink {
+                NetworkSettingsView()
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.color.muted)
+            }
+            .accessibilityLabel("Network settings")
         }
     }
 

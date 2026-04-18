@@ -118,7 +118,10 @@ struct MultiRoomNowPlayingView: View {
             Spacer()
 
             Button {
-                // Cast action placeholder
+                // AirPlay is system-level — no custom action needed.
+                // The system AirPlay picker is triggered via AVRoutePickerView
+                // which isn't easily invocable from SwiftUI. For now, show a hint.
+                toast = .error("Use Control Center for AirPlay")
             } label: {
                 Image(systemName: "airplayaudio")
                     .font(.system(size: 24, weight: .medium))
@@ -362,7 +365,15 @@ struct MultiRoomNowPlayingView: View {
                         .foregroundStyle(Theme.color.muted)
                     if !isCoordinator {
                         Button {
-                            // Remove room from group placeholder
+                            Task {
+                                let speakerID = AccessoryID(provider: .sonos, nativeID: name)
+                                do {
+                                    try await registry.execute(.leaveSpeakerGroup, on: speakerID)
+                                    toast = .success("\(name) removed from group")
+                                } catch {
+                                    toast = .error("Failed to remove \(name)")
+                                }
+                            }
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18, weight: .medium))
@@ -427,8 +438,12 @@ struct MultiRoomNowPlayingView: View {
 
         HStack(spacing: 10) {
             Button {
-                toast = .error("\(name) disconnected")
-                // Retry connection placeholder
+                Task {
+                    if let sonos = registry.provider(for: .sonos) as? SonosProvider {
+                        await sonos.refreshTopologyAndRebuild()
+                        toast = .success("Refreshed — checking \(name)")
+                    }
+                }
             } label: {
                 Text("Retry")
                     .font(.system(size: 13, weight: .semibold))
@@ -445,7 +460,15 @@ struct MultiRoomNowPlayingView: View {
             .accessibilityHint("Attempts to reconnect to the disconnected speaker")
 
             Button {
-                // Remove from group placeholder
+                Task {
+                    let speakerID = AccessoryID(provider: .sonos, nativeID: name)
+                    do {
+                        try await registry.execute(.leaveSpeakerGroup, on: speakerID)
+                        toast = .success("\(name) removed")
+                    } catch {
+                        toast = .error("Can't remove — speaker offline")
+                    }
+                }
             } label: {
                 Text("Remove")
                     .font(.system(size: 13, weight: .semibold))

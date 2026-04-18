@@ -4,28 +4,18 @@
 //
 //  The HOME tab. Matches the Pencil design (node A1WUK):
 //    - Greeting header + home name + profile avatar
-//    - Weather card (placeholder: no weather provider wired yet)
-//    - Quick Scenes horizontal tile row — taps run the scene via SceneRunner
+//    - Weather card (live via Open-Meteo API + CoreLocation)
+//    - Quick Scenes horizontal tile row (local + HA unified scenes)
 //    - My Rooms 2-column card grid — taps drill into RoomDetailView
 //
-//  This replaces the old flat-accessory-list DashboardView. Nothing in the
-//  old file survives — it's a rewrite, not a refactor.
-//
 //  Data sources:
-//    - `registry.allHomes`        → header subtitle ("Maple Street Home")
+//    - `registry.allHomes`        → header subtitle
 //    - `registry.allRooms`        → room grid
 //    - `registry.allAccessories`  → per-room device count badge
-//    - `sceneStore.scenes`        → scene tile row
-//
-//  Notes:
-//  ------
-//  - The greeting is time-based (Morning/Afternoon/Evening/Night). We
-//    don't know the user's name yet — the Pencil mock says "Good Morning,
-//    Alex" but we don't have a user profile model. Falling back to
-//    "Good Morning" for now; plug a profile model into Phase 2c polish.
-//  - Weather card is a static placeholder. Real data needs a backend or
-//    an iOS WeatherKit wiring — out of scope for Phase 2c.
-//  - Scene-run errors are surfaced via an alert, not swallowed.
+//    - `sceneStore.scenes`        → local scene tiles
+//    - HA provider `.scenes`      → HA scene tiles (unified)
+//    - `weatherService`           → live weather card
+//    - `eventStore`               → notification bell badge
 //
 
 import SwiftUI
