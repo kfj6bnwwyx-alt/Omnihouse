@@ -9,6 +9,7 @@ import SwiftUI
 
 struct T3RoomsTabView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @State private var showingCreate = false
 
     private var rooms: [Room] {
         var seen = Set<String>()
@@ -80,7 +81,7 @@ struct T3RoomsTabView: View {
                 }
 
                 // New room dashed button
-                Button { } label: {
+                Button { showingCreate = true } label: {
                     HStack {
                         T3IconImage(systemName: "plus")
                             .frame(width: 14, height: 14)
@@ -104,6 +105,10 @@ struct T3RoomsTabView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .sheet(isPresented: $showingCreate) {
+            T3CreateRoomSheet()
+                .environment(registry)
+        }
     }
 
     private func roomIcon(_ name: String) -> String {

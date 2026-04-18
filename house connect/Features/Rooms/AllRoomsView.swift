@@ -51,7 +51,7 @@ struct AllRoomsView: View {
             RoomDetailView(roomID: room.id, providerID: room.provider)
         }
         .sheet(isPresented: $showingCreate) {
-            CreateRoomSheet()
+            T3CreateRoomSheet()
                 .environment(registry)
         }
     }
