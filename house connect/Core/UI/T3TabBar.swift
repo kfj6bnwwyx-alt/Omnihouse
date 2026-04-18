@@ -8,15 +8,25 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct T3TabBar: View {
     @Binding var selection: T3Tab
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(T3Tab.allCases, id: \.self) { tab in
                 Button {
-                    selection = tab
+                    guard selection != tab else { return }
+                    #if canImport(UIKit)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    #endif
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                        selection = tab
+                    }
                 } label: {
                     VStack(spacing: 3) {
                         ZStack(alignment: .topTrailing) {
@@ -27,19 +37,23 @@ struct T3TabBar: View {
                             if selection == tab {
                                 TDot(size: 5)
                                     .offset(x: 6, y: -1)
+                                    .transition(.opacity.combined(with: .scale))
                             }
                         }
 
                         Text(tab.label)
-                            .font(T3.inter(10, weight: selection == tab ? .semibold : .regular))
+                            .font(T3.inter(10, weight: .semibold))
                             .foregroundStyle(selection == tab ? T3.ink : T3.sub)
+                            .opacity(selection == tab ? 1 : 0.85)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 9)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selection)
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: T3.tabBarRadius)
