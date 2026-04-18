@@ -48,6 +48,11 @@ struct house_connectApp: App {
     /// view and the alert controller can read/write events.
     @State private var smokeAlarmEventStore = SmokeAlarmEventStore()
 
+    /// Energy statistics (today/hourly/monthly). Currently serves
+    /// placeholder data derived from the current date — real HA
+    /// `recorder/statistics_during_period` wiring pending.
+    @State private var energyService = EnergyService()
+
     init() {
         let store = KeychainTokenStore()
         let registry = ProviderRegistry()
@@ -124,6 +129,7 @@ struct house_connectApp: App {
                 .environment(weatherService)
                 .environment(smokeAlarmEventStore)
                 .environment(mergedDeviceLookup)
+                .environment(energyService)
                 #if os(iOS)
                 .environment(smokeAlertController)
                 #endif

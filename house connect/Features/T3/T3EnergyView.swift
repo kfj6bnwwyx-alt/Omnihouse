@@ -3,29 +3,28 @@
 //  house connect
 //
 //  T3/Swiss Energy dashboard — daily kWh, hourly bar chart,
-//  by-category breakdown. All data placeholder for now.
+//  by-category breakdown.
 //
-//  ⚠️ FLAG: This screen uses hardcoded energy data since
-//  HA doesn't expose energy in a standardized way yet.
-//  Will need a real energy integration (HA Energy dashboard
-//  entities) to make this data-driven.
+//  Data source: `EnergyService` (Core/Providers/EnergyService.swift).
+//  Currently the service returns placeholder data derived from the
+//  current date — real Home Assistant `recorder/statistics_during_period`
+//  wiring is pending. The view renders em-dashes while values are nil,
+//  matching the SmokeAlarm placeholder pattern.
 //
 
 import SwiftUI
 
 struct T3EnergyView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(EnergyService.self) private var energy
 
-    // Placeholder energy data (from design handoff)
-    private let todayKWh: Double = 14.2
-    private let yesterdayKWh: Double = 16.8
-    private let hourly: [Double] = [0.4,0.3,0.3,0.3,0.3,0.4,0.9,1.2,0.8,0.6,0.5,0.5,0.7,0.6,0.5,0.6,0.9,1.3,1.4,1.2,0.9,0.7,0.5,0.4]
-    private let categories: [(String, Double, Double)] = [
-        ("Climate", 7.2, 0.51),
-        ("Lighting", 3.1, 0.22),
-        ("Media", 2.4, 0.17),
-        ("Other", 1.5, 0.10),
-    ]
+    /// Hourly fallback curve used when the service hasn't loaded yet,
+    /// so the chart still has proportions to lay out. The bars render
+    /// tinted at 20% opacity while data is nil so it's obviously not
+    /// live yet.
+    private static let hourlyFallback: [Double] =
+        [0.4,0.3,0.3,0.3,0.3,0.4,0.9,1.2,0.8,0.6,0.5,0.5,
+         0.7,0.6,0.5,0.6,0.9,1.3,1.4,1.2,0.9,0.7,0.5,0.4]
 
     var body: some View {
         ZStack {
@@ -40,7 +39,7 @@ struct T3EnergyView: View {
                         TLabel(text: "Total today")
 
                         HStack(alignment: .firstTextBaseline, spacing: 0) {
-                            Text(String(format: "%.1f", todayKWh))
+                            Text(energy.todayKwh.map { String(format: "%.1f", $0) } ?? "—")
                                 .font(T3.inter(120, weight: .light))
                                 .tracking(-5)
                                 .foregroundStyle(T3.ink)
@@ -53,14 +52,22 @@ struct T3EnergyView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
 
-                        // Trend
+                        // Trend — only when both values present
                         HStack(spacing: 4) {
-                            Text("↓ 15%")
-                                .font(T3.inter(13, weight: .medium))
-                                .foregroundStyle(T3.ink)
-                            Text("vs. yesterday (\(String(format: "%.1f", yesterdayKWh)) kWh)")
-                                .font(T3.inter(13, weight: .regular))
-                                .foregroundStyle(T3.sub)
+                            if let today = energy.todayKwh, let yesterday = energy.yesterdayKwh, yesterday > 0 {
+                                let delta = (today - yesterday) / yesterday
+                                let arrow = delta < 0 ? "↓" : "↑"
+                                Text("\(arrow) \(Int(abs(delta) * 100))%")
+                                    .font(T3.inter(13, weight: .medium))
+                                    .foregroundStyle(T3.ink)
+                                Text("vs. yesterday (\(String(format: "%.1f", yesterday)) kWh)")
+                                    .font(T3.inter(13, weight: .regular))
+                                    .foregroundStyle(T3.sub)
+                            } else {
+                                Text("—")
+                                    .font(T3.inter(13, weight: .regular))
+                                    .foregroundStyle(T3.sub)
+                            }
                         }
                         .padding(.top, 6)
                     }
@@ -80,20 +87,21 @@ struct T3EnergyView: View {
                     TRule()
 
                     // By category
-                    TSectionHead(title: "By category", count: String(format: "%02d", categories.count))
+                    let cats = energy.categories ?? []
+                    TSectionHead(title: "By category", count: String(format: "%02d", cats.count))
 
-                    ForEach(Array(categories.enumerated()), id: \.offset) { i, cat in
+                    ForEach(Array(cats.enumerated()), id: \.offset) { i, cat in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
-                                Text(cat.0)
+                                Text(cat.name)
                                     .font(T3.inter(15, weight: .medium))
                                     .foregroundStyle(T3.ink)
                                 Spacer()
-                                Text("\(Int(cat.2 * 100))%")
+                                Text("\(Int(cat.fraction * 100))%")
                                     .font(T3.mono(11))
                                     .foregroundStyle(T3.sub)
                                     .tracking(0.5)
-                                Text(String(format: "%.1f kWh", cat.1))
+                                Text(String(format: "%.1f kWh", cat.kwh))
                                     .font(T3.inter(16, weight: .medium))
                                     .foregroundStyle(T3.ink)
                                     .monospacedDigit()
@@ -103,7 +111,7 @@ struct T3EnergyView: View {
                             GeometryReader { geo in
                                 Rectangle()
                                     .fill(i == 0 ? T3.accent : T3.ink)
-                                    .frame(width: geo.size.width * cat.2, height: 3)
+                                    .frame(width: geo.size.width * cat.fraction, height: 3)
                             }
                             .frame(height: 3)
                         }
@@ -111,7 +119,7 @@ struct T3EnergyView: View {
                         .padding(.vertical, 12)
                         .overlay(alignment: .top) { TRule() }
                         .overlay(alignment: .bottom) {
-                            if i == categories.count - 1 { TRule() }
+                            if i == cats.count - 1 { TRule() }
                         }
                     }
 
@@ -121,7 +129,7 @@ struct T3EnergyView: View {
                     HStack(spacing: 18) {
                         VStack(alignment: .leading, spacing: 4) {
                             TLabel(text: "This Month")
-                            Text("312 kWh")
+                            Text(energy.monthKwh.map { "\(Int($0)) kWh" } ?? "—")
                                 .font(T3.inter(16, weight: .medium))
                                 .foregroundStyle(T3.ink)
                         }
@@ -129,7 +137,7 @@ struct T3EnergyView: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             TLabel(text: "Est. Cost")
-                            Text("$47.20")
+                            Text(energy.estMonthCostUSD.map { String(format: "$%.2f", $0) } ?? "—")
                                 .font(T3.inter(16, weight: .medium))
                                 .foregroundStyle(T3.ink)
                         }
@@ -141,22 +149,33 @@ struct T3EnergyView: View {
                     Spacer(minLength: 120)
                 }
             }
+            .refreshable {
+                await energy.refresh()
+            }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .task {
+            if energy.lastUpdated == nil {
+                await energy.refresh()
+            }
+        }
     }
 
     // MARK: - Hourly Chart
 
     private var hourlyChart: some View {
-        let maxVal = hourly.max() ?? 1
-        let currentHour = 18 // Highlighted hour from design
+        let series = energy.hourly ?? Self.hourlyFallback
+        let isLive = energy.hourly != nil
+        let maxVal = series.max() ?? 1
+        let currentHour = Calendar.current.component(.hour, from: Date())
 
         return VStack(spacing: 6) {
             HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<24, id: \.self) { i in
+                ForEach(0..<min(24, series.count), id: \.self) { i in
                     Rectangle()
                         .fill(i == currentHour ? T3.accent : T3.ink)
-                        .frame(height: CGFloat(hourly[i] / maxVal) * 120)
+                        .opacity(isLive ? 1.0 : 0.2)
+                        .frame(height: CGFloat(series[i] / maxVal) * 120)
                 }
             }
             .frame(height: 120)
