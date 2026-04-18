@@ -30,33 +30,34 @@ struct SmokeAlertLiveActivity: Widget {
         ActivityConfiguration(for: SmokeAlertAttributes.self) { context in
             // MARK: - Lock screen / banner (Pencil 3eyUA)
             LockScreenView(context: context)
-                .activityBackgroundTint(Color.black)
-                .activitySystemActionForegroundColor(Color.red)
+                .activityBackgroundTint(T3.ink)
+                .activitySystemActionForegroundColor(T3.danger)
         } dynamicIsland: { context in
             DynamicIsland {
                 // MARK: - Expanded (Pencil EY8wa)
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(T3.danger)
                         .padding(.leading, 4)
                         .accessibilityLabel("Smoke alert warning")
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(timeAgo(context.state.triggeredAt))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(T3.inter(12, weight: .regular))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.7))
                         .padding(.trailing, 4)
                         .accessibilityLabel("Alert triggered \(timeAgo(context.state.triggeredAt))")
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Smoke Detected")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(Color.red)
+                            .font(T3.inter(16, weight: .semibold))
+                            .foregroundStyle(T3.danger)
                         Text(subtitleLine(context: context))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .font(T3.inter(12, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.7))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Smoke Detected, \(subtitleLine(context: context))")
@@ -65,20 +66,17 @@ struct SmokeAlertLiveActivity: Widget {
                     VStack(spacing: 10) {
                         HStack(spacing: 8) {
                             Image(systemName: "flame.fill")
-                                .foregroundStyle(Color.orange)
+                                .foregroundStyle(T3.accent)
                                 .accessibilityHidden(true)
                             Text(context.state.guidance)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(T3.inter(13, weight: .medium))
                                 .foregroundStyle(.white)
                                 .lineLimit(2)
                             Spacer()
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(0.08))
-                        )
+                        .background(Color.white.opacity(0.08))
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel("Safety guidance: \(context.state.guidance)")
 
@@ -102,28 +100,28 @@ struct SmokeAlertLiveActivity: Widget {
             } compactLeading: {
                 // MARK: - Compact leading (Pencil hYUFC left)
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(T3.danger)
                     .accessibilityLabel("Smoke alert")
             } compactTrailing: {
                 // MARK: - Compact trailing (Pencil hYUFC right)
                 HStack(spacing: 4) {
                     Text(context.attributes.roomName ?? "Home")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(T3.inter(12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.7))
                         .lineLimit(1)
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(T3.danger)
                         .accessibilityHidden(true)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Smoke detected in \(context.attributes.roomName ?? "Home")")
             } minimal: {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(T3.danger)
                     .accessibilityLabel("Smoke alert active")
             }
-            .keylineTint(Color.red)
+            .keylineTint(T3.danger)
         }
     }
 }
@@ -136,49 +134,47 @@ private struct LockScreenView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.red.opacity(0.18))
+                Rectangle()
+                    .fill(T3.danger.opacity(0.18))
                     .frame(width: 42, height: 42)
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(T3.danger)
             }
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Smoke Detected")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(Color.red)
+                        .font(T3.inter(17, weight: .semibold))
+                        .foregroundStyle(T3.danger)
                     Spacer()
                     Text(timeAgo(context.state.triggeredAt))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(T3.inter(12, weight: .regular))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.7))
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Smoke Detected, \(timeAgo(context.state.triggeredAt))")
 
                 Text(subtitleLine(context: context))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .font(T3.inter(13, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.7))
                     .accessibilityLabel(subtitleLine(context: context))
 
                 HStack(spacing: 8) {
                     Image(systemName: "flame.fill")
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(T3.accent)
                         .accessibilityHidden(true)
                     Text(context.state.guidance)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(T3.inter(13, weight: .medium))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                     Spacer()
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.white.opacity(0.08))
-                )
+                .background(Color.white.opacity(0.08))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Safety guidance: \(context.state.guidance)")
 
@@ -228,14 +224,14 @@ private func actionButton(
             Image(systemName: systemImage)
                 .font(.system(size: 13, weight: .bold))
             Text(label)
-                .font(.system(size: 14, weight: .semibold))
+                .font(T3.inter(14, weight: .semibold))
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(style == .danger ? Color.red : Color.white.opacity(0.14))
+                .fill(style == .danger ? T3.danger : Color.white.opacity(0.14))
         )
     }
     .accessibilityLabel(label)

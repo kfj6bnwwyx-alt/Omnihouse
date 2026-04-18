@@ -3,14 +3,10 @@
 //  HouseConnectWidgets
 //
 //  Pencil `45PoD` — Home screen widget for a thermostat. Shows the room
-//  name, current target temp with +/- buttons, a segmented color bar
-//  representing the temperature range, mode badge ("Heating"), and
-//  current temp + humidity readouts.
+//  name, current target temp, a segmented bar representing position in
+//  the min-max range, the mode label, and current temp + humidity.
 //
-//  Like the camera widget, this reads from placeholder data until the
-//  App Group shared container is wired. The visual design matches the
-//  Pencil mockup: large temperature display, interactive-looking (but
-//  widget-tap-only) +/- circles, and a blocky gradient strip.
+//  Reads placeholder data until the App Group shared container is wired.
 //
 
 import SwiftUI
@@ -63,8 +59,6 @@ struct ThermostatWidgetEntry: TimelineEntry {
 struct ThermostatWidgetView: View {
     let entry: ThermostatWidgetEntry
 
-    private let accentColor = Color(red: 0.31, green: 0.27, blue: 0.91)
-
     private var unitSuffix: String { entry.useFahrenheit ? "°F" : "°C" }
 
     /// How far the target is through the range, 0...1.
@@ -75,101 +69,71 @@ struct ThermostatWidgetView: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Header: room name + mode badge
+        VStack(alignment: .leading, spacing: 10) {
+            // Header: room name + mode label
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "thermometer.medium")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(accentColor)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(T3.sub)
                     Text(entry.roomName)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(T3.inter(14, weight: .semibold))
+                        .foregroundStyle(T3.ink)
                 }
                 Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 9))
-                    Text(entry.mode)
-                        .font(.system(size: 10, weight: .semibold))
+                HStack(spacing: 6) {
+                    TDot(size: 6, color: T3.accent)
+                    TLabel(text: entry.mode, color: T3.accent)
                 }
-                .foregroundStyle(accentColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(accentColor.opacity(0.12))
-                )
             }
 
-            // Temperature display with +/- buttons
-            HStack(spacing: 12) {
-                // Minus button
-                ZStack {
-                    Circle()
-                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1.5)
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "minus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.secondary)
-                }
-
-                // Big temperature
-                HStack(alignment: .top, spacing: 2) {
-                    Text("\(entry.targetTemp)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(unitSuffix)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                }
-
-                // Plus button
-                ZStack {
-                    Circle()
-                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1.5)
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.secondary)
-                }
+            // Big target temperature — tabular digits
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(entry.targetTemp)")
+                    .font(T3.inter(44, weight: .medium))
+                    .tracking(-1.2)
+                    .monospacedDigit()
+                    .foregroundStyle(T3.ink)
+                Text(unitSuffix)
+                    .font(T3.inter(16, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                Spacer()
             }
 
             // Segmented temperature bar
             temperatureBar
 
+            TRule()
+
             // Footer: current temp + humidity
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Current")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    TLabel(text: "Current")
                     Text("\(entry.currentTemp)\(unitSuffix)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(T3.inter(13, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(T3.ink)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Humidity")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 4) {
+                    TLabel(text: "Humidity")
                     Text("\(entry.humidity)%")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(T3.inter(13, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(T3.ink)
                 }
             }
         }
         .padding(14)
+        .background(T3.page)
     }
 
     // MARK: - Temperature bar
 
-    /// Blocky segmented bar matching the Pencil comp. Each segment is
-    /// a small rounded square; accent-filled up to the target, gray
-    /// after. Labels at min, target, and max.
+    /// Blocky segmented bar. Flat cells (no rounding), ink-filled up
+    /// to the target, rule-gray after. Min/target/max labels below.
     private var temperatureBar: some View {
-        VStack(spacing: 4) {
-            // Segments
+        VStack(spacing: 6) {
             GeometryReader { proxy in
                 let totalSegments = 16
                 let filledCount = Int(targetFraction * CGFloat(totalSegments))
@@ -177,27 +141,32 @@ struct ThermostatWidgetView: View {
 
                 HStack(spacing: 2) {
                     ForEach(0..<totalSegments, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(i < filledCount ? accentColor : Color.secondary.opacity(0.2))
+                        Rectangle()
+                            .fill(i < filledCount ? T3.ink : T3.rule)
                             .frame(width: segmentWidth)
                     }
                 }
             }
-            .frame(height: 14)
+            .frame(height: 10)
 
-            // Labels
             HStack {
                 Text("\(entry.rangeMin)°")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .font(T3.mono(9))
+                    .tracking(1.2)
+                    .monospacedDigit()
+                    .foregroundStyle(T3.sub)
                 Spacer()
                 Text("\(entry.targetTemp)°")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(accentColor)
+                    .font(T3.mono(9))
+                    .tracking(1.2)
+                    .monospacedDigit()
+                    .foregroundStyle(T3.accent)
                 Spacer()
                 Text("\(entry.rangeMax)°")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .font(T3.mono(9))
+                    .tracking(1.2)
+                    .monospacedDigit()
+                    .foregroundStyle(T3.sub)
             }
         }
     }
@@ -211,7 +180,7 @@ struct ThermostatWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: ThermostatWidgetProvider()) { entry in
             ThermostatWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(T3.page, for: .widget)
         }
         .configurationDisplayName("Thermostat")
         .description("Glance at your thermostat's target, current temperature, and humidity.")

@@ -58,79 +58,77 @@ struct CameraWidgetView: View {
     let entry: CameraWidgetEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             // Header: camera name + LIVE badge
             HStack {
                 HStack(spacing: 6) {
-                    Image(systemName: "video.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "video")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(T3.sub)
                     Text(entry.cameraName)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(T3.inter(14, weight: .semibold))
+                        .foregroundStyle(T3.ink)
                 }
                 Spacer()
                 if entry.isLive {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 6, height: 6)
-                        Text("LIVE")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.red)
+                    HStack(spacing: 6) {
+                        TDot(size: 6, color: T3.accent)
+                        TLabel(text: "Live", color: T3.accent)
                     }
                 }
             }
 
-            // Camera feed placeholder
+            // Camera feed placeholder — flat, no rounding
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(red: 0.08, green: 0.09, blue: 0.11))
+                Rectangle()
+                    .fill(T3.ink)
 
-                Image(systemName: "video.fill")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(Color(white: 0.3))
+                Image(systemName: "video")
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundStyle(T3.sub)
 
-                // Timestamp overlay
+                // Timestamp overlay — mono, uppercase
                 VStack {
                     Spacer()
                     HStack {
                         Text(entry.date.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .font(T3.mono(10))
+                            .tracking(1.4)
+                            .textCase(.uppercase)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.white.opacity(0.75))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(
-                                Capsule().fill(.black.opacity(0.5))
-                            )
                         Spacer()
                     }
                     .padding(8)
                 }
             }
 
+            TRule()
+
             // Footer: motion event + armed status
             HStack {
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.orange)
+                HStack(spacing: 6) {
+                    TDot(size: 6, color: T3.accent)
                     Text(entry.lastMotion)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .font(T3.inter(11, weight: .regular))
+                        .foregroundStyle(T3.sub)
                 }
                 Spacer()
                 HStack(spacing: 4) {
-                    Image(systemName: entry.isArmed ? "checkmark.shield.fill" : "shield.slash")
-                        .font(.system(size: 10))
-                        .foregroundStyle(entry.isArmed ? .green : .secondary)
-                    Text(entry.isArmed ? "Armed" : "Disarmed")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(entry.isArmed ? .green : .secondary)
+                    Image(systemName: entry.isArmed ? "checkmark.shield" : "shield.slash")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(entry.isArmed ? T3.ok : T3.sub)
+                    TLabel(
+                        text: entry.isArmed ? "Armed" : "Disarmed",
+                        color: entry.isArmed ? T3.ok : T3.sub
+                    )
                 }
             }
         }
         .padding(14)
+        .background(T3.page)
     }
 }
 
@@ -142,7 +140,7 @@ struct CameraWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: CameraWidgetProvider()) { entry in
             CameraWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(T3.page, for: .widget)
         }
         .configurationDisplayName("Security Camera")
         .description("Quick glance at your camera feed with motion events.")
