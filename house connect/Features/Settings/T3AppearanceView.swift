@@ -23,6 +23,7 @@ struct T3AppearanceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Appearance.", subtitle: "Theme, units & display")
+                    .t3ScreenTopPad()
 
                 // Theme
                 TSectionHead(title: "Theme", count: "03")
@@ -50,6 +51,7 @@ struct T3AppearanceView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 

@@ -16,6 +16,7 @@ struct T3AboutView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "About.", subtitle: "House Connect")
+                    .t3ScreenTopPad()
 
                 // App
                 TSectionHead(title: "App", count: nil)
@@ -56,6 +57,7 @@ struct T3AboutView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 

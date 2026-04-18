@@ -43,6 +43,7 @@ struct T3ProviderDetailView: View {
                     title: providerID.displayLabel + ".",
                     subtitle: statusSubtitle
                 )
+                .t3ScreenTopPad()
 
                 statusSection
 
@@ -56,6 +57,7 @@ struct T3ProviderDetailView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Status

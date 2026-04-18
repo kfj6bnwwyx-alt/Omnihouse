@@ -27,6 +27,7 @@ struct T3NotificationPreferencesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Notifications.", subtitle: "Choose what alerts you")
+                    .t3ScreenTopPad()
 
                 // Alerts
                 TSectionHead(title: "Alerts", count: "04")
@@ -73,6 +74,7 @@ struct T3NotificationPreferencesView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 

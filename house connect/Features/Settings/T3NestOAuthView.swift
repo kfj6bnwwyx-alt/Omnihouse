@@ -37,6 +37,7 @@ struct T3NestOAuthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Nest.", subtitle: "Google Smart Device Management")
+                    .t3ScreenTopPad()
 
                 TSectionHead(title: "Connection", count: "")
                 connectionBlock
@@ -57,6 +58,7 @@ struct T3NestOAuthView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var connectionBlock: some View {

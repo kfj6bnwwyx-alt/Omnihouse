@@ -18,6 +18,7 @@ struct T3ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Profile.")
+                    .t3ScreenTopPad()
 
                 // Name
                 TSectionHead(title: "Name", count: firstName.isEmpty ? "" : "01")
@@ -88,6 +89,7 @@ struct T3ProfileView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { focused = firstName.isEmpty }
     }
 

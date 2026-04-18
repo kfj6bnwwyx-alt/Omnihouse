@@ -16,6 +16,7 @@ struct T3HelpFAQView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Help & FAQ.", subtitle: "Common questions answered")
+                    .t3ScreenTopPad()
 
                 faqSection(title: "Getting started", items: gettingStartedItems)
                 faqSection(title: "Devices & controls", items: devicesItems)
@@ -62,6 +63,7 @@ struct T3HelpFAQView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
