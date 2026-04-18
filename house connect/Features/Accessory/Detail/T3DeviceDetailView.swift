@@ -69,7 +69,7 @@ struct T3DeviceDetailView: View {
             FrameTVDetailView(accessoryID: accessoryID)
 
         case .smokeAlarm:
-            SmokeAlarmDetailView(accessoryID: accessoryID)
+            T3SmokeAlarmDetailView(accessoryID: accessoryID)
 
         case .camera:
             T3CameraDetailView(accessoryID: accessoryID)
