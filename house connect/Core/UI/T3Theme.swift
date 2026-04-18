@@ -220,6 +220,32 @@ struct TPill: View {
     }
 }
 
+// MARK: - Screen top chrome
+
+/// Canonical top-chrome spacer for tab-root screens (no back chevron, no
+/// nav bar content). Matches the vertical space consumed by `THeader`
+/// on stack-pushed screens so that the first `TTitle` in every view
+/// lands at the same y-coordinate.
+///
+/// Spec (2026-04-18): THeader band ≈ 32pt (8 top + icon row + 8 bottom)
+/// + `TTitle` padding.top 22 → title lands ~54pt below the safe-area
+/// inset. Tab roots have no THeader, so we pad the content by 32pt
+/// before the title block to match.
+struct T3ScreenTopPad: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(.top, 32)
+    }
+}
+
+extension View {
+    /// Apply on the outer container of a tab-root screen (no back
+    /// chevron, no nav bar). Locks the primary `TTitle` to the same
+    /// vertical position as stack-pushed screens.
+    func t3ScreenTopPad() -> some View {
+        modifier(T3ScreenTopPad())
+    }
+}
+
 // MARK: - Color hex init
 
 extension Color {
