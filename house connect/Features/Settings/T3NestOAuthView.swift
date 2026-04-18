@@ -80,7 +80,7 @@ struct T3NestOAuthView: View {
         switch state {
         case .idle: return T3.sub
         case .authorizing: return T3.accent
-        case .authorized: return Color(red: 0.29, green: 0.56, blue: 0.36)
+        case .authorized: return T3.ok
         }
     }
 
@@ -123,11 +123,11 @@ struct T3NestOAuthView: View {
     private func errorBlock(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Rectangle()
-                .fill(Color(red: 0.77, green: 0.25, blue: 0.20))
+                .fill(T3.danger)
                 .frame(width: 2)
             VStack(alignment: .leading, spacing: 4) {
                 TLabel(text: "AUTHORIZATION FAILED",
-                       color: Color(red: 0.77, green: 0.25, blue: 0.20))
+                       color: T3.danger)
                 Text(message)
                     .font(T3.inter(13, weight: .regular))
                     .foregroundStyle(T3.ink)

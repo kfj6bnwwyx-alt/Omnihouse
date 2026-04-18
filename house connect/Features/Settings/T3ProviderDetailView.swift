@@ -88,8 +88,8 @@ struct T3ProviderDetailView: View {
     private var statusColor: Color {
         guard let provider else { return T3.sub }
         switch provider.authorizationState {
-        case .authorized: return Color(red: 0.29, green: 0.56, blue: 0.36)
-        case .denied: return Color(red: 0.77, green: 0.25, blue: 0.20)
+        case .authorized: return T3.ok
+        case .denied: return T3.danger
         case .notDetermined: return T3.sub
         case .restricted, .unavailable: return T3.accent
         }

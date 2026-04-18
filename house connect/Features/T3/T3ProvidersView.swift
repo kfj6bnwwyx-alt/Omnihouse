@@ -92,10 +92,10 @@ struct T3ProvidersView: View {
 
     private func statusColor(_ state: ProviderAuthorizationState) -> Color {
         switch state {
-        case .authorized: return .green
-        case .denied: return .red
+        case .authorized: return T3.ok
+        case .denied: return T3.danger
         case .notDetermined: return T3.sub
-        case .restricted, .unavailable: return .orange
+        case .restricted, .unavailable: return T3.accent
         }
     }
 

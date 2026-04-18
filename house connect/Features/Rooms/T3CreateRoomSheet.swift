@@ -146,7 +146,7 @@ struct T3CreateRoomSheet: View {
                         Text(errorMessage)
                             .font(T3.mono(11))
                             .tracking(0.8)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(T3.danger)
                             .padding(.horizontal, T3.screenPadding)
                             .padding(.top, 16)
                     }

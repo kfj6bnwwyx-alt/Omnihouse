@@ -49,10 +49,10 @@ struct T3DeviceOfflineView: View {
                 HStack {
                     HStack(spacing: 8) {
                         Rectangle()
-                            .fill(Color(red: 0.77, green: 0.25, blue: 0.20))
+                            .fill(T3.danger)
                             .frame(width: 6, height: 6)
                         TLabel(text: "OFFLINE  ·  \(providerLabel)",
-                               color: Color(red: 0.77, green: 0.25, blue: 0.20))
+                               color: T3.danger)
                     }
                     Spacer()
                     TLabel(text: offlineDuration)
@@ -71,7 +71,7 @@ struct T3DeviceOfflineView: View {
                     Text(heroTarget)
                         .font(T3.inter(44, weight: .medium))
                         .tracking(-1.4)
-                        .foregroundStyle(Color(red: 0.77, green: 0.25, blue: 0.20))
+                        .foregroundStyle(T3.danger)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(heroSubtitle)
@@ -213,8 +213,8 @@ struct T3DeviceOfflineView: View {
             Text(ok ? "✓" : "✗")
                 .font(T3.inter(14, weight: ok ? .regular : .medium))
                 .foregroundStyle(ok
-                                 ? Color(red: 0.29, green: 0.56, blue: 0.36)
-                                 : Color(red: 0.77, green: 0.25, blue: 0.20))
+                                 ? T3.ok
+                                 : T3.danger)
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
@@ -226,8 +226,8 @@ struct T3DeviceOfflineView: View {
             Spacer()
             TLabel(text: ok ? "OK" : "FAIL",
                    color: ok
-                   ? Color(red: 0.29, green: 0.56, blue: 0.36)
-                   : Color(red: 0.77, green: 0.25, blue: 0.20))
+                   ? T3.ok
+                   : T3.danger)
         }
         .padding(.horizontal, T3.screenPadding + 4)
         .padding(.vertical, 12)

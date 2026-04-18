@@ -24,6 +24,11 @@ enum T3 {
     static let rule   = Color(hex: 0xD9D7D0)   // hairline dividers
     static let accent = Color(hex: 0xE7591A)   // Braun orange — single restrained accent
 
+    // Severity — reserved for connection/diagnostic/error states.
+    // Not for primary controls. Use sparingly.
+    static let danger = Color(hex: 0xC54033)   // red — "can't reach", auth failure
+    static let ok     = Color(hex: 0x4A8F5C)   // green — "connected"
+
     // MARK: Typography
 
     /// Display / UI font: Inter Tight
