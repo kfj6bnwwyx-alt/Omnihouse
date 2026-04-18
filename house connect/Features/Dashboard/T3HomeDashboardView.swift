@@ -78,6 +78,8 @@ struct T3HomeDashboardView: View {
                 scenesSection
                 TRule()
                 roomsList
+                TRule()
+                exploreSection
                 Spacer(minLength: 120)
             }
         }
@@ -122,6 +124,8 @@ struct T3HomeDashboardView: View {
 
     enum HomeDestination: Hashable {
         case notifications
+        case energy
+        case activity
     }
 
     // MARK: - Greeting
@@ -344,6 +348,51 @@ struct T3HomeDashboardView: View {
         if lower.contains("office") || lower.contains("study") { return "desktopcomputer" }
         if lower.contains("garage") { return "car.fill" }
         return "square.grid.2x2"
+    }
+
+    // MARK: - Explore (Energy + Activity)
+
+    private var exploreSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            TSectionHead(title: "Explore", count: "02")
+
+            exploreRow(icon: "bolt.fill", title: "Energy", sub: "DAILY KWH · BREAKDOWN", destination: .energy)
+            exploreRow(icon: "clock.arrow.circlepath", title: "Activity", sub: "TODAY'S EVENT TIMELINE", destination: .activity, isLast: true)
+        }
+    }
+
+    private func exploreRow(
+        icon: String,
+        title: String,
+        sub: String,
+        destination: HomeDestination,
+        isLast: Bool = false
+    ) -> some View {
+        NavigationLink(value: destination) {
+            HStack(spacing: 14) {
+                T3IconImage(systemName: icon)
+                    .frame(width: 20, height: 20)
+                    .foregroundStyle(T3.ink)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(T3.inter(15, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                    TLabel(text: sub)
+                }
+                Spacer()
+                T3IconImage(systemName: "arrow.right")
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(T3.sub)
+            }
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+            .overlay(alignment: .bottom) {
+                if !isLast { TRule() }
+            }
+        }
+        .buttonStyle(.t3Row)
     }
 
     // MARK: - Scene execution

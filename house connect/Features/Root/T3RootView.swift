@@ -42,6 +42,8 @@ struct T3RootView: View {
                 .navigationDestination(for: T3HomeDashboardView.HomeDestination.self) { dest in
                     switch dest {
                     case .notifications: T3NotificationsView()
+                    case .energy: T3EnergyView()
+                    case .activity: T3ActivityView()
                     }
                 }
                 .navigationDestination(for: ProviderID.self) { providerID in
