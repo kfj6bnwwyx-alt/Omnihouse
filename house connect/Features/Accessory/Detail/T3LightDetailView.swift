@@ -7,6 +7,9 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct T3LightDetailView: View {
     let accessoryID: AccessoryID
@@ -17,6 +20,7 @@ struct T3LightDetailView: View {
     @State private var isOn: Bool = true
     @State private var brightness: Double = 0.82
     @State private var colorTemp: String = "Warm"
+    @State private var lastHapticBucket: Int = -1
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -194,7 +198,18 @@ struct T3LightDetailView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            brightness = max(0, min(1, value.location.x / geo.size.width))
+                            let newVal = max(0, min(1, value.location.x / geo.size.width))
+                            brightness = newVal
+                            // Fire a light tick haptic each time the value
+                            // crosses a whole-10%-bucket boundary during
+                            // drag. onEnded intentionally does not re-fire.
+                            let bucket = Int((newVal * 10).rounded(.down))
+                            if bucket != lastHapticBucket {
+                                lastHapticBucket = bucket
+                                #if canImport(UIKit)
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                #endif
+                            }
                         }
                         .onEnded { _ in
                             Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
