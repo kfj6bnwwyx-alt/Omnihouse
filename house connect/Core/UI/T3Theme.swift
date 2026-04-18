@@ -228,3 +228,23 @@ extension Color {
         )
     }
 }
+
+// MARK: - Shimmer modifier
+
+/// T3 skeleton loading shimmer — subtle opacity pulse.
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(phase ? 0.4 : 0.15)
+            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: phase)
+            .onAppear { phase = true }
+    }
+}
+
+extension View {
+    func shimmering() -> some View {
+        modifier(ShimmerModifier())
+    }
+}

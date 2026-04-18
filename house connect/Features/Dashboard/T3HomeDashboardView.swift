@@ -109,12 +109,36 @@ struct T3HomeDashboardView: View {
 
     private var weatherStrip: some View {
         HStack(spacing: 18) {
-            weatherCell(label: "Outside", value: weather.headline.components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "—", sub: weather.headline.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces) ?? "")
-            weatherCell(label: "Inside", value: "68°", sub: "42% RH")
-            weatherCell(label: "Energy", value: "1.4", sub: "Today", unit: "kW")
+            if weather.isLoading {
+                // Skeleton loader — shimmer bars matching the data layout
+                weatherSkeleton(label: "Outside")
+                weatherSkeleton(label: "Inside")
+                weatherSkeleton(label: "Energy")
+            } else {
+                weatherCell(label: "Outside", value: weather.headline.components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "—", sub: weather.headline.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces) ?? "")
+                weatherCell(label: "Inside", value: "68°", sub: "42% RH")
+                weatherCell(label: "Energy", value: "1.4", sub: "Today", unit: "kW")
+            }
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 18)
+    }
+
+    private func weatherSkeleton(label: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TLabel(text: label)
+            // Shimmer bar for the big number
+            RoundedRectangle(cornerRadius: 2)
+                .fill(T3.rule)
+                .frame(width: 70, height: 32)
+                .shimmering()
+            // Shimmer bar for sub text
+            RoundedRectangle(cornerRadius: 2)
+                .fill(T3.rule)
+                .frame(width: 50, height: 10)
+                .shimmering()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func weatherCell(label: String, value: String, sub: String, unit: String? = nil) -> some View {
@@ -185,55 +209,63 @@ struct T3HomeDashboardView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Rooms
+    // MARK: - Rooms (2-column grid)
 
     private var roomsList: some View {
         VStack(alignment: .leading, spacing: 0) {
             TSectionHead(title: "Rooms", count: String(format: "%02d", rooms.count))
 
-            ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
-                let deviceCount = registry.allAccessories.filter { $0.roomID == room.id }.count
-                let activeDevices = registry.allAccessories.filter { $0.roomID == room.id && $0.isOn == true }.count
+            // 2-column grid — rooms as spatial zones, not a flat list
+            let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
+            LazyVGrid(columns: columns, spacing: 0) {
+                ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
+                    let deviceCount = registry.allAccessories.filter { $0.roomID == room.id }.count
+                    let activeDevices = registry.allAccessories.filter { $0.roomID == room.id && $0.isOn == true }.count
 
-                NavigationLink(value: room) {
-                    HStack(spacing: 14) {
-                        TLabel(text: String(format: "%02d", i + 1))
-                            .frame(width: 28)
+                    NavigationLink(value: room) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Top: glyph + index
+                            HStack {
+                                Image(systemName: roomIcon(room.name))
+                                    .font(.system(size: 22, weight: .medium))
+                                    .foregroundStyle(T3.ink)
+                                Spacer()
+                                TLabel(text: String(format: "%02d", i + 1))
+                            }
 
-                        Image(systemName: roomIcon(room.name))
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(T3.ink)
-                            .frame(width: 28)
+                            Spacer()
 
-                        Text(room.name)
-                            .font(T3.inter(15, weight: .medium))
-                            .tracking(-0.2)
-                            .foregroundStyle(T3.ink)
+                            // Bottom: name + active status
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(room.name)
+                                    .font(T3.inter(18, weight: .medium))
+                                    .tracking(-0.4)
+                                    .foregroundStyle(T3.ink)
+                                    .lineLimit(1)
 
-                        Spacer()
-
-                        HStack(spacing: 8) {
-                            if activeDevices > 0 { TDot(size: 6) }
-                            Text("\(activeDevices)/\(deviceCount)")
-                                .font(T3.mono(12))
-                                .foregroundStyle(T3.sub)
-                                .monospacedDigit()
+                                HStack(spacing: 6) {
+                                    if activeDevices > 0 { TDot(size: 6) }
+                                    Text("\(activeDevices)/\(deviceCount) on")
+                                        .font(T3.mono(10))
+                                        .foregroundStyle(T3.sub)
+                                        .tracking(0.6)
+                                }
+                            }
                         }
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(T3.sub)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 18)
+                        .frame(minHeight: 140)
+                        .overlay(alignment: .bottom) {
+                            TRule()
+                        }
+                        .overlay(alignment: .trailing) {
+                            if i % 2 == 0 {
+                                Rectangle().fill(T3.rule).frame(width: 1)
+                            }
+                        }
                     }
-                    .padding(.horizontal, T3.screenPadding)
-                    .padding(.vertical, T3.rowVerticalPad)
-                    .overlay(alignment: .top) {
-                        TRule()
-                    }
-                    .overlay(alignment: .bottom) {
-                        if i == rooms.count - 1 { TRule() }
-                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
