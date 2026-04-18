@@ -156,6 +156,50 @@ enum T3Icon {
         "clock": "clock",
         "clock.badge.questionmark": "clock",
         "dot.radiowaves.left.and.right": "radio",
+
+        // Additional coverage — symbols surfaced by runtime iconography
+        // (room pickers, scene templates, weather codes, device categories).
+        // Lucide equivalents where available; TODOs flag missing SVG assets
+        // that still need to be exported from the Claude Design handoff.
+        "lock.slash": "lock-open",
+        "power.circle.fill": "power",
+        "sun.min.fill": "sun",
+        "cloud.sun.fill": "cloud",
+        "cloud.fog.fill": "cloud",
+        "cloud.rain.fill": "cloud",
+        "cloud.heavyrain.fill": "cloud",
+        "cloud.drizzle.fill": "cloud",
+        "cloud.snow.fill": "snowflake",
+        "cloud.bolt.fill": "zap",
+        "cloud.bolt.rain.fill": "zap",
+        "shield.fill": "shield-check",
+        "book.fill": "sparkles",            // TODO(icon-gap): needs SVG — using sparkles placeholder
+        "party.popper.fill": "sparkles",    // TODO(icon-gap): needs SVG — using sparkles placeholder
+        "lightbulb.slash": "lightbulb",     // inverted state handled via tint
+        "tv.fill": "tv",
+        "rectangle.on.rectangle": "layout-grid",
+        "gearshape": "settings",
+        "info.circle": "triangle-alert",    // TODO(icon-gap): needs SVG — info glyph missing
+        "airplayvideo": "airplay",
+        "repeat": "rotate-cw",
+        "repeat.1": "rotate-cw",
+
+        // Known gaps — leave unmapped so Image(systemName:) fallback still
+        // renders an SF Symbol until we export the Lucide equivalents:
+        // TODO(icon-gap): needs SVG — "shower.fill"
+        // TODO(icon-gap): needs SVG — "desktopcomputer" (Lucide `monitor`)
+        // TODO(icon-gap): needs SVG — "car.fill"
+        // TODO(icon-gap): needs SVG — "smoke.fill"
+        // TODO(icon-gap): needs SVG — "sensor.fill"
+        // TODO(icon-gap): needs SVG — "switch.2"
+        // TODO(icon-gap): needs SVG — "poweroutlet.type.b.fill" (Lucide `plug`)
+        // TODO(icon-gap): needs SVG — "questionmark.app.fill"
+        // TODO(icon-gap): needs SVG — "blinds.horizontal.closed"
+        // TODO(icon-gap): needs SVG — "washer.fill"
+        // TODO(icon-gap): needs SVG — "cable.connector"
+        // TODO(icon-gap): needs SVG — "antenna.radiowaves.left.and.right"
+        // TODO(icon-gap): needs SVG — "externaldrive.fill"
+        // TODO(icon-gap): needs SVG — "wave.3.right"
     ]
 
     /// Returns the Lucide asset path for an SF Symbol, or nil if unmapped.
