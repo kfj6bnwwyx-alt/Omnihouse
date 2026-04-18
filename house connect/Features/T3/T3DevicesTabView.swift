@@ -71,8 +71,8 @@ struct T3DevicesTabView: View {
                 // Add device dashed button
                 Button { } label: {
                     HStack {
-                        Image(systemName: "plus")
-                            .font(T3.inter(14, weight: .medium))
+                        T3IconImage(systemName: "plus")
+                            .frame(width: 14, height: 14)
                             .foregroundStyle(T3.sub)
                         Text("Add device")
                             .font(T3.inter(14, weight: .medium))

@@ -90,8 +90,8 @@ struct T3ThermostatView: View {
                                         .fill(T3.panel)
                                         .frame(width: 52, height: 52)
                                         .overlay(
-                                            Image(systemName: "minus")
-                                                .font(T3.inter(16, weight: .medium))
+                                            T3IconImage(systemName: "minus")
+                                                .frame(width: 16, height: 16)
                                                 .foregroundStyle(T3.ink)
                                         )
                                 }
@@ -105,8 +105,8 @@ struct T3ThermostatView: View {
                                         .fill(T3.accent)
                                         .frame(width: 52, height: 52)
                                         .overlay(
-                                            Image(systemName: "plus")
-                                                .font(T3.inter(18, weight: .semibold))
+                                            T3IconImage(systemName: "plus")
+                                                .frame(width: 18, height: 18)
                                                 .foregroundStyle(T3.page)
                                         )
                                 }
@@ -209,8 +209,8 @@ struct T3ThermostatView: View {
                         }
                     } label: {
                         VStack(spacing: 4) {
-                            Image(systemName: icon)
-                                .font(T3.inter(14, weight: .medium))
+                            T3IconImage(systemName: icon)
+                                .frame(width: 14, height: 14)
                                 .foregroundStyle(selectedMode == mode ? T3.page : T3.ink)
                             Text(label)
                                 .font(T3.inter(11, weight: .medium))

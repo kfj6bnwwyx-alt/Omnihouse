@@ -29,8 +29,8 @@ struct T3ScenesListView: View {
                             TLabel(text: String(format: "%02d", i + 1))
                                 .frame(width: 28)
 
-                            Image(systemName: scene.iconSystemName)
-                                .font(T3.inter(18, weight: .medium))
+                            T3IconImage(systemName: scene.iconSystemName)
+                                .frame(width: 18, height: 18)
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
 
@@ -77,8 +77,8 @@ struct T3ScenesListView: View {
                     // Add scene dashed button
                     Button { } label: {
                         HStack {
-                            Image(systemName: "plus")
-                                .font(T3.inter(14, weight: .medium))
+                            T3IconImage(systemName: "plus")
+                                .frame(width: 14, height: 14)
                                 .foregroundStyle(T3.sub)
                             Text("Add scene")
                                 .font(T3.inter(14, weight: .medium))

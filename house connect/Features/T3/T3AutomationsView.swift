@@ -48,8 +48,8 @@ struct T3AutomationsView: View {
                                 TLabel(text: String(format: "%02d", i + 1))
                                     .frame(width: 28)
 
-                                Image(systemName: auto_.isEnabled ? "bolt.fill" : "bolt.slash")
-                                    .font(T3.inter(18, weight: .medium))
+                                T3IconImage(systemName: auto_.isEnabled ? "bolt.fill" : "bolt.slash")
+                                    .frame(width: 18, height: 18)
                                     .foregroundStyle(T3.ink)
                                     .frame(width: 28)
 
@@ -73,8 +73,8 @@ struct T3AutomationsView: View {
                                         toast = .success("\(auto_.name) triggered")
                                     }
                                 } label: {
-                                    Image(systemName: "play.fill")
-                                        .font(T3.inter(14, weight: .medium))
+                                    T3IconImage(systemName: "play.fill")
+                                        .frame(width: 14, height: 14)
                                         .foregroundStyle(T3.accent)
                                 }
                                 .buttonStyle(.plain)

@@ -145,8 +145,8 @@ struct T3SpeakerDetailView: View {
                     .fill(T3.panel)
                     .frame(width: 52, height: 52)
                     .overlay(
-                        Image(systemName: "backward.fill")
-                            .font(T3.inter(16, weight: .medium))
+                        T3IconImage(systemName: "backward.fill")
+                            .frame(width: 16, height: 16)
                             .foregroundStyle(T3.ink)
                     )
             }
@@ -163,8 +163,8 @@ struct T3SpeakerDetailView: View {
                     .fill(T3.accent)
                     .frame(width: 72, height: 72)
                     .overlay(
-                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(T3.inter(24, weight: .medium))
+                        T3IconImage(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .frame(width: 24, height: 24)
                             .foregroundStyle(T3.page)
                     )
             }
@@ -179,8 +179,8 @@ struct T3SpeakerDetailView: View {
                     .fill(T3.panel)
                     .frame(width: 52, height: 52)
                     .overlay(
-                        Image(systemName: "forward.fill")
-                            .font(T3.inter(16, weight: .medium))
+                        T3IconImage(systemName: "forward.fill")
+                            .frame(width: 16, height: 16)
                             .foregroundStyle(T3.ink)
                     )
             }

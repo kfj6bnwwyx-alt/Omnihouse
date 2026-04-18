@@ -110,8 +110,8 @@ struct THeader: View {
         HStack {
             Button(action: onBack) {
                 HStack(spacing: 6) {
-                    Image(systemName: "chevron.left")
-                        .font(T3.inter(14, weight: .medium))
+                    T3IconImage(systemName: "chevron.left")
+                        .frame(width: 14, height: 14)
                         .foregroundStyle(T3.ink)
                     TLabel(text: backLabel, color: T3.ink)
                 }

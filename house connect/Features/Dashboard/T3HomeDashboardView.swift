@@ -103,8 +103,8 @@ struct T3HomeDashboardView: View {
             // Notification bell
             NavigationLink(value: HomeDestination.notifications) {
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: "bell")
-                        .font(T3.inter(16, weight: .light))
+                    T3IconImage(systemName: "bell")
+                        .frame(width: 18, height: 18)
                         .foregroundStyle(T3.ink)
                     if eventStore.unreadCount > 0 {
                         TDot(size: 6)
@@ -245,8 +245,8 @@ struct T3HomeDashboardView: View {
             runScene(scene)
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: scene.iconSystemName)
-                    .font(T3.inter(14, weight: .medium))
+                T3IconImage(systemName: scene.iconSystemName)
+                    .frame(width: 14, height: 14)
                     .foregroundStyle(selected ? T3.page : T3.ink)
                 Text(scene.name)
                     .font(T3.inter(13, weight: .medium))
@@ -284,8 +284,8 @@ struct T3HomeDashboardView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             // Top: glyph + index
                             HStack {
-                                Image(systemName: roomIcon(room.name))
-                                    .font(T3.inter(22, weight: .medium))
+                                T3IconImage(systemName: roomIcon(room.name))
+                                    .frame(width: 22, height: 22)
                                     .foregroundStyle(T3.ink)
                                 Spacer()
                                 TLabel(text: String(format: "%02d", i + 1))

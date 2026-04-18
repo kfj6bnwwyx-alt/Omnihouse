@@ -70,8 +70,8 @@ struct T3LockDetailView: View {
                                     )
 
                                 VStack(spacing: 8) {
-                                    Image(systemName: isLocked ? "lock.fill" : "lock.open.fill")
-                                        .font(T3.inter(54, weight: .light))
+                                    T3IconImage(systemName: isLocked ? "lock.fill" : "lock.open.fill")
+                                        .frame(width: 54, height: 54)
                                         .foregroundStyle(isLocked ? T3.ink : T3.accent)
 
                                     if !isLocked {
@@ -124,8 +124,8 @@ struct T3LockDetailView: View {
 
                             Spacer()
 
-                            Image(systemName: entry.locked ? "lock.fill" : "checkmark")
-                                .font(T3.inter(14, weight: .medium))
+                            T3IconImage(systemName: entry.locked ? "lock.fill" : "checkmark")
+                                .frame(width: 14, height: 14)
                                 .foregroundStyle(T3.sub)
                         }
                         .padding(.horizontal, T3.screenPadding)
