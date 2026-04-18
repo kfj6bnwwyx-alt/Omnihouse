@@ -251,6 +251,21 @@ final class T3WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentati
         callbackScheme: String,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
+        // Ensure we have a connected UIWindowScene before starting. The
+        // presentation-anchor delegate method can't return nil, so if
+        // we're in a scene-less state (edge cases like background/multi-
+        // scene teardown) we fail gracefully instead of crashing.
+        let hasScene = UIApplication.shared.connectedScenes
+            .contains { $0 is UIWindowScene }
+        guard hasScene else {
+            completion(.failure(NSError(
+                domain: "NestOAuth",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "Could not open sign-in window. Please try again."]
+            )))
+            return
+        }
+
         let session = ASWebAuthenticationSession(
             url: authURL,
             callbackURLScheme: callbackScheme
@@ -282,11 +297,15 @@ final class T3WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentati
             if let keyWindow = scenes.flatMap(\.windows).first(where: \.isKeyWindow) {
                 return keyWindow
             }
-            // Fallback: the OAuth flow requires an active scene — if we got
-            // here with one connected, use its anchor. If zero are connected,
-            // this anchor can't meaningfully present anything, so crash loud.
+            // Fallback: the OAuth flow requires an active scene. `start()`
+            // pre-checks for a connected UIWindowScene so this branch
+            // should be unreachable — but the delegate return is
+            // non-optional, so if we somehow get here, hand back a bare
+            // UIWindow. ASWebAuthenticationSession will fail to present
+            // and surface a normal error through its completion handler
+            // rather than crashing the app.
             guard let scene = scenes.first else {
-                fatalError("Nest OAuth requested with no connected UIWindowScene")
+                return UIWindow()
             }
             return UIWindow(windowScene: scene)
         }
