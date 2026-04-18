@@ -93,5 +93,13 @@ struct T3DevicesTabView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .tint(T3.accent)
+        .refreshable {
+            await withTaskGroup(of: Void.self) { group in
+                for provider in registry.providers {
+                    group.addTask { @MainActor in await provider.refresh() }
+                }
+            }
+        }
     }
 }

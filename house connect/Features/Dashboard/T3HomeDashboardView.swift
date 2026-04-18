@@ -81,6 +81,7 @@ struct T3HomeDashboardView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .tint(T3.accent)
         .refreshable {
             weather.fetchIfNeeded()
             await withTaskGroup(of: Void.self) { group in
