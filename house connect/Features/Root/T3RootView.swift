@@ -46,6 +46,7 @@ struct T3RootView: View {
                 }
                 .navigationDestination(for: SettingsDestination.self) { dest in
                     switch dest {
+                    case .profile: T3ProfileView()
                     case .providers: T3ProvidersView()
                     case .rooms: T3RoomsTabView()
                     case .scenes: T3ScenesListView()

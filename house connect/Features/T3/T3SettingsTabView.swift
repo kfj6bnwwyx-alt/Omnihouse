@@ -9,6 +9,12 @@ import SwiftUI
 
 struct T3SettingsTabView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @AppStorage("profile.firstName") private var firstName: String = ""
+
+    private var profileSub: String {
+        let trimmed = firstName.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? "Set your name" : trimmed
+    }
 
     var body: some View {
         ScrollView {
@@ -17,7 +23,7 @@ struct T3SettingsTabView: View {
 
                 // Account
                 TSectionHead(title: "Account", count: "01")
-                settingsRow(icon: "person", title: "Profile", sub: "Name, email, preferences", destination: nil)
+                settingsRow(icon: "person", title: "Profile", sub: profileSub, destination: .profile)
 
                 // Connections
                 TSectionHead(title: "Connections", count: String(format: "%02d", registry.providers.count))

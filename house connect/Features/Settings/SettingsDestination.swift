@@ -12,6 +12,7 @@
 import SwiftUI
 
 enum SettingsDestination: Hashable {
+    case profile
     case providers
     case rooms
     case scenes

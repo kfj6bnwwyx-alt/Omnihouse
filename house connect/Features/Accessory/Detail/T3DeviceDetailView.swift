@@ -22,7 +22,7 @@ struct T3DeviceDetailView: View {
         Group {
             if let accessory {
                 if !accessory.isReachable {
-                    DeviceOfflineView(accessoryID: accessoryID)
+                    T3DeviceOfflineView(accessoryID: accessoryID)
                 } else {
                     routedView(for: accessory)
                 }
@@ -72,7 +72,7 @@ struct T3DeviceDetailView: View {
             SmokeAlarmDetailView(accessoryID: accessoryID)
 
         case .camera:
-            CameraDetailView(accessoryID: accessoryID)
+            T3CameraDetailView(accessoryID: accessoryID)
 
         case .sensor, .switch, .outlet, .fan, .blinds, .other:
             // Fall back to old generic view for categories without T3 detail
