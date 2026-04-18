@@ -178,7 +178,11 @@ struct T3ScenesListView: View {
         ringOpacity = 0.25
 
         #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        if isFullSuccess {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        }
         #endif
 
         // Animate ring expansion / fade
