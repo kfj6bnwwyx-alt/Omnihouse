@@ -34,7 +34,7 @@ struct T3RootView: View {
                     }
                 }
                 .navigationDestination(for: AccessoryID.self) { id in
-                    DeviceDetailView(accessoryID: id)
+                    T3DeviceDetailView(accessoryID: id)
                 }
                 .navigationDestination(for: Room.self) { room in
                     T3RoomDetailView(roomID: room.id, providerID: room.provider)
