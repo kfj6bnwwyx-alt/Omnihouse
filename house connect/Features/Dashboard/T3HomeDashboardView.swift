@@ -44,6 +44,24 @@ struct T3HomeDashboardView: View {
         registry.allAccessories.count - activeCount - offlineCount
     }
 
+    /// Read indoor temperature from the first thermostat or climate sensor.
+    private var insideTemp: String {
+        if let thermo = registry.allAccessories.first(where: { $0.category == .thermostat }),
+           let celsius = thermo.currentTemperature {
+            let fahrenheit = Int((celsius * 9.0 / 5.0 + 32.0).rounded())
+            return "\(fahrenheit)°"
+        }
+        return "—"
+    }
+
+    /// Read indoor humidity from a sensor or thermostat.
+    private var insideHumidity: String {
+        if let humidity = registry.allAccessories.compactMap({ $0.humidityPercent }).first {
+            return "\(humidity)% RH"
+        }
+        return ""
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -146,8 +164,8 @@ struct T3HomeDashboardView: View {
                 weatherSkeleton(label: "Energy")
             } else {
                 weatherCell(label: "Outside", value: weather.headline.components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "—", sub: weather.headline.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces) ?? "")
-                weatherCell(label: "Inside", value: "68°", sub: "42% RH")
-                weatherCell(label: "Energy", value: "1.4", sub: "Today", unit: "kW")
+                weatherCell(label: "Inside", value: insideTemp, sub: insideHumidity)
+                weatherCell(label: "Energy", value: "—", sub: "Not available", unit: nil)
             }
         }
         .padding(.horizontal, T3.screenPadding)
