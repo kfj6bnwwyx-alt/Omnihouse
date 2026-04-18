@@ -33,7 +33,7 @@ struct T3SmokeAlarmDetailView: View {
     @State private var isHolding: Bool = false
     @State private var holdTimer: Timer?
     @State private var testFlash: Bool = false
-    private let holdDuration: TimeInterval = 0.6
+    private let holdDuration: TimeInterval = T3.LongPress.heavy
 
     // Pulse animation phase for ALARM state
     @State private var pulsePhase: Bool = false
@@ -222,9 +222,10 @@ struct T3SmokeAlarmDetailView: View {
     // MARK: - Stats
 
     private var signalValue: String {
-        // No signal capability yet; surface a stable placeholder so the
-        // stats strip reads in the same shape once providers land.
-        accessory?.isReachable == true ? "Strong" : "—"
+        // No signal capability yet; surface neutral placeholders so we
+        // don't invent a strength reading. TODO(nest): read real value
+        // once the Nest/HomeKit provider surfaces signal strength.
+        accessory?.isReachable == true ? "Unknown" : "—"
     }
 
     private var lastTestedValue: String {

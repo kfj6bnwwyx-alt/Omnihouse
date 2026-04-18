@@ -322,7 +322,7 @@ struct T3ThermostatView: View {
                 adjustTarget(by: delta)
             }
             .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.5)
+                LongPressGesture(minimumDuration: T3.LongPress.medium)
                     .onEnded { _ in
                         beginRepeat(delta: delta)
                     }

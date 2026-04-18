@@ -50,6 +50,13 @@ enum T3 {
     static let sectionBottomPad: CGFloat = 8
     static let rowVerticalPad: CGFloat = 14
 
+    /// Risk-tiered long-press durations. Higher risk = longer hold.
+    enum LongPress {
+        static let light: Double = 0.4     // reversible (lock unlock)
+        static let medium: Double = 0.5    // adjustment (thermostat step)
+        static let heavy: Double = 0.6     // destructive / emergency (silence alarm)
+    }
+
     // MARK: Radii
     static let pillRadius: CGFloat = 999
     static let tabBarRadius: CGFloat = 14

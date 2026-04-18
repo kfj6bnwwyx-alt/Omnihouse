@@ -23,7 +23,7 @@ struct T3LockDetailView: View {
     @State private var isHolding: Bool = false
     @State private var commitFlash: Bool = false
     @State private var holdTimer: Timer?
-    private let holdDuration: TimeInterval = 0.4
+    private let holdDuration: TimeInterval = T3.LongPress.light
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
