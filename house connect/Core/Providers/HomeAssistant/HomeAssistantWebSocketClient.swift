@@ -227,6 +227,23 @@ final class HomeAssistantWebSocketClient: Sendable {
             let message: String?
         }
         guard let peek = try? JSONDecoder().decode(ResultPeek.self, from: data) else { return }
+
+        // Route to any pending statistics continuation first (these use the
+        // raw-data path instead of the typed pending-type table).
+        if let cont = await state.consumeStatisticsContinuation(id: peek.id) {
+            if peek.success {
+                cont.resume(returning: data)
+            } else {
+                let err = NSError(
+                    domain: "HomeAssistant",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: peek.message ?? "statistics request failed"]
+                )
+                cont.resume(throwing: err)
+            }
+            return
+        }
+
         guard peek.success else { return }
 
         guard let pendingType = await state.consumePending(id: peek.id) else { return }
@@ -292,6 +309,48 @@ final class HomeAssistantWebSocketClient: Sendable {
         }
     }
 
+    /// Fetch long-term statistics for one or more entities via the
+    /// `recorder/statistics_during_period` WebSocket command. Uses a
+    /// per-request continuation keyed by message ID so multiple concurrent
+    /// callers don't clobber each other.
+    func fetchStatistics(
+        statisticIDs: [String],
+        start: Date,
+        end: Date,
+        period: StatisticsPeriod
+    ) async throws -> [String: [StatisticsEntry]] {
+        let msgID = await state.nextID()
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let payload: [String: Any] = [
+            "id": msgID,
+            "type": "recorder/statistics_during_period",
+            "start_time": iso.string(from: start),
+            "end_time": iso.string(from: end),
+            "statistic_ids": statisticIDs,
+            "period": period.rawValue
+        ]
+
+        let data: Data = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+            Task {
+                await state.registerStatisticsContinuation(id: msgID, continuation: cont)
+                do {
+                    try await sendRaw(payload)
+                } catch {
+                    if let c = await state.consumeStatisticsContinuation(id: msgID) {
+                        c.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        struct StatsResult: Decodable {
+            let result: [String: [StatisticsEntry]]
+        }
+        return try JSONDecoder().decode(StatsResult.self, from: data).result
+    }
+
     /// Ping the server to keep the connection alive.
     func ping() async throws {
         let msgID = await state.nextID()
@@ -310,6 +369,41 @@ final class HomeAssistantWebSocketClient: Sendable {
 
     func getEntityRegistryEntries() async -> [HAEntityRegistryListEntry] {
         await state.getEntityRegistry()
+    }
+}
+
+// MARK: - Statistics
+
+/// Period granularity for `recorder/statistics_during_period` queries.
+enum StatisticsPeriod: String, Sendable {
+    case fiveMinute = "5minute"
+    case hour = "hour"
+    case day = "day"
+    case week = "week"
+    case month = "month"
+}
+
+/// One row in a statistics response. HA returns `start`/`end` as epoch
+/// milliseconds; the numeric fields vary by sensor kind (cumulative
+/// energy sensors populate `sum`/`state`; temperature-style sensors
+/// populate `mean`/`min`/`max`).
+struct StatisticsEntry: Decodable, Sendable {
+    let start: Double?
+    let end: Double?
+    let state: Double?
+    let sum: Double?
+    let mean: Double?
+    let min: Double?
+    let max: Double?
+
+    /// Convenience: the period's start as a Date.
+    var startDate: Date? {
+        start.map { Date(timeIntervalSince1970: $0 / 1000.0) }
+    }
+
+    /// Convenience: the period's end as a Date.
+    var endDate: Date? {
+        end.map { Date(timeIntervalSince1970: $0 / 1000.0) }
     }
 }
 
@@ -351,6 +445,12 @@ private actor WebSocketState {
     enum PendingType { case getStates, deviceRegistry, areaRegistry, entityRegistry }
     private var pending: [Int: PendingType] = [:]
 
+    /// Per-request continuations for one-shot commands that return raw
+    /// data (currently: statistics_during_period). Separate from the
+    /// typed `pending` table so each caller can await its own response
+    /// without contending for a shared dispatch surface.
+    private var statisticsContinuations: [Int: CheckedContinuation<Data, Error>] = [:]
+
     func nextID() -> Int {
         messageID += 1
         return messageID
@@ -370,4 +470,12 @@ private actor WebSocketState {
     func getAreas() -> [HAArea] { areas }
     func setEntityRegistry(_ e: [HAEntityRegistryListEntry]) { entityRegistry = e }
     func getEntityRegistry() -> [HAEntityRegistryListEntry] { entityRegistry }
+
+    func registerStatisticsContinuation(id: Int, continuation: CheckedContinuation<Data, Error>) {
+        statisticsContinuations[id] = continuation
+    }
+
+    func consumeStatisticsContinuation(id: Int) -> CheckedContinuation<Data, Error>? {
+        statisticsContinuations.removeValue(forKey: id)
+    }
 }
