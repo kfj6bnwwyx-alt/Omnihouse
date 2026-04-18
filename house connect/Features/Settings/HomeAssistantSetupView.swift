@@ -279,7 +279,7 @@ struct HomeAssistantSetupView: View {
 
         // Step 2: Verify token by fetching config
         do {
-            let config = try await testClient.getConfig()
+            _ = try await testClient.getConfig()
 
             // Save credentials to Keychain
             let tokenStore = KeychainTokenStore()

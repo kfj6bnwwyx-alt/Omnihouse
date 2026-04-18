@@ -25,6 +25,10 @@ struct T3HomeDashboardView: View {
     @State private var runningSceneID: UUID?
     @State private var toast: Toast?
 
+    /// User's display name for the greeting. Set in Settings → Profile.
+    /// Empty = no personalization ("Good morning." without a comma).
+    @AppStorage("profile.firstName") private var firstName: String = ""
+
     private var rooms: [Room] {
         let allRooms = registry.allRooms
         // Deduplicate by name (same pattern as HomeDashboardView)
@@ -122,15 +126,9 @@ struct T3HomeDashboardView: View {
 
     private var greeting: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Good \(timeOfDay),")
+            Text(greetingAttributed)
                 .font(T3.inter(36, weight: .medium))
                 .tracking(-1)
-                .foregroundStyle(T3.ink)
-            +
-            Text(" Alex.")
-                .font(T3.inter(36, weight: .medium))
-                .tracking(-1)
-                .foregroundStyle(T3.sub)
 
             HStack(spacing: 10) {
                 TDot(size: 8)
@@ -151,6 +149,17 @@ struct T3HomeDashboardView: View {
         case 17..<21: return "evening"
         default: return "night"
         }
+    }
+
+    /// Two-tone greeting: time-of-day in ink, optional name in sub.
+    /// AttributedString replaces the deprecated `Text + Text` concatenation.
+    private var greetingAttributed: AttributedString {
+        let trimmed = firstName.trimmingCharacters(in: .whitespaces)
+        var prefix = AttributedString("Good \(timeOfDay)")
+        prefix.foregroundColor = T3.ink
+        var suffix = AttributedString(trimmed.isEmpty ? "." : ", \(trimmed).")
+        suffix.foregroundColor = T3.sub
+        return prefix + suffix
     }
 
     // MARK: - Weather Strip
@@ -231,7 +240,6 @@ struct T3HomeDashboardView: View {
 
     private func sceneChip(_ scene: HCScene, index: Int) -> some View {
         let selected = index == selectedSceneIndex
-        let isRunning = runningSceneID == scene.id
         return Button {
             selectedSceneIndex = index
             runScene(scene)

@@ -175,31 +175,33 @@ struct T3LightDetailView: View {
     private var brightnessScale: some View {
         VStack(spacing: 6) {
             GeometryReader { geo in
-                ForEach(0..<41, id: \.self) { i in
-                    let f = Double(i) / 40.0
-                    let major = i % 5 == 0
-                    let on = f <= brightness
-                    Rectangle()
-                        .fill(on ? T3.ink : T3.rule)
-                        .frame(width: 1, height: major ? 14 : 7)
-                        .position(x: f * geo.size.width, y: major ? 7 : 3.5)
-                }
+                ZStack(alignment: .topLeading) {
+                    ForEach(0..<41, id: \.self) { i in
+                        let f = Double(i) / 40.0
+                        let major = i % 5 == 0
+                        let on = f <= brightness
+                        Rectangle()
+                            .fill(on ? T3.ink : T3.rule)
+                            .frame(width: 1, height: major ? 14 : 7)
+                            .position(x: f * geo.size.width, y: major ? 7 : 3.5)
+                    }
 
-                TDot(size: 10)
-                    .position(x: brightness * geo.size.width, y: 22)
+                    TDot(size: 10)
+                        .position(x: brightness * geo.size.width, y: 22)
+                }
+                .frame(width: geo.size.width, height: 28)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            brightness = max(0, min(1, value.location.x / geo.size.width))
+                        }
+                        .onEnded { _ in
+                            Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
+                        }
+                )
             }
             .frame(height: 28)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let geo = UIScreen.main.bounds.width - T3.screenPadding * 2
-                        brightness = max(0, min(1, value.location.x / geo))
-                    }
-                    .onEnded { _ in
-                        Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
-                    }
-            )
 
             HStack {
                 TLabel(text: "0")

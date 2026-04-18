@@ -233,11 +233,18 @@ final class WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentation
         // the connected scene. Fall back to a fresh UIWindow if somehow
         // nothing is connected (shouldn't happen in normal app flow).
         MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
+            let scenes = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first(where: \.isKeyWindow)
-                ?? UIWindow()
+            if let keyWindow = scenes.flatMap(\.windows).first(where: \.isKeyWindow) {
+                return keyWindow
+            }
+            // Fallback: the OAuth flow requires an active scene — if we got
+            // here with one connected, use its anchor. If zero are connected,
+            // this anchor can't meaningfully present anything, so crash loud.
+            guard let scene = scenes.first else {
+                fatalError("Nest OAuth requested with no connected UIWindowScene")
+            }
+            return UIWindow(windowScene: scene)
         }
     }
 }

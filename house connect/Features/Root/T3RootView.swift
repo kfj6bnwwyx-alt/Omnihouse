@@ -74,7 +74,7 @@ struct T3RootView: View {
             if let ctx = smokeAlertController.activeAlertContext {
                 SmokeAlarmAlertView(
                     roomName: ctx.roomName ?? "Unknown Room",
-                    deviceName: ctx.deviceName ?? "Smoke Alarm",
+                    deviceName: ctx.deviceName,
                     detectedAt: ctx.triggeredAt,
                     onSilence: { Task { await smokeAlertController.end(reason: .simulationStopped) } },
                     onDismiss: { Task { await smokeAlertController.end(reason: .simulationStopped) } }
