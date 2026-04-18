@@ -23,6 +23,7 @@ struct T3ScenesListView: View {
     @State private var ringOpacity: Double = 0.25
     @State private var runProgress: (done: Int, total: Int) = (0, 0)
     @State private var toast: Toast?
+    @State private var showCreateSceneSheet: Bool = false
 
     var body: some View {
         ZStack {
@@ -83,7 +84,7 @@ struct T3ScenesListView: View {
                     }
 
                     // Add scene dashed button
-                    Button { } label: {
+                    Button { showCreateSceneSheet = true } label: {
                         HStack {
                             T3IconImage(systemName: "plus")
                                 .frame(width: 14, height: 14)
@@ -109,6 +110,9 @@ struct T3ScenesListView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .toast($toast)
+        .sheet(isPresented: $showCreateSceneSheet) {
+            T3CreateSceneSheet()
+        }
     }
 
     @ViewBuilder
