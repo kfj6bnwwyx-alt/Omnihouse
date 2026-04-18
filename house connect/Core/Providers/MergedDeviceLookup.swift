@@ -7,7 +7,7 @@
 //  merge; consumed by detail views that need fallback routing.
 //
 //  Why an observable class instead of just passing MergedDevice through
-//  navigation: DeviceDetailView is reached from multiple entry points
+//  navigation: T3DeviceDetailView is reached from multiple entry points
 //  (All Devices, Home Dashboard room tiles, Notifications deep links).
 //  Not all entry points have merge data. By putting the lookup in the
 //  environment, detail views can optionally read it — if absent, they

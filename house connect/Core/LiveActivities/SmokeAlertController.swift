@@ -6,7 +6,7 @@
 //  `start(for:severity:)` when they detect smoke, `escalate(...)` to
 //  flip warning → critical, and `end(...)` when the situation clears
 //  or the user acknowledges. A `simulate(...)` entry point is exposed
-//  so the SmokeAlarmDetailView can trigger the whole pipeline end-to-end
+//  so the T3SmokeAlarmDetailView can trigger the whole pipeline end-to-end
 //  without a real Nest provider (until Phase 6 lands).
 //
 //  This is the ONLY place ActivityKit is touched from the app target.
@@ -40,7 +40,7 @@ final class SmokeAlertController {
     private var currentActivity: Activity<SmokeAlertAttributes>?
 
     /// True while a Live Activity is currently running. Bound by the
-    /// SmokeAlarmDetailView so the UI can hide the "Simulate Alert"
+    /// T3SmokeAlarmDetailView so the UI can hide the "Simulate Alert"
     /// button mid-alert and show an "End Simulation" button instead.
     var isActive: Bool { currentActivity != nil }
 
@@ -181,7 +181,7 @@ final class SmokeAlertController {
     /// Drives the full pipeline without a real Nest provider: requests a
     /// warning-severity activity, escalates to critical after ~5s, then
     /// auto-ends after ~30s if the user never acknowledges. Used by the
-    /// "Simulate Alert" button on SmokeAlarmDetailView while the Nest
+    /// "Simulate Alert" button on T3SmokeAlarmDetailView while the Nest
     /// provider is still pending (Phase 6).
     func simulate(using accessory: Accessory, roomName: String?) async {
         _ = start(for: accessory,

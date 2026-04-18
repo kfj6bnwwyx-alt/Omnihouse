@@ -4,7 +4,7 @@
 //
 //  Persists smoke alarm events (self-test results, battery checks,
 //  connectivity changes, smoke/CO detections) so the Recent Events
-//  card on SmokeAlarmDetailView shows real history instead of
+//  card on T3SmokeAlarmDetailView shows real history instead of
 //  hardcoded placeholders.
 //
 //  Storage: JSON in Application Support, keyed by accessory native ID.

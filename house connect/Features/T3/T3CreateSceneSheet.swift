@@ -3,10 +3,10 @@
 //  house connect
 //
 //  Presented from T3ScenesListView's "Add scene" button. Creates a new
-//  empty HCScene via SceneStore.add. Actions are left empty — the user
-//  fills them in later via SceneEditorView (which is the existing
-//  orphan/undesigned editor). This keeps the creation flow honest:
-//  we can name + iconify a scene here, but composition lives elsewhere.
+//  empty HCScene via SceneStore.add. Actions are left empty — a dedicated
+//  scene-action editor is not yet designed. This keeps the creation flow
+//  honest: we can name + iconify a scene here, but composition lives
+//  elsewhere once that editor exists.
 //
 
 import SwiftUI

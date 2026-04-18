@@ -93,7 +93,7 @@ enum Capability: Hashable, Sendable {
     // NOTE: Google removed Nest Protect from the SDM API, so these
     // capabilities are only populated by DemoNestProvider today.
     // Kept in the model for future-proofing and to drive the
-    // SmokeAlarmDetailView UI data-driven instead of hardcoded.
+    // T3SmokeAlarmDetailView UI data-driven instead of hardcoded.
     case smokeDetected(Bool)
     case coDetected(Bool)
 

@@ -3,8 +3,8 @@
 //  house connect
 //
 //  Placeholder Nest provider that publishes a single fake Nest Protect
-//  smoke/CO alarm so the rest of the app (Devices tab, DeviceDetailView
-//  router → SmokeAlarmDetailView, Live Activity simulate button) has
+//  smoke/CO alarm so the rest of the app (Devices tab, T3DeviceDetailView
+//  router → T3SmokeAlarmDetailView, Live Activity simulate button) has
 //  something to hang off until we wire the real Google/Nest SDM API.
 //
 //  Why a demo provider instead of a real one:
@@ -103,7 +103,7 @@ final class DemoNestProvider: AccessoryProvider {
 
         // Publish demo accessories: one Protect smoke alarm plus two
         // Nest Learning Thermostats (Living Room + Bedroom). This lets
-        // the Devices tab, ThermostatDetailView, and SmokeAlarmDetailView
+        // the Devices tab, T3ThermostatView, and T3SmokeAlarmDetailView
         // all be reachable end-to-end without a real Google SDM API.
         accessories = [
             Accessory(

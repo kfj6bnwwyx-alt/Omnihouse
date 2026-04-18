@@ -4,9 +4,9 @@
 //
 //  Generic T3/Swiss device detail — fallback for device categories
 //  without a bespoke screen (sensor / switch / outlet / fan / blinds /
-//  other). Mirrors the legacy AccessoryDetailView's capability coverage
-//  with T3 primitives: hairline rows, mono captions, Inter Tight, no
-//  rounded cards, orange dot for on-state.
+//  other). Renders the full capability set with T3 primitives: hairline
+//  rows, mono captions, Inter Tight, no rounded cards, orange dot for
+//  on-state.
 //
 
 import SwiftUI

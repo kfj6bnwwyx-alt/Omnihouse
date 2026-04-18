@@ -8,7 +8,7 @@
 //  none of those map cleanly onto the generic provider protocol, so this
 //  controller talks directly to HomeKit. When SmartThings / Nest cameras
 //  come online, we'll add provider-dispatching here (same pattern as
-//  CameraPreview's content switch).
+//  T3CameraDetailView's content switch).
 //
 //  Lifecycle:
 //    • CameraDetailView creates a @State CameraController on appear.

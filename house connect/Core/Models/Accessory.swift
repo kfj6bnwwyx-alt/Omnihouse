@@ -90,8 +90,8 @@ struct Accessory: Identifiable, Hashable, Sendable, Codable {
         /// `HomeKitProvider` from `HMAccessoryCategoryTypeTelevision`.
         case television
         /// Smoke / CO detector (Nest Protect, etc.). Distinguished from
-        /// generic `.sensor` so `DeviceDetailView` routes to
-        /// `SmokeAlarmDetailView` instead of the generic sensor screen.
+        /// generic `.sensor` so `T3DeviceDetailView` routes to
+        /// `T3SmokeAlarmDetailView` instead of the generic sensor screen.
         case smokeAlarm
         case other
     }

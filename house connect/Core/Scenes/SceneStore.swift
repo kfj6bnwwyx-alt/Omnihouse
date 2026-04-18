@@ -117,7 +117,7 @@ final class SceneStore {
     }
 
     /// First-run seed: writes the four Pencil-design scene tiles. Empty
-    /// actions — user fills them in via SceneEditorView.
+    /// actions — a dedicated scene-action editor is pending design.
     private func seedDefaults() {
         scenes = [
             HCScene(name: "Morning", iconSystemName: "sun.max.fill"),

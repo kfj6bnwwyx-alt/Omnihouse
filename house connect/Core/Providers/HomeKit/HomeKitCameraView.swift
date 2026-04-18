@@ -24,7 +24,7 @@ import HomeKit
 import UIKit
 import Observation
 
-/// Observable state the `CameraPreview` uses to show loading / error UI.
+/// Observable state the `T3CameraDetailView` uses to show loading / error UI.
 @MainActor
 @Observable
 final class HomeKitCameraState {

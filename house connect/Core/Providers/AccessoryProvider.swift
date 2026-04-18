@@ -80,7 +80,7 @@ protocol AccessoryProvider: AnyObject {
 // Camera rendering is deliberately NOT on this protocol. Each ecosystem uses
 // a totally different transport (HomeKit uses HMCameraView/HMCameraSource;
 // SmartThings gives you an HLS URL; Nest uses WebRTC) and there's no useful
-// common type to unify them. The UI's CameraPreview dispatches on provider.
+// common type to unify them. The UI's T3CameraDetailView dispatches on provider.
 extension AccessoryProvider {
     func rename(accessory accessoryID: AccessoryID, to newName: String) async throws {
         throw ProviderError.unsupportedCommand
@@ -129,7 +129,7 @@ enum ProviderError: Error, LocalizedError, Sendable {
 
     /// Human-readable, UI-safe descriptions. Without this, Swift's
     /// synthesized description leaks the case name into the UI —
-    /// e.g. `AccessoryDetailView`'s error alert was rendering
+    /// e.g. `T3AccessoryDetailView`'s error alert was rendering
     /// literal text like `underlying("SmartThings error 429: Too
     /// Many Requests")` because the alert stringified the error
     /// directly. Conforming to `LocalizedError` tells the system

@@ -5,7 +5,7 @@
 //  Pencil `Z4SXt` — Enhanced "List" mode for the Device Network screen.
 //  Searchable device list grouped by Connected / Offline with protocol
 //  badges. Designed as a standalone view that takes `[Accessory]` input
-//  so `DeviceNetworkTopologyView` can embed it in its List segment.
+//  so `T3DeviceNetworkTopologyView` can embed it in its List segment.
 //
 
 import SwiftUI
