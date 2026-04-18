@@ -23,7 +23,7 @@ struct T3NotificationsView: View {
                         Button(action: { dismiss() }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(T3.inter(14, weight: .medium))
                                     .foregroundStyle(T3.ink)
                                 TLabel(text: "Home", color: T3.ink)
                             }
@@ -55,7 +55,7 @@ struct T3NotificationsView: View {
                         VStack(spacing: 12) {
                             TLabel(text: "No notifications")
                             Text("Events will appear as your devices change state.")
-                                .font(.system(size: 13))
+                                .font(T3.inter(13, weight: .regular))
                                 .foregroundStyle(T3.sub)
                                 .multilineTextAlignment(.center)
                         }

@@ -91,7 +91,7 @@ struct T3ThermostatView: View {
                                         .frame(width: 52, height: 52)
                                         .overlay(
                                             Image(systemName: "minus")
-                                                .font(.system(size: 16, weight: .medium))
+                                                .font(T3.inter(16, weight: .medium))
                                                 .foregroundStyle(T3.ink)
                                         )
                                 }
@@ -106,8 +106,8 @@ struct T3ThermostatView: View {
                                         .frame(width: 52, height: 52)
                                         .overlay(
                                             Image(systemName: "plus")
-                                                .font(.system(size: 18, weight: .semibold))
-                                                .foregroundStyle(.white)
+                                                .font(T3.inter(18, weight: .semibold))
+                                                .foregroundStyle(T3.page)
                                         )
                                 }
                                 .buttonStyle(.plain)
@@ -210,10 +210,10 @@ struct T3ThermostatView: View {
                     } label: {
                         VStack(spacing: 4) {
                             Image(systemName: icon)
-                                .font(.system(size: 14, weight: .medium))
+                                .font(T3.inter(14, weight: .medium))
                                 .foregroundStyle(selectedMode == mode ? T3.page : T3.ink)
                             Text(label)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(T3.inter(11, weight: .medium))
                                 .foregroundStyle(selectedMode == mode ? T3.page : T3.ink)
                         }
                         .frame(maxWidth: .infinity)

@@ -43,7 +43,7 @@ struct T3RoomsTabView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 HStack {
                                     Image(systemName: roomIcon(room.name))
-                                        .font(.system(size: 22, weight: .medium))
+                                        .font(T3.inter(22, weight: .medium))
                                         .foregroundStyle(T3.ink)
                                     Spacer()
                                     TLabel(text: String(format: "%02d", i + 1))
@@ -83,7 +83,7 @@ struct T3RoomsTabView: View {
                 Button { } label: {
                     HStack {
                         Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(T3.inter(14, weight: .medium))
                             .foregroundStyle(T3.sub)
                         Text("New room")
                             .font(T3.inter(14, weight: .medium))
@@ -92,7 +92,7 @@ struct T3RoomsTabView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 0)
+                        Rectangle()
                             .stroke(T3.rule, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
                     )
                 }

@@ -56,10 +56,10 @@ struct T3EnergyView: View {
                         // Trend
                         HStack(spacing: 4) {
                             Text("↓ 15%")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(T3.inter(13, weight: .medium))
                                 .foregroundStyle(T3.ink)
                             Text("vs. yesterday (\(String(format: "%.1f", yesterdayKWh)) kWh)")
-                                .font(.system(size: 13))
+                                .font(T3.inter(13, weight: .regular))
                                 .foregroundStyle(T3.sub)
                         }
                         .padding(.top, 6)

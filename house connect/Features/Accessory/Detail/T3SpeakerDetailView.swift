@@ -111,7 +111,7 @@ struct T3SpeakerDetailView: View {
                     .foregroundStyle(T3.ink)
                     .lineLimit(1)
                 Text(accessory?.nowPlaying?.artist ?? "Sleigh Bells")
-                    .font(.system(size: 12))
+                    .font(T3.inter(12, weight: .regular))
                     .foregroundStyle(T3.sub)
                     .lineLimit(1)
             }
@@ -146,7 +146,7 @@ struct T3SpeakerDetailView: View {
                     .frame(width: 52, height: 52)
                     .overlay(
                         Image(systemName: "backward.fill")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(T3.inter(16, weight: .medium))
                             .foregroundStyle(T3.ink)
                     )
             }
@@ -164,8 +164,8 @@ struct T3SpeakerDetailView: View {
                     .frame(width: 72, height: 72)
                     .overlay(
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(.white)
+                            .font(T3.inter(24, weight: .medium))
+                            .foregroundStyle(T3.page)
                     )
             }
             .buttonStyle(.plain)
@@ -180,7 +180,7 @@ struct T3SpeakerDetailView: View {
                     .frame(width: 52, height: 52)
                     .overlay(
                         Image(systemName: "forward.fill")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(T3.inter(16, weight: .medium))
                             .foregroundStyle(T3.ink)
                     )
             }

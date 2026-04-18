@@ -29,7 +29,7 @@ struct T3ActivityView: View {
                                 .frame(width: 56, alignment: .leading)
 
                             Image(systemName: eventIcon(event.kind))
-                                .font(.system(size: 18, weight: .medium))
+                                .font(T3.inter(18, weight: .medium))
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
 
@@ -59,7 +59,7 @@ struct T3ActivityView: View {
                         VStack(spacing: 12) {
                             TLabel(text: "No activity yet")
                             Text("Events will appear as you interact with your devices.")
-                                .font(.system(size: 13))
+                                .font(T3.inter(13, weight: .regular))
                                 .foregroundStyle(T3.sub)
                         }
                         .frame(maxWidth: .infinity)

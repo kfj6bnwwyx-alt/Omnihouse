@@ -30,7 +30,7 @@ struct T3ProvidersView: View {
                                 .frame(width: 28)
 
                             Image(systemName: providerIcon(provider.id))
-                                .font(.system(size: 18, weight: .medium))
+                                .font(T3.inter(18, weight: .medium))
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
 
@@ -54,7 +54,7 @@ struct T3ProvidersView: View {
                                 .monospacedDigit()
 
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(T3.inter(12, weight: .medium))
                                 .foregroundStyle(T3.sub)
                         }
                         .padding(.horizontal, T3.screenPadding)

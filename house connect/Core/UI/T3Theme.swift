@@ -111,7 +111,7 @@ struct THeader: View {
             Button(action: onBack) {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(T3.inter(14, weight: .medium))
                         .foregroundStyle(T3.ink)
                     TLabel(text: backLabel, color: T3.ink)
                 }
@@ -157,7 +157,7 @@ struct TTitle: View {
 
             if let sub = subtitle {
                 Text(sub)
-                    .font(.system(size: 13))
+                    .font(T3.inter(13, weight: .regular))
                     .foregroundStyle(T3.sub)
                     .padding(.top, 6)
             }

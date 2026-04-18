@@ -31,7 +31,7 @@ struct T3TabBar: View {
                         }
 
                         Text(tab.label)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(T3.inter(10, weight: .medium))
                             .foregroundStyle(selection == tab ? T3.ink : T3.sub)
                     }
                     .frame(maxWidth: .infinity)

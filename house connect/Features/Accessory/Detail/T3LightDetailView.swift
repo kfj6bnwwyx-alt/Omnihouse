@@ -118,7 +118,7 @@ struct T3LightDetailView: View {
                             } label: {
                                 VStack(spacing: 2) {
                                     Text(name)
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(T3.inter(12, weight: .medium))
                                     Text(kelvin)
                                         .font(T3.mono(9))
                                         .tracking(0.5)

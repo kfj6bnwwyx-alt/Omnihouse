@@ -33,7 +33,7 @@ struct T3DeviceDetailView: View {
                     VStack(spacing: 12) {
                         TLabel(text: "Device unavailable")
                         Text("This device is no longer reported by its provider.")
-                            .font(.system(size: 13))
+                            .font(T3.inter(13, weight: .regular))
                             .foregroundStyle(T3.sub)
                             .multilineTextAlignment(.center)
                     }

@@ -72,7 +72,7 @@ struct T3DevicesTabView: View {
                 Button { } label: {
                     HStack {
                         Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(T3.inter(14, weight: .medium))
                             .foregroundStyle(T3.sub)
                         Text("Add device")
                             .font(T3.inter(14, weight: .medium))

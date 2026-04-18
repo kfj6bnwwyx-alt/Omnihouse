@@ -36,7 +36,7 @@ struct T3AutomationsView: View {
                         VStack(spacing: 12) {
                             TLabel(text: "No automations")
                             Text("Create automations in Home Assistant.\nThey'll appear here once configured.")
-                                .font(.system(size: 13))
+                                .font(T3.inter(13, weight: .regular))
                                 .foregroundStyle(T3.sub)
                                 .multilineTextAlignment(.center)
                         }
@@ -49,7 +49,7 @@ struct T3AutomationsView: View {
                                     .frame(width: 28)
 
                                 Image(systemName: auto_.isEnabled ? "bolt.fill" : "bolt.slash")
-                                    .font(.system(size: 18, weight: .medium))
+                                    .font(T3.inter(18, weight: .medium))
                                     .foregroundStyle(T3.ink)
                                     .frame(width: 28)
 
@@ -74,7 +74,7 @@ struct T3AutomationsView: View {
                                     }
                                 } label: {
                                     Image(systemName: "play.fill")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(T3.inter(14, weight: .medium))
                                         .foregroundStyle(T3.accent)
                                 }
                                 .buttonStyle(.plain)

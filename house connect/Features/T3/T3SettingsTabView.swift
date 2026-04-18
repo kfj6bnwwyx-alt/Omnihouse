@@ -73,7 +73,7 @@ struct T3SettingsTabView: View {
     private func rowContent(icon: String, title: String, sub: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .light))
+                .font(T3.inter(18, weight: .light))
                 .foregroundStyle(T3.ink)
                 .frame(width: 28)
 
@@ -82,14 +82,14 @@ struct T3SettingsTabView: View {
                     .font(T3.inter(15, weight: .medium))
                     .foregroundStyle(T3.ink)
                 Text(sub)
-                    .font(.system(size: 11))
+                    .font(T3.inter(11, weight: .regular))
                     .foregroundStyle(T3.sub)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .light))
+                .font(T3.inter(12, weight: .light))
                 .foregroundStyle(T3.sub)
         }
         .padding(.horizontal, T3.screenPadding)

@@ -30,7 +30,7 @@ struct T3ScenesListView: View {
                                 .frame(width: 28)
 
                             Image(systemName: scene.iconSystemName)
-                                .font(.system(size: 18, weight: .medium))
+                                .font(T3.inter(18, weight: .medium))
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
 
@@ -59,7 +59,7 @@ struct T3ScenesListView: View {
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 0)
+                                            Rectangle()
                                                 .stroke(T3.ink, lineWidth: 1)
                                         )
                                 }
@@ -78,7 +78,7 @@ struct T3ScenesListView: View {
                     Button { } label: {
                         HStack {
                             Image(systemName: "plus")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(T3.inter(14, weight: .medium))
                                 .foregroundStyle(T3.sub)
                             Text("Add scene")
                                 .font(T3.inter(14, weight: .medium))

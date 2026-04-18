@@ -39,7 +39,7 @@ struct T3SplashView: View {
                         .padding(.top, 22)
 
                     Text("A calm controller for everything at home.\nSeventeen devices, six rooms.")
-                        .font(.system(size: 13))
+                        .font(T3.inter(13, weight: .regular))
                         .foregroundStyle(T3.sub)
                         .lineSpacing(4)
                         .padding(.top, 14)

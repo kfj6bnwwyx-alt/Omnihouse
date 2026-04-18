@@ -60,7 +60,7 @@ struct T3RoomDetailView: View {
                             .padding(.top, 8)
 
                         Text("\(activeCount) of \(devices.count) devices on · \(providers.joined(separator: " + "))")
-                            .font(.system(size: 13))
+                            .font(T3.inter(13, weight: .regular))
                             .foregroundStyle(T3.sub)
                             .padding(.top, 10)
                     }
@@ -112,7 +112,7 @@ struct T3DeviceRow: View {
                 .frame(width: 28)
 
             Image(systemName: categoryIcon(device.category))
-                .font(.system(size: 18, weight: .medium))
+                .font(T3.inter(18, weight: .medium))
                 .foregroundStyle(T3.ink)
                 .frame(width: 28)
 
@@ -125,7 +125,7 @@ struct T3DeviceRow: View {
                 HStack(spacing: 8) {
                     if device.isOn == true { TDot(size: 5) }
                     Text(stateText(device))
-                        .font(.system(size: 11))
+                        .font(T3.inter(11, weight: .regular))
                         .foregroundStyle(T3.sub)
                     Text("·")
                         .foregroundStyle(T3.sub)
