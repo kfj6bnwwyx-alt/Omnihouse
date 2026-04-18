@@ -129,6 +129,8 @@ struct T3HomeDashboardView: View {
             Text(greetingAttributed)
                 .font(T3.inter(36, weight: .medium))
                 .tracking(-1)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             HStack(spacing: 10) {
                 TDot(size: 8)
@@ -207,6 +209,8 @@ struct T3HomeDashboardView: View {
                     .tracking(-1.4)
                     .foregroundStyle(T3.ink)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 if let unit {
                     Text(unit)
                         .font(T3.inter(15, weight: .regular))
