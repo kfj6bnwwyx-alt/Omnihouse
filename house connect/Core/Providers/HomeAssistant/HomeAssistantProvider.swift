@@ -630,4 +630,40 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     var serverURL: URL? {
         restClient?.baseURL
     }
+
+    // MARK: - Energy / Statistics
+
+    /// Default statistic ID used for whole-home energy totals. HA's
+    /// Energy dashboard typically exposes this as a cumulative kWh
+    /// sensor. TODO(config): surface a user-configurable sensor picker
+    /// instead of hardcoding a single ID.
+    static let defaultEnergyStatisticID: String = "sensor.energy_home_total"
+
+    /// Fetch recorder statistics for the default home-energy sensor
+    /// over the past `lookback` window. Returns the entries for the
+    /// default statistic ID (empty if HA returned nothing for it).
+    ///
+    /// Throws if the WebSocket isn't connected or if HA reports an error.
+    func fetchEnergyStatistics(
+        period: StatisticsPeriod,
+        lookback: Duration,
+        statisticID: String = HomeAssistantProvider.defaultEnergyStatisticID
+    ) async throws -> [StatisticsEntry] {
+        guard let ws = wsClient, isConnected else {
+            throw ProviderError.notAuthorized
+        }
+        let end = Date()
+        // Duration → TimeInterval. Components are (seconds, attoseconds);
+        // attoseconds are negligible for an energy lookback window.
+        let secs = TimeInterval(lookback.components.seconds)
+        let start = end.addingTimeInterval(-secs)
+
+        let result = try await ws.fetchStatistics(
+            statisticIDs: [statisticID],
+            start: start,
+            end: end,
+            period: period
+        )
+        return result[statisticID] ?? []
+    }
 }
