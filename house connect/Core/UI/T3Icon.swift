@@ -177,8 +177,6 @@ enum T3Icon {
         "party.popper.fill": "sparkles",    // TODO(icon-gap): needs SVG — using sparkles placeholder
         "lightbulb.slash": "lightbulb",     // inverted state handled via tint
         "tv.fill": "tv",
-        "rectangle.on.rectangle": "layout-grid",
-        "gearshape": "settings",
         "info.circle": "triangle-alert",    // TODO(icon-gap): needs SVG — info glyph missing
         "airplayvideo": "airplay",
         "repeat": "rotate-cw",
