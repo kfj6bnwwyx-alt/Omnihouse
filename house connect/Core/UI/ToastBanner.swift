@@ -80,8 +80,8 @@ private struct ToastBannerView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: toast.glyph)
-                .font(.system(size: 16, weight: .bold))
+            T3IconImage(systemName: toast.glyph)
+                .frame(width: 16, height: 16)
                 .foregroundStyle(.white)
             Text(toast.message)
                 .font(.system(size: 14, weight: .semibold))

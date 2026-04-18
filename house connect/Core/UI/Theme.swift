@@ -148,8 +148,8 @@ struct IconChip: View {
             .fill(fill)
             .frame(width: size, height: size)
             .overlay(
-                Image(systemName: systemName)
-                    .font(.system(size: size * 0.45, weight: .semibold))
+                T3IconImage(systemName: systemName)
+                    .frame(width: size * 0.45, height: size * 0.45)
                     .foregroundStyle(glyph)
             )
     }
