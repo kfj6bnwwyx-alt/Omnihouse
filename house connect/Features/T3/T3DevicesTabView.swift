@@ -11,6 +11,7 @@ struct T3DevicesTabView: View {
     @Environment(ProviderRegistry.self) private var registry
 
     @State private var filter: String = "All"
+    @State private var showAddDeviceSheet: Bool = false
 
     private let filters = ["All", "On", "Lights", "Climate", "Media"]
 
@@ -70,7 +71,7 @@ struct T3DevicesTabView: View {
                 }
 
                 // Add device dashed button
-                Button { } label: {
+                Button { showAddDeviceSheet = true } label: {
                     HStack {
                         T3IconImage(systemName: "plus")
                             .frame(width: 14, height: 14)
@@ -101,6 +102,9 @@ struct T3DevicesTabView: View {
                     group.addTask { @MainActor in await provider.refresh() }
                 }
             }
+        }
+        .sheet(isPresented: $showAddDeviceSheet) {
+            T3AddDeviceSheet()
         }
     }
 }
