@@ -1,14 +1,19 @@
 //
-//  NotificationPreferencesView.swift
+//  T3NotificationPreferencesView.swift
 //  house connect
 //
-//  Settings → Preferences → Notifications. T3/Swiss rewrite 2026-04-18.
-//  Same @AppStorage keys as the legacy version so prefs persist.
+//  Settings → Preferences → Notifications. T3 rename 2026-04-18 with
+//  a11y labels, Dynamic Type clamp, and the shared TToggle primitive.
+//
+//  @AppStorage keys preserved verbatim:
+//    notif.deviceOffline · notif.deviceOnline · notif.sceneRun ·
+//    notif.smokeAlarm · notif.motionDetected · notif.doorLock ·
+//    notif.temperatureAlert · notif.inAppBanner
 //
 
 import SwiftUI
 
-struct NotificationPreferencesView: View {
+struct T3NotificationPreferencesView: View {
     @AppStorage("notif.deviceOffline") private var deviceOffline = true
     @AppStorage("notif.deviceOnline") private var deviceOnline = false
     @AppStorage("notif.sceneRun") private var sceneRun = true
@@ -68,6 +73,7 @@ struct NotificationPreferencesView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     private func toggleRow(icon: String, title: String, sub: String,
@@ -84,9 +90,7 @@ struct NotificationPreferencesView: View {
                 TLabel(text: sub)
             }
             Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .tint(T3.accent)
+            TToggle(isOn: isOn, accessibilityLabel: title)
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 12)

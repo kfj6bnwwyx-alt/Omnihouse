@@ -58,7 +58,7 @@ struct T3RootView: View {
                     case .networkTopology: DeviceNetworkTopologyView()
                     case .about: T3AboutView()
                     case .helpFAQ: T3HelpFAQView()
-                    case .notifications: NotificationPreferencesView()
+                    case .notifications: T3NotificationPreferencesView()
                     case .appearance: T3AppearanceView()
                     }
                 }
