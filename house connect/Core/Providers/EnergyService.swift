@@ -6,13 +6,13 @@
 //  category split, monthly totals) to T3EnergyView and any future
 //  energy-aware surface.
 //
-//  Backend status: PLACEHOLDER. Home Assistant exposes energy via
-//  the recorder integration's `recorder/statistics_during_period`
-//  WebSocket command, but HomeAssistantProvider/HomeAssistantWebSocketClient
-//  don't surface statistics requests yet. Until that wiring lands,
-//  `refresh()` generates deterministic mock values seeded off the
-//  current date so the dashboard varies day-to-day while staying
-//  stable within a session.
+//  Backend: Home Assistant's `recorder/statistics_during_period`
+//  WebSocket command (via HomeAssistantProvider.fetchEnergyStatistics).
+//  If HA is unreachable, the configured sensor is missing, or the
+//  response can't be parsed, the service falls back to deterministic
+//  mock values seeded off the current date so T3EnergyView always
+//  renders *something*. Failures are logged under the "energy"
+//  os.Logger category.
 //
 //  Consumers should render em-dashes (per the SmokeAlarm placeholder
 //  pattern) while values are nil, then update once `refresh()`
@@ -20,8 +20,12 @@
 //
 
 import Foundation
+import os
+
+private let energyLog = Logger(subsystem: "com.houseconnect.app", category: "energy")
 
 /// Shared energy statistics surface. Inject at app scope.
+@MainActor
 @Observable
 final class EnergyService {
     /// Total kWh consumed since local midnight today.
@@ -41,18 +45,135 @@ final class EnergyService {
     /// Timestamp of the last successful refresh.
     var lastUpdated: Date?
 
-    init() {}
+    /// Optional handle to the provider registry so `refresh()` can
+    /// locate the Home Assistant provider and request recorder
+    /// statistics. Nil = fall back to mock data immediately (used by
+    /// previews and unit tests).
+    private weak var registry: ProviderRegistry?
 
-    /// Refresh all energy metrics.
-    ///
-    /// TODO(HA): replace with a real `recorder/statistics_during_period`
-    /// call via HomeAssistantWebSocketClient once the statistics
-    /// command envelope is wired. Current implementation returns
-    /// deterministic mock data derived from `Date()` so the screen
-    /// renders plausible numbers without a live backend.
+    /// TODO(config): surface a user rate-plan setting instead of this
+    /// hardcoded US-average $/kWh figure.
+    private let rateUSDPerKwh: Double = 0.15
+
+    init(registry: ProviderRegistry? = nil) {
+        self.registry = registry
+    }
+
+    /// Allow the registry to be injected after init (e.g. when both
+    /// objects are created at app scope and wired up together).
+    func attach(registry: ProviderRegistry) {
+        self.registry = registry
+    }
+
+    /// Refresh all energy metrics. Tries HA recorder statistics first;
+    /// falls back to deterministic mock data on any failure so the UI
+    /// never stays empty.
     func refresh() async {
-        // Seed off the calendar day so values are stable within a day
-        // but vary day-to-day — keeps the dashboard feeling alive.
+        if let ha = registry?.provider(for: .homeAssistant) as? HomeAssistantProvider {
+            do {
+                try await refreshFromHomeAssistant(ha)
+                return
+            } catch {
+                energyLog.warning("HA energy fetch failed, falling back to mock: \(error.localizedDescription, privacy: .public)")
+            }
+        } else {
+            energyLog.info("No HA provider registered — using mock energy data")
+        }
+        applyMockData()
+    }
+
+    /// Pull hourly (24h) + daily (30d) statistics from HA and populate
+    /// the observable properties. Throws on any failure so `refresh()`
+    /// can decide whether to fall back.
+    private func refreshFromHomeAssistant(_ ha: HomeAssistantProvider) async throws {
+        // Hourly for the last 24h (used for today/yesterday splits and
+        // the hourly chart).
+        let hourlyEntries = try await ha.fetchEnergyStatistics(
+            period: .hour,
+            lookback: .seconds(60 * 60 * 48)   // 48h so we can compute yesterday too
+        )
+        // Daily for the month-so-far total.
+        let dailyEntries = try await ha.fetchEnergyStatistics(
+            period: .day,
+            lookback: .seconds(60 * 60 * 24 * 31)
+        )
+
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfToday = calendar.startOfDay(for: now)
+        guard let startOfYesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday),
+              let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start else {
+            throw NSError(domain: "EnergyService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "calendar math failed"])
+        }
+
+        // HA `sum` is cumulative kWh. Per-period consumption is the
+        // delta between consecutive sums, which is more reliable than
+        // `state` (which may be instantaneous meter reading).
+        let hourlyKwh = perPeriodKwh(from: hourlyEntries)
+
+        // Build 24-entry hour-indexed curve for today.
+        var hourly = Array(repeating: 0.0, count: 24)
+        var todayTotal = 0.0
+        var yesterdayTotal = 0.0
+        for (entry, kwh) in hourlyKwh {
+            guard let start = entry.startDate else { continue }
+            if start >= startOfToday {
+                let hour = calendar.component(.hour, from: start)
+                if hour >= 0 && hour < 24 { hourly[hour] += kwh }
+                todayTotal += kwh
+            } else if start >= startOfYesterday && start < startOfToday {
+                yesterdayTotal += kwh
+            }
+        }
+
+        let dailyKwh = perPeriodKwh(from: dailyEntries)
+        var monthTotal = 0.0
+        for (entry, kwh) in dailyKwh {
+            guard let start = entry.startDate else { continue }
+            if start >= startOfMonth { monthTotal += kwh }
+        }
+
+        // Without device-level submetering from HA we can't build a
+        // real category split. Leave as nil — T3EnergyView's category
+        // section will simply render no rows, which is the honest UI.
+        self.todayKwh = todayTotal
+        self.yesterdayKwh = yesterdayTotal
+        self.hourly = hourly
+        self.categories = nil
+        self.monthKwh = monthTotal
+        self.estMonthCostUSD = monthTotal * rateUSDPerKwh
+        self.lastUpdated = Date()
+    }
+
+    /// Convert cumulative `sum` entries into per-period kWh deltas.
+    /// Falls back to `state` if `sum` is missing on all rows (some
+    /// sensors expose only state).
+    private func perPeriodKwh(from entries: [StatisticsEntry]) -> [(StatisticsEntry, Double)] {
+        // Sort chronologically to make delta math deterministic.
+        let sorted = entries.sorted { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }
+        let hasSum = sorted.contains { $0.sum != nil }
+        if hasSum {
+            var result: [(StatisticsEntry, Double)] = []
+            var previous: Double?
+            for entry in sorted {
+                guard let current = entry.sum else { continue }
+                if let previous {
+                    result.append((entry, max(0, current - previous)))
+                }
+                previous = current
+            }
+            return result
+        } else {
+            return sorted.compactMap { entry in
+                entry.state.map { (entry, $0) }
+            }
+        }
+    }
+
+    /// Deterministic mock data, seeded by the calendar day. Used when
+    /// HA is unreachable or no provider registry was injected.
+    private func applyMockData() {
         let calendar = Calendar.current
         let day = calendar.ordinality(of: .day, in: .year, for: Date()) ?? 100
         let seed = Double(day)
@@ -60,7 +181,6 @@ final class EnergyService {
         let today = 12.0 + (seed.truncatingRemainder(dividingBy: 8))
         let yesterday = today * (1.0 + (seed.truncatingRemainder(dividingBy: 3) - 1.0) * 0.1)
 
-        // Hourly curve: low overnight, morning bump, evening peak.
         let base: [Double] = [0.4,0.3,0.3,0.3,0.3,0.4,0.9,1.2,0.8,0.6,0.5,0.5,
                               0.7,0.6,0.5,0.6,0.9,1.3,1.4,1.2,0.9,0.7,0.5,0.4]
         let scale = today / base.reduce(0, +)
@@ -79,19 +199,15 @@ final class EnergyService {
 
         let dayOfMonth = calendar.component(.day, from: Date())
         let month = today * Double(dayOfMonth) * 0.95
-        let cost = month * 0.15
+        let cost = month * rateUSDPerKwh
 
-        // Apply on the main actor — @Observable mutations should come
-        // from a consistent context.
-        await MainActor.run {
-            self.todayKwh = today
-            self.yesterdayKwh = yesterday
-            self.hourly = curve
-            self.categories = cats
-            self.monthKwh = month
-            self.estMonthCostUSD = cost
-            self.lastUpdated = Date()
-        }
+        self.todayKwh = today
+        self.yesterdayKwh = yesterday
+        self.hourly = curve
+        self.categories = cats
+        self.monthKwh = month
+        self.estMonthCostUSD = cost
+        self.lastUpdated = Date()
     }
 }
 

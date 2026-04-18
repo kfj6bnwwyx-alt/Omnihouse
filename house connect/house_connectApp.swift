@@ -103,6 +103,11 @@ struct house_connectApp: App {
         _tokenStore = State(initialValue: store)
         _providerRegistry = State(initialValue: registry)
         _sceneStore = State(initialValue: SceneStore())
+
+        // Wire EnergyService to the same registry so it can reach
+        // HomeAssistantProvider for recorder statistics.
+        let energy = EnergyService(registry: registry)
+        _energyService = State(initialValue: energy)
     }
 
     /// User's preferred color scheme from Appearance settings. Maps
