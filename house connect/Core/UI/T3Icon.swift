@@ -175,29 +175,42 @@ enum T3Icon {
         "cloud.bolt.fill": "zap",
         "cloud.bolt.rain.fill": "zap",
         "shield.fill": "shield-check",
-        "book.fill": "sparkles",            // TODO(icon-gap): needs SVG — using sparkles placeholder
-        "party.popper.fill": "sparkles",    // TODO(icon-gap): needs SVG — using sparkles placeholder
+        "book.fill": "book-open",
+        "book": "book-open",
+        "party.popper.fill": "party-popper",
+        "party.popper": "party-popper",
         "lightbulb.slash": "lightbulb",     // inverted state handled via tint
         "tv.fill": "tv",
-        "info.circle": "triangle-alert",    // TODO(icon-gap): needs SVG — info glyph missing
+        "info.circle": "info",
+        "info.circle.fill": "info",
         "airplayvideo": "airplay",
         "repeat": "rotate-cw",
         "repeat.1": "rotate-cw",
 
+        // Wave B additions — Lucide SVGs newly bundled
+        "shower.fill": "shower-head",
+        "shower": "shower-head",
+        "desktopcomputer": "monitor",
+        "car.fill": "car",
+        "car": "car",
+        "smoke.fill": "flame",              // closest Lucide match
+        "smoke": "flame",
+        "sensor.fill": "radio",             // broadcasting-dot glyph
+        "sensor": "radio",
+        "switch.2": "toggle-left",
+        "poweroutlet.type.b.fill": "plug",
+        "poweroutlet.type.b": "plug",
+        "questionmark.app.fill": "help-circle",
+        "questionmark.app": "help-circle",
+        "questionmark.circle": "help-circle",
+        "questionmark.circle.fill": "help-circle",
+        "cable.connector": "cable",
+        "antenna.radiowaves.left.and.right": "antenna",
+
         // Known gaps — leave unmapped so Image(systemName:) fallback still
         // renders an SF Symbol until we export the Lucide equivalents:
-        // TODO(icon-gap): needs SVG — "shower.fill"
-        // TODO(icon-gap): needs SVG — "desktopcomputer" (Lucide `monitor`)
-        // TODO(icon-gap): needs SVG — "car.fill"
-        // TODO(icon-gap): needs SVG — "smoke.fill"
-        // TODO(icon-gap): needs SVG — "sensor.fill"
-        // TODO(icon-gap): needs SVG — "switch.2"
-        // TODO(icon-gap): needs SVG — "poweroutlet.type.b.fill" (Lucide `plug`)
-        // TODO(icon-gap): needs SVG — "questionmark.app.fill"
-        // TODO(icon-gap): needs SVG — "blinds.horizontal.closed"
-        // TODO(icon-gap): needs SVG — "washer.fill"
-        // TODO(icon-gap): needs SVG — "cable.connector"
-        // TODO(icon-gap): needs SVG — "antenna.radiowaves.left.and.right"
+        // TODO(icon-gap): needs SVG — "blinds.horizontal.closed" (no close Lucide match)
+        // TODO(icon-gap): needs SVG — "washer.fill" (no close Lucide match)
         // TODO(icon-gap): needs SVG — "externaldrive.fill"
         // TODO(icon-gap): needs SVG — "wave.3.right"
     ]
