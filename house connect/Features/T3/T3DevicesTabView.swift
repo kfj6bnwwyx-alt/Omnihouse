@@ -9,6 +9,7 @@ import SwiftUI
 
 struct T3DevicesTabView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(T3TabNavigator.self) private var navigator
 
     @State private var filter: String = "All"
     @State private var showAddDeviceSheet: Bool = false
@@ -104,7 +105,9 @@ struct T3DevicesTabView: View {
             }
         }
         .sheet(isPresented: $showAddDeviceSheet) {
-            T3AddDeviceSheet()
+            T3AddDeviceSheet(onOpenConnections: {
+                navigator.goToSettings(.providers)
+            })
         }
     }
 }

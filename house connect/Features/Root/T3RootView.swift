@@ -15,14 +15,14 @@ struct T3RootView: View {
     @Environment(SmokeAlertController.self) private var smokeAlertController
     #endif
 
-    @State private var selectedTab: T3Tab = .home
+    @State private var navigator = T3TabNavigator()
 
     var body: some View {
         ZStack(alignment: .bottom) {
             // Tab content
-            NavigationStack {
+            NavigationStack(path: $navigator.path) {
                 Group {
-                    switch selectedTab {
+                    switch navigator.selection {
                     case .home:
                         T3HomeDashboardView()
                     case .rooms:
@@ -68,8 +68,9 @@ struct T3RootView: View {
             .toolbar(.hidden, for: .tabBar)
 
             // Floating T3 tab bar
-            T3TabBar(selection: $selectedTab)
+            T3TabBar(selection: $navigator.selection)
         }
+        .environment(navigator)
         .task {
             await registry.startAll()
         }
