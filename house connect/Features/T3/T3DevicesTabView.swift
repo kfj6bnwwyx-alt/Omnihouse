@@ -32,6 +32,7 @@ struct T3DevicesTabView: View {
                     title: "Devices.",
                     subtitle: "\(registry.allAccessories.filter { $0.isOn == true }.count) on now · across \(registry.allRooms.count) rooms"
                 )
+                .t3ScreenTopPad()
 
                 // Filter chips
                 ScrollView(.horizontal, showsIndicators: false) {

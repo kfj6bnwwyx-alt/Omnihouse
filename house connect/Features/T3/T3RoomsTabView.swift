@@ -19,19 +19,11 @@ struct T3RoomsTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack {
-                    TLabel(text: "Your Home")
-                    Spacer()
-                    TLabel(text: String(format: "%02d rooms", rooms.count))
-                }
-                .padding(.horizontal, T3.screenPadding)
-                .padding(.top, 8)
-
                 TTitle(
                     title: "Rooms.",
                     subtitle: "\(registry.allAccessories.filter { $0.isOn == true }.count) devices active across the house"
                 )
+                .t3ScreenTopPad()
 
                 // 2-column grid
                 let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]

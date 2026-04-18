@@ -20,6 +20,7 @@ struct T3SettingsTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 TTitle(title: "Settings.")
+                    .t3ScreenTopPad()
 
                 // Account
                 TSectionHead(title: "Account", count: "01")

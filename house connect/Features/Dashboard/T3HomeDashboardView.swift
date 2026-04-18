@@ -69,8 +69,9 @@ struct T3HomeDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                masthead
                 greeting
+                    .t3ScreenTopPad()
+                masthead
                 TRule()
                 weatherStrip
                 TRule()
@@ -116,7 +117,7 @@ struct T3HomeDashboardView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, T3.screenPadding)
-        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
     enum HomeDestination: Hashable {
