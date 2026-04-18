@@ -67,7 +67,7 @@ struct ProviderDevicesListView: View {
                 } else {
                     ForEach(accessories) { accessory in
                         NavigationLink {
-                            DeviceDetailView(accessoryID: accessory.id)
+                            T3DeviceDetailView(accessoryID: accessory.id)
                                 .environment(registry)
                         } label: {
                             DeviceListRow(
