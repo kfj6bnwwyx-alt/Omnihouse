@@ -2,10 +2,9 @@
 //  AboutView.swift
 //  house connect
 //
-//  "About" screen reached from Settings → Support → About.
-//  Shows app version, build info, ecosystem badges, and links to
-//  acknowledgments / third-party licenses. Follows the same card-based
-//  visual language as the rest of the app.
+//  Settings → Support → About. T3/Swiss rewrite 2026-04-18 — dropped
+//  the rounded-card + gradient-icon layout in favor of hairline rows
+//  with mono captions, matching the rest of the T3 surface.
 //
 
 import SwiftUI
@@ -15,225 +14,151 @@ struct AboutView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.space.sectionGap) {
-                header
-                    .padding(.top, 8)
-                appInfoCard
-                ecosystemBadges
-                linksSection
-                footerNote
-                Spacer(minLength: 24)
-            }
-            .padding(.horizontal, Theme.space.screenHorizontal)
-        }
-        .background(Theme.color.pageBackground.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
-    }
+            VStack(alignment: .leading, spacing: 0) {
+                TTitle(title: "About.", subtitle: "House Connect")
 
-    // MARK: - Header
+                // App
+                TSectionHead(title: "App", count: "")
+                infoRow(icon: "house", title: "House Connect", sub: versionString)
+                infoRow(icon: "pencil", title: "Unified smart home control",
+                        sub: "ONE APP · EVERY ECOSYSTEM")
+                Rectangle().fill(T3.rule).frame(height: 1)
 
-    private var header: some View {
-        SettingsSubpageHeader(title: "About", subtitle: "House Connect")
-    }
-
-    // MARK: - App info card
-
-    private var appInfoCard: some View {
-        VStack(spacing: 20) {
-            // App icon placeholder
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.color.primary, Theme.color.primaryPressed],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 80, height: 80)
-                Image(systemName: "house.fill")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityLabel("House Connect app icon")
-            .accessibilityHidden(true)
-
-            VStack(spacing: 4) {
-                Text("House Connect")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Theme.color.title)
-                Text(versionString)
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
-            }
-            .accessibilityElement(children: .combine)
-
-            Text("Unify your smart home. Control HomeKit, SmartThings, Nest, and Sonos devices from a single, beautiful app.")
-                .font(Theme.font.cardSubtitle)
-                .foregroundStyle(Theme.color.subtitle)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-        }
-        .frame(maxWidth: .infinity)
-        .hcCard()
-    }
-
-    // MARK: - Ecosystem badges
-
-    private var ecosystemBadges: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ECOSYSTEMS")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.subtitle)
-                .tracking(0.8)
-                .padding(.leading, 4)
-                .accessibilityAddTraits(.isHeader)
-
-            VStack(spacing: 0) {
-                ForEach(registry.providers, id: \.id) { provider in
-                    HStack(spacing: 14) {
-                        IconChip(
-                            systemName: iconForProvider(provider.id),
-                            size: 40,
-                            fill: provider.authorizationState == .authorized
-                                ? Theme.color.primary.opacity(0.12)
-                                : Theme.color.iconChipFill,
-                            glyph: provider.authorizationState == .authorized
-                                ? Theme.color.primary
-                                : Theme.color.iconChipGlyph
-                        )
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(provider.displayName)
-                                .font(Theme.font.cardTitle)
-                                .foregroundStyle(Theme.color.title)
-                            Text(statusLabel(for: provider.authorizationState))
-                                .font(Theme.font.cardSubtitle)
-                                .foregroundStyle(
-                                    provider.authorizationState == .authorized
-                                        ? Theme.color.success
-                                        : Theme.color.subtitle
-                                )
-                        }
-                        Spacer()
-                        Text("\(provider.accessories.count)")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.color.muted)
-                        Text("devices")
-                            .font(Theme.font.cardSubtitle)
-                            .foregroundStyle(Theme.color.muted)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(provider.displayName), \(statusLabel(for: provider.authorizationState)), \(provider.accessories.count) devices")
+                // Ecosystems
+                TSectionHead(title: "Ecosystems", count: String(format: "%02d", registry.providers.count))
+                ForEach(Array(registry.providers.enumerated()), id: \.element.id) { i, provider in
+                    ecosystemRow(index: i, provider: provider,
+                                 isLast: i == registry.providers.count - 1)
                 }
+
+                // Resources
+                TSectionHead(title: "Resources", count: "")
+                linkRow(icon: "shield-check", title: "Privacy Policy",
+                        sub: "How we handle your data", url: "https://example.com/privacy")
+                linkRow(icon: "pencil", title: "Terms of Service",
+                        sub: "Usage agreement", url: "https://example.com/terms")
+                linkRow(icon: "sparkles", title: "Acknowledgments",
+                        sub: "Open-source libraries", url: "https://example.com/oss")
+                linkRow(icon: "mail", title: "Contact support",
+                        sub: "Get help or send feedback", url: "mailto:support@example.com", isLast: true)
+
+                // Foot
+                VStack(spacing: 4) {
+                    TLabel(text: "MADE FOR SMART HOME ENTHUSIASTS")
+                    TLabel(text: "© 2026 HOUSE CONNECT")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+
+                Spacer(minLength: 120)
             }
-            .hcCard(padding: 0)
         }
+        .background(T3.page.ignoresSafeArea())
     }
 
-    // MARK: - Links section
-
-    private var linksSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("RESOURCES")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.subtitle)
-                .tracking(0.8)
-                .padding(.leading, 4)
-                .accessibilityAddTraits(.isHeader)
-
-            VStack(spacing: 0) {
-                linkRow(
-                    icon: "doc.text.fill",
-                    title: "Privacy Policy",
-                    subtitle: "How we handle your data"
-                )
-                linkRow(
-                    icon: "scroll.fill",
-                    title: "Terms of Service",
-                    subtitle: "Usage agreement"
-                )
-                linkRow(
-                    icon: "heart.fill",
-                    title: "Acknowledgments",
-                    subtitle: "Open-source libraries"
-                )
-                linkRow(
-                    icon: "envelope.fill",
-                    title: "Contact Support",
-                    subtitle: "Get help or send feedback"
-                )
-            }
-            .hcCard(padding: 0)
-        }
-    }
-
-    private func linkRow(icon: String, title: String, subtitle: String) -> some View {
+    private func infoRow(icon: String, title: String, sub: String) -> some View {
         HStack(spacing: 14) {
-            IconChip(systemName: icon, size: 40)
-            VStack(alignment: .leading, spacing: 2) {
+            T3IconImage(systemName: icon)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(T3.ink)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(Theme.font.cardTitle)
-                    .foregroundStyle(Theme.color.title)
-                Text(subtitle)
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
+                    .font(T3.inter(15, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                TLabel(text: sub)
             }
             Spacer()
-            Image(systemName: "arrow.up.right")
-                .foregroundStyle(Theme.color.muted)
-                .font(.system(size: 12, weight: .semibold))
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 14)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title), \(subtitle)")
-        .accessibilityAddTraits(.isLink)
+        .overlay(alignment: .top) { TRule() }
     }
 
-    // MARK: - Footer
-
-    private var footerNote: some View {
-        VStack(spacing: 4) {
-            Text("Made with ❤️ for smart home enthusiasts")
-                .font(Theme.font.cardSubtitle)
-                .foregroundStyle(Theme.color.muted)
-            Text("© 2026 House Connect. All rights reserved.")
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(Theme.color.muted)
+    private func ecosystemRow(index i: Int, provider: any AccessoryProvider, isLast: Bool) -> some View {
+        HStack(spacing: 14) {
+            TLabel(text: String(format: "%02d", i + 1))
+                .frame(width: 28)
+            T3IconImage(systemName: providerIcon(provider.id))
+                .frame(width: 20, height: 20)
+                .foregroundStyle(T3.ink)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(provider.displayName)
+                    .font(T3.inter(15, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                HStack(spacing: 8) {
+                    TDot(size: 5, color: provider.authorizationState == .authorized
+                         ? Color(red: 0.29, green: 0.56, blue: 0.36)
+                         : T3.sub)
+                    TLabel(text: statusLabel(for: provider.authorizationState))
+                }
+            }
+            Spacer()
+            Text("\(provider.accessories.count)")
+                .font(T3.inter(16, weight: .medium))
+                .foregroundStyle(T3.ink)
+                .monospacedDigit()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
-        .accessibilityElement(children: .combine)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
     }
 
-    // MARK: - Helpers
+    @ViewBuilder
+    private func linkRow(icon: String, title: String, sub: String, url: String, isLast: Bool = false) -> some View {
+        if let link = URL(string: url) {
+            Link(destination: link) {
+                HStack(spacing: 14) {
+                    T3IconImage(systemName: icon)
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(T3.ink)
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(T3.inter(15, weight: .medium))
+                            .foregroundStyle(T3.ink)
+                        TLabel(text: sub)
+                    }
+                    Spacer()
+                    T3IconImage(systemName: "arrow.up.right")
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(T3.sub)
+                }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .top) { TRule() }
+            .overlay(alignment: .bottom) { if isLast { TRule() } }
+        }
+    }
 
     private var versionString: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "–"
-        return "Version \(v) (\(b))"
+        return "VERSION \(v) · BUILD \(b)"
     }
 
-    private func iconForProvider(_ id: ProviderID) -> String {
+    private func providerIcon(_ id: ProviderID) -> String {
         switch id {
-        case .homeKit: return "homekit"
-        case .smartThings: return "cpu"
-        case .nest: return "thermometer"
+        case .homeKit: return "house.fill"
+        case .smartThings: return "bolt.fill"
         case .sonos: return "hifispeaker.fill"
-        case .homeAssistant: return "house.lodge.fill"
+        case .nest: return "leaf.fill"
+        case .homeAssistant: return "server.rack"
         }
     }
 
     private func statusLabel(for state: ProviderAuthorizationState) -> String {
         switch state {
-        case .authorized: return "Connected"
-        case .denied: return "Access Denied"
-        case .notDetermined: return "Not Set Up"
-        case .restricted: return "Restricted"
-        case .unavailable: return "Unavailable"
+        case .authorized: return "CONNECTED"
+        case .denied: return "ACCESS DENIED"
+        case .notDetermined: return "NOT SET UP"
+        case .restricted: return "RESTRICTED"
+        case .unavailable: return "UNAVAILABLE"
         }
     }
 }

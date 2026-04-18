@@ -2,15 +2,8 @@
 //  NotificationPreferencesView.swift
 //  house connect
 //
-//  Notification preferences reached from Settings → Preferences →
-//  Notifications. Controls which event categories generate push
-//  notifications and in-app banners. All toggles are @AppStorage-
-//  backed so they persist across launches.
-//
-//  These preferences are UI-only right now — the app doesn't send real
-//  push notifications yet (requires APNs entitlement + server). The
-//  toggles are wired so that when push is added later, the stored
-//  preferences are already in place.
+//  Settings → Preferences → Notifications. T3/Swiss rewrite 2026-04-18.
+//  Same @AppStorage keys as the legacy version so prefs persist.
 //
 
 import SwiftUI
@@ -27,125 +20,77 @@ struct NotificationPreferencesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.space.sectionGap) {
-                header
-                    .padding(.top, 8)
-                alertsSection
-                activitySection
-                displaySection
-                Spacer(minLength: 24)
+            VStack(alignment: .leading, spacing: 0) {
+                TTitle(title: "Notifications.", subtitle: "Choose what alerts you")
+
+                // Alerts
+                TSectionHead(title: "Alerts", count: "04")
+                toggleRow(icon: "exclamationmark.triangle",
+                          title: "Smoke & CO", sub: "CRITICAL SAFETY ALERTS",
+                          isOn: $smokeAlarm)
+                toggleRow(icon: "thermometer.medium",
+                          title: "Temperature", sub: "OUT-OF-RANGE WARNINGS",
+                          isOn: $temperatureAlert)
+                toggleRow(icon: "lock",
+                          title: "Door & Lock activity", sub: "LOCK · UNLOCK EVENTS",
+                          isOn: $doorLock)
+                toggleRow(icon: "video",
+                          title: "Motion detected", sub: "CAMERA MOTION EVENTS",
+                          isOn: $motionDetected, isLast: true)
+
+                // Activity
+                TSectionHead(title: "Activity", count: "03")
+                toggleRow(icon: "wifi.slash",
+                          title: "Device offline", sub: "WHEN SOMETHING BECOMES UNREACHABLE",
+                          isOn: $deviceOffline)
+                toggleRow(icon: "wifi",
+                          title: "Device back online", sub: "WHEN CONNECTION RESTORES",
+                          isOn: $deviceOnline)
+                toggleRow(icon: "sparkles",
+                          title: "Scene ran", sub: "AFTER EACH SCENE EXECUTES",
+                          isOn: $sceneRun, isLast: true)
+
+                // Display
+                TSectionHead(title: "Display", count: "01")
+                toggleRow(icon: "bell",
+                          title: "In-app banner", sub: "SHOW TOASTS INSIDE THE APP",
+                          isOn: $inAppBanner, isLast: true)
+
+                // Foot
+                Text("These preferences are stored locally. Push notifications ride on top of your iOS system settings — toggling them off here silences the banner in-app, but doesn't change your iOS allow-list.")
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                    .lineSpacing(3)
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.vertical, 20)
+
+                Spacer(minLength: 120)
             }
-            .padding(.horizontal, Theme.space.screenHorizontal)
         }
-        .background(Theme.color.pageBackground.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .background(T3.page.ignoresSafeArea())
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        SettingsSubpageHeader(title: "Notifications", subtitle: "Choose what alerts you")
-    }
-
-    // MARK: - Alerts
-
-    private var alertsSection: some View {
-        settingsSection(title: "ALERTS") {
-            toggleRow(icon: "exclamationmark.triangle.fill",
-                      title: "Smoke & CO Alarms",
-                      subtitle: "Critical safety alerts",
-                      isOn: $smokeAlarm)
-            toggleRow(icon: "thermometer.high",
-                      title: "Temperature Alerts",
-                      subtitle: "Out-of-range warnings",
-                      isOn: $temperatureAlert)
-            toggleRow(icon: "lock.fill",
-                      title: "Door & Lock Activity",
-                      subtitle: "Lock/unlock events",
-                      isOn: $doorLock)
-            toggleRow(icon: "video.fill",
-                      title: "Motion Detected",
-                      subtitle: "Camera motion events",
-                      isOn: $motionDetected)
-        }
-    }
-
-    // MARK: - Activity
-
-    private var activitySection: some View {
-        settingsSection(title: "ACTIVITY") {
-            toggleRow(icon: "wifi.slash",
-                      title: "Device Offline",
-                      subtitle: "When a device becomes unreachable",
-                      isOn: $deviceOffline)
-            toggleRow(icon: "wifi",
-                      title: "Device Online",
-                      subtitle: "When a device reconnects",
-                      isOn: $deviceOnline)
-            toggleRow(icon: "sparkles",
-                      title: "Scene Executed",
-                      subtitle: "Confirmation after running a scene",
-                      isOn: $sceneRun)
-        }
-    }
-
-    // MARK: - Display
-
-    private var displaySection: some View {
-        settingsSection(title: "DISPLAY") {
-            toggleRow(icon: "app.badge.fill",
-                      title: "In-App Banners",
-                      subtitle: "Show toast notifications within the app",
-                      isOn: $inAppBanner)
-        }
-    }
-
-    // MARK: - Building blocks
-
-    @ViewBuilder
-    private func settingsSection<Content: View>(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.subtitle)
-                .tracking(0.8)
-                .padding(.leading, 4)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) {
-                content()
-            }
-            .hcCard(padding: 0)
-        }
-    }
-
-    private func toggleRow(
-        icon: String,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>
-    ) -> some View {
+    private func toggleRow(icon: String, title: String, sub: String,
+                           isOn: Binding<Bool>, isLast: Bool = false) -> some View {
         HStack(spacing: 14) {
-            IconChip(systemName: icon, size: 40)
-            VStack(alignment: .leading, spacing: 2) {
+            T3IconImage(systemName: icon)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(T3.ink)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(Theme.font.cardTitle)
-                    .foregroundStyle(Theme.color.title)
-                Text(subtitle)
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
+                    .font(T3.inter(15, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                TLabel(text: sub)
             }
             Spacer()
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(Theme.color.primary)
-                .accessibilityLabel(title)
-                .accessibilityHint(subtitle)
+                .tint(T3.accent)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
     }
 }

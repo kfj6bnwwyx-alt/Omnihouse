@@ -2,14 +2,9 @@
 //  AppearanceView.swift
 //  house connect
 //
-//  Appearance settings reached from Settings → Preferences → Appearance.
-//  Controls color scheme (system/light/dark), temperature unit (°C/°F),
-//  and dashboard layout density. All preferences are @AppStorage-backed.
-//
-//  The color scheme override uses UIKit's `overrideUserInterfaceStyle`
-//  via the scene delegate or a root-level modifier — this view just
-//  stores the preference. The actual override is applied in the app's
-//  root view (house_connectApp.swift).
+//  Settings → Preferences → Appearance. T3/Swiss rewrite 2026-04-18.
+//  Three radio groups (theme / units / density), all @AppStorage-backed,
+//  same keys as before so the preferences persist across the migration.
 //
 
 import SwiftUI
@@ -21,185 +16,87 @@ struct AppearanceView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.space.sectionGap) {
-                header
-                    .padding(.top, 8)
-                themeSection
-                unitsSection
-                layoutSection
-                Spacer(minLength: 24)
-            }
-            .padding(.horizontal, Theme.space.screenHorizontal)
-        }
-        .background(Theme.color.pageBackground.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
-    }
+            VStack(alignment: .leading, spacing: 0) {
+                TTitle(title: "Appearance.", subtitle: "Theme, units & display")
 
-    // MARK: - Header
+                // Theme
+                TSectionHead(title: "Theme", count: "03")
+                radioRow(title: "System", sub: "MATCH IOS SETTING",
+                         isOn: colorSchemeRaw == "system") { colorSchemeRaw = "system" }
+                radioRow(title: "Light", sub: "ALWAYS LIGHT MODE",
+                         isOn: colorSchemeRaw == "light") { colorSchemeRaw = "light" }
+                radioRow(title: "Dark", sub: "ALWAYS DARK MODE",
+                         isOn: colorSchemeRaw == "dark", isLast: true) { colorSchemeRaw = "dark" }
 
-    private var header: some View {
-        SettingsSubpageHeader(title: "Appearance", subtitle: "Theme, units & display")
-    }
+                // Units
+                TSectionHead(title: "Temperature", count: "02")
+                radioRow(title: "Celsius", sub: "°C",
+                         isOn: tempUnitRaw == "celsius") { tempUnitRaw = "celsius" }
+                radioRow(title: "Fahrenheit", sub: "°F",
+                         isOn: tempUnitRaw == "fahrenheit", isLast: true) { tempUnitRaw = "fahrenheit" }
 
-    // MARK: - Theme
+                // Density
+                TSectionHead(title: "Dashboard", count: "")
+                densityToggle(title: "Compact layout",
+                              sub: "TIGHTER SPACING · MORE ON SCREEN",
+                              isOn: $compactDashboard, isLast: true)
 
-    private var themeSection: some View {
-        settingsSection(title: "THEME") {
-            VStack(spacing: 0) {
-                themeOption(title: "System", subtitle: "Match iOS setting", value: "system")
-                themeOption(title: "Light", subtitle: "Always light mode", value: "light")
-                themeOption(title: "Dark", subtitle: "Always dark mode", value: "dark")
+                Spacer(minLength: 120)
             }
         }
+        .background(T3.page.ignoresSafeArea())
     }
 
-    private func themeOption(title: String, subtitle: String, value: String) -> some View {
-        Button {
-            colorSchemeRaw = value
-        } label: {
+    private func radioRow(title: String, sub: String, isOn: Bool,
+                          isLast: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 14) {
-                IconChip(
-                    systemName: iconForTheme(value),
-                    size: 40,
-                    fill: colorSchemeRaw == value
-                        ? Theme.color.primary.opacity(0.12)
-                        : Theme.color.iconChipFill,
-                    glyph: colorSchemeRaw == value
-                        ? Theme.color.primary
-                        : Theme.color.iconChipGlyph
-                )
-                VStack(alignment: .leading, spacing: 2) {
+                ZStack {
+                    Circle()
+                        .stroke(T3.ink, lineWidth: 1)
+                        .frame(width: 18, height: 18)
+                    if isOn {
+                        Circle()
+                            .fill(T3.accent)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+                .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(Theme.font.cardTitle)
-                        .foregroundStyle(Theme.color.title)
-                    Text(subtitle)
-                        .font(Theme.font.cardSubtitle)
-                        .foregroundStyle(Theme.color.subtitle)
+                        .font(T3.inter(15, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                    TLabel(text: sub)
                 }
                 Spacer()
-                if colorSchemeRaw == value {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Theme.color.primary)
-                } else {
-                    Circle()
-                        .stroke(Theme.color.divider, lineWidth: 1.5)
-                        .frame(width: 20, height: 20)
-                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(title) theme")
-        .accessibilityHint(subtitle)
-        .accessibilityAddTraits(colorSchemeRaw == value ? [.isSelected] : [])
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
     }
 
-    private func iconForTheme(_ value: String) -> String {
-        switch value {
-        case "light": return "sun.max.fill"
-        case "dark": return "moon.fill"
-        default: return "circle.lefthalf.filled"
-        }
-    }
-
-    // MARK: - Units
-
-    private var unitsSection: some View {
-        settingsSection(title: "UNITS") {
-            VStack(spacing: 0) {
-                unitOption(title: "Celsius", subtitle: "°C temperature display", value: "celsius")
-                unitOption(title: "Fahrenheit", subtitle: "°F temperature display", value: "fahrenheit")
+    private func densityToggle(title: String, sub: String, isOn: Binding<Bool>,
+                               isLast: Bool = false) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(T3.inter(15, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                TLabel(text: sub)
             }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(T3.accent)
         }
-    }
-
-    private func unitOption(title: String, subtitle: String, value: String) -> some View {
-        Button {
-            tempUnitRaw = value
-        } label: {
-            HStack(spacing: 14) {
-                IconChip(systemName: "thermometer", size: 40,
-                         fill: tempUnitRaw == value
-                            ? Theme.color.primary.opacity(0.12)
-                            : Theme.color.iconChipFill,
-                         glyph: tempUnitRaw == value
-                            ? Theme.color.primary
-                            : Theme.color.iconChipGlyph)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(Theme.font.cardTitle)
-                        .foregroundStyle(Theme.color.title)
-                    Text(subtitle)
-                        .font(Theme.font.cardSubtitle)
-                        .foregroundStyle(Theme.color.subtitle)
-                }
-                Spacer()
-                if tempUnitRaw == value {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Theme.color.primary)
-                } else {
-                    Circle()
-                        .stroke(Theme.color.divider, lineWidth: 1.5)
-                        .frame(width: 20, height: 20)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(title) temperature unit")
-        .accessibilityHint(subtitle)
-        .accessibilityAddTraits(tempUnitRaw == value ? [.isSelected] : [])
-    }
-
-    // MARK: - Layout
-
-    private var layoutSection: some View {
-        settingsSection(title: "LAYOUT") {
-            HStack(spacing: 14) {
-                IconChip(systemName: "square.grid.2x2", size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Compact Dashboard")
-                        .font(Theme.font.cardTitle)
-                        .foregroundStyle(Theme.color.title)
-                    Text("Smaller room tiles, more visible at once")
-                        .font(Theme.font.cardSubtitle)
-                        .foregroundStyle(Theme.color.subtitle)
-                }
-                Spacer()
-                Toggle("", isOn: $compactDashboard)
-                    .labelsHidden()
-                    .tint(Theme.color.primary)
-                    .accessibilityLabel("Compact Dashboard")
-                    .accessibilityHint("Smaller room tiles, more visible at once")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-        }
-    }
-
-    // MARK: - Section builder
-
-    @ViewBuilder
-    private func settingsSection<Content: View>(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.subtitle)
-                .tracking(0.8)
-                .padding(.leading, 4)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) {
-                content()
-            }
-            .hcCard(padding: 0)
-        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
     }
 }

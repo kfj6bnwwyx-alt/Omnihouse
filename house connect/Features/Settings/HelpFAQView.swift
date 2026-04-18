@@ -2,9 +2,8 @@
 //  HelpFAQView.swift
 //  house connect
 //
-//  "Help & FAQ" screen reached from Settings → Support → Help & FAQ.
-//  Covers common setup questions, troubleshooting tips, and ecosystem-
-//  specific guidance. Pure static content — no network needed.
+//  Settings → Support → Help & FAQ. T3/Swiss rewrite 2026-04-18.
+//  Static content grouped into sections, each item is tap-to-expand.
 //
 
 import SwiftUI
@@ -14,197 +13,147 @@ struct HelpFAQView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.space.sectionGap) {
-                header
-                    .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 0) {
+                TTitle(title: "Help & FAQ.", subtitle: "Common questions answered")
 
-                faqSection(title: "GETTING STARTED", items: gettingStartedItems)
-                faqSection(title: "DEVICES & CONTROLS", items: devicesItems)
-                faqSection(title: "SCENES & AUTOMATIONS", items: scenesItems)
-                faqSection(title: "TROUBLESHOOTING", items: troubleshootingItems)
+                faqSection(title: "Getting started", items: gettingStartedItems)
+                faqSection(title: "Devices & controls", items: devicesItems)
+                faqSection(title: "Scenes & automations", items: scenesItems)
+                faqSection(title: "Troubleshooting", items: troubleshootingItems)
 
-                contactCard
-                Spacer(minLength: 24)
+                // Contact
+                TSectionHead(title: "Still stuck", count: "")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Reach out to support")
+                        .font(T3.inter(15, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                    Text("We read every message. Typical reply under 24 hours.")
+                        .font(T3.inter(13, weight: .regular))
+                        .foregroundStyle(T3.sub)
+                        .lineSpacing(3)
+                    Link(destination: URL(string: "mailto:support@example.com")!) {
+                        HStack(spacing: 10) {
+                            T3IconImage(systemName: "envelope.fill")
+                                .frame(width: 14, height: 14)
+                                .foregroundStyle(T3.page)
+                            Text("EMAIL SUPPORT")
+                                .font(T3.mono(11))
+                                .tracking(2)
+                                .foregroundStyle(T3.page)
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(T3.ink)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 16)
+                .overlay(alignment: .top) { TRule() }
+                .overlay(alignment: .bottom) { TRule() }
+
+                Spacer(minLength: 120)
             }
-            .padding(.horizontal, Theme.space.screenHorizontal)
         }
-        .background(Theme.color.pageBackground.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .background(T3.page.ignoresSafeArea())
     }
-
-    // MARK: - Header
-
-    private var header: some View {
-        SettingsSubpageHeader(title: "Help & FAQ", subtitle: "Common questions answered")
-    }
-
-    // MARK: - FAQ section
 
     @ViewBuilder
-    private func faqSection(title: String, items: [(question: String, answer: String)]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.subtitle)
-                .tracking(0.8)
-                .padding(.leading, 4)
-                .accessibilityAddTraits(.isHeader)
+    private func faqSection(title: String, items: [FAQItem]) -> some View {
+        TSectionHead(title: title, count: String(format: "%02d", items.count))
+        ForEach(Array(items.enumerated()), id: \.offset) { i, item in
+            t3FAQRow(item: item, isLast: i == items.count - 1)
+        }
+    }
 
-            VStack(spacing: 0) {
-                ForEach(items, id: \.question) { item in
-                    FAQRow(
-                        question: item.question,
-                        answer: item.answer,
-                        isExpanded: expandedQuestion == item.question,
-                        onTap: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                expandedQuestion = expandedQuestion == item.question ? nil : item.question
-                            }
-                        }
-                    )
+    private func t3FAQRow(item: FAQItem, isLast: Bool) -> some View {
+        let expanded = expandedQuestion == item.question
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    expandedQuestion = expanded ? nil : item.question
                 }
-            }
-            .hcCard(padding: 0)
-        }
-    }
-
-    // MARK: - Contact card
-
-    private var contactCard: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Theme.color.iconChipFill)
-                    .frame(width: 56, height: 56)
-                Image(systemName: "envelope.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Theme.color.iconChipGlyph)
-            }
-            .accessibilityHidden(true)
-            VStack(spacing: 4) {
-                Text("Still need help?")
-                    .font(Theme.font.cardTitle)
-                    .foregroundStyle(Theme.color.title)
-                Text("Reach out to our support team and we'll get back to you within 24 hours.")
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .hcCard()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Still need help? Reach out to our support team and we'll get back to you within 24 hours.")
-    }
-
-    // MARK: - FAQ content
-
-    private var gettingStartedItems: [(question: String, answer: String)] {
-        [
-            (
-                "How do I connect my first smart home ecosystem?",
-                "Go to Settings → Connections and tap the ecosystem you want to add. HomeKit will prompt for Home access, SmartThings requires a personal access token from the SmartThings developer portal, and Sonos is discovered automatically on your local network."
-            ),
-            (
-                "Can I use multiple ecosystems at once?",
-                "Yes! House Connect is designed to unify HomeKit, SmartThings, Sonos, and Nest into a single interface. Devices from all connected ecosystems appear together on your dashboard."
-            ),
-            (
-                "What if I only use HomeKit?",
-                "That works great. House Connect uses Apple's HomeKit framework directly, so you get all your HomeKit devices with a fresh, modern interface. You can add other ecosystems later if you expand your setup."
-            ),
-        ]
-    }
-
-    private var devicesItems: [(question: String, answer: String)] {
-        [
-            (
-                "Why is a device showing as offline?",
-                "A device shows offline when House Connect can't reach it. Check that the device is powered on, within Wi-Fi or Bluetooth range, and that any required hubs (like a Hue Bridge or SmartThings Hub) are online."
-            ),
-            (
-                "Why do I see the same device twice?",
-                "If a device is paired with multiple ecosystems (e.g. both HomeKit and SmartThings), it may appear once per ecosystem. Switch to 'Devices' view mode on the Devices tab — it merges duplicates automatically."
-            ),
-            (
-                "How do I remove a device?",
-                "Open the device's detail screen and scroll to the bottom. Tap 'Remove Device' and confirm. For HomeKit devices, this unpairs them from your Home. For SmartThings, it deletes them from your account."
-            ),
-        ]
-    }
-
-    private var scenesItems: [(question: String, answer: String)] {
-        [
-            (
-                "What are scenes?",
-                "Scenes let you control multiple devices with a single tap. For example, a 'Movie Night' scene could dim the living room lights, set a color temperature, and start your Sonos playing — all at once."
-            ),
-            (
-                "Can scenes control devices from different ecosystems?",
-                "Yes! That's the main advantage of House Connect scenes over ecosystem-native ones. A single scene can control HomeKit lights, SmartThings switches, and Sonos speakers together."
-            ),
-        ]
-    }
-
-    private var troubleshootingItems: [(question: String, answer: String)] {
-        [
-            (
-                "My HomeKit devices aren't showing controls",
-                "Try pulling down to refresh on the Devices tab. HomeKit sometimes needs a moment to sync characteristic values after first pairing. If controls still don't appear, open the Home app briefly and return — this forces iOS to refresh the accessory cache."
-            ),
-            (
-                "SmartThings devices are slow to respond",
-                "SmartThings commands go through Samsung's cloud servers, so they'll always be slightly slower than local-network HomeKit commands. If delays are excessive (>5 seconds), check your internet connection."
-            ),
-            (
-                "Sonos speakers disappeared from the app",
-                "Sonos discovery uses local network (Bonjour). Make sure your phone is on the same Wi-Fi network as your speakers. Also check that House Connect has Local Network permission in iOS Settings → Privacy."
-            ),
-        ]
-    }
-}
-
-// MARK: - FAQ row
-
-private struct FAQRow: View {
-    let question: String
-    let answer: String
-    let isExpanded: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button(action: onTap) {
+            } label: {
                 HStack(spacing: 12) {
-                    Text(question)
-                        .font(Theme.font.cardTitle)
-                        .foregroundStyle(Theme.color.title)
+                    Text(item.question)
+                        .font(T3.inter(15, weight: .medium))
+                        .foregroundStyle(T3.ink)
                         .multilineTextAlignment(.leading)
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Theme.color.muted)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .accessibilityHidden(true)
+                    T3IconImage(systemName: "chevron.right")
+                        .frame(width: 12, height: 12)
+                        .foregroundStyle(T3.sub)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, T3.screenPadding)
                 .padding(.vertical, 14)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(question)
-            .accessibilityHint(isExpanded ? "Double tap to collapse answer" : "Double tap to expand answer")
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityValue(isExpanded ? "expanded" : "collapsed")
 
-            if isExpanded {
-                Text(answer)
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 14)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            if expanded {
+                Text(item.answer)
+                    .font(T3.inter(13, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                    .lineSpacing(3)
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.bottom, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
+    }
+
+    // MARK: - Content
+
+    private struct FAQItem {
+        let question: String
+        let answer: String
+    }
+
+    private var gettingStartedItems: [FAQItem] {
+        [
+            FAQItem(question: "How do I connect my first ecosystem?",
+                    answer: "Go to Settings → Connections and tap the ecosystem you want to add. HomeKit will prompt for Home access. SmartThings needs a Personal Access Token from the SmartThings developer portal. Sonos is auto-discovered on your local Wi-Fi."),
+            FAQItem(question: "Can I use multiple ecosystems at once?",
+                    answer: "Yes. House Connect is designed to unify HomeKit, SmartThings, Sonos, Nest, and Home Assistant into a single interface. Devices from every connected ecosystem appear together on your dashboard."),
+            FAQItem(question: "What if I only use HomeKit?",
+                    answer: "That works great. House Connect uses Apple's HomeKit framework directly — you get every HomeKit accessory with a fresh interface. You can add other ecosystems later as your setup grows."),
+        ]
+    }
+
+    private var devicesItems: [FAQItem] {
+        [
+            FAQItem(question: "Why is a device showing as offline?",
+                    answer: "A device shows offline when House Connect can't reach it. Check that the device is powered on, within Wi-Fi or Bluetooth range, and that any required hubs (Hue Bridge, SmartThings Hub, etc.) are online."),
+            FAQItem(question: "Why do I see the same device twice?",
+                    answer: "If a device is paired with multiple ecosystems (e.g. HomeKit and SmartThings), it may appear once per ecosystem. Use 'Devices' mode on the Devices tab — it merges duplicates automatically."),
+            FAQItem(question: "How do I remove a device?",
+                    answer: "Open the device's detail screen and scroll to the bottom. Tap 'Remove device' and confirm. For HomeKit, this unpairs it from your Home. For SmartThings, it's deleted from your Samsung account."),
+        ]
+    }
+
+    private var scenesItems: [FAQItem] {
+        [
+            FAQItem(question: "What are scenes?",
+                    answer: "Scenes control multiple devices with a single tap. A 'Movie night' scene could dim the living-room lights, set a warmer color temperature, and pause your Sonos — all at once."),
+            FAQItem(question: "Can scenes control devices from different ecosystems?",
+                    answer: "Yes — this is the main advantage of House Connect scenes over vendor-native ones. A single scene can control HomeKit lights, SmartThings switches, and Sonos speakers together."),
+        ]
+    }
+
+    private var troubleshootingItems: [FAQItem] {
+        [
+            FAQItem(question: "My HomeKit devices aren't showing controls",
+                    answer: "Pull down to refresh the Devices tab. HomeKit sometimes needs a moment to sync characteristic values after pairing. If controls still don't appear, open the Home app briefly and return — this forces iOS to refresh the accessory cache."),
+            FAQItem(question: "SmartThings devices are slow to respond",
+                    answer: "SmartThings commands go through Samsung's cloud, so they're always slightly slower than local-network HomeKit commands. If delays exceed 5 seconds, check your internet connection."),
+            FAQItem(question: "Sonos speakers disappeared",
+                    answer: "Sonos discovery uses local network (Bonjour). Make sure your phone is on the same Wi-Fi as your speakers. Also check Settings → Privacy → Local Network that House Connect is granted access."),
+            FAQItem(question: "Home Assistant connection keeps dropping",
+                    answer: "If your local URL (e.g. 192.168.4.23:8123) becomes unreachable, House Connect falls back to the Tailscale URL you entered in HA Setup. Make sure your phone has Tailscale enabled in iOS settings."),
+        ]
     }
 }
