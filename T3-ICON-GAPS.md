@@ -1,98 +1,99 @@
 # T3 Icon Set — Gap Analysis
 
-The T3 design handoff includes **40+ custom outlined glyphs** (1.4px stroke, square linecap, miter join) in `design-reference/project/lib/glyphs.jsx`. These are NOT SF Symbols — they're hand-built SVGs with a distinct Braun/Dieter Rams aesthetic.
+Status of the T3/Swiss icon coverage in the iOS build. The T3 design
+handoff calls for ~40+ hand-built glyphs with 1.4px stroke,
+`stroke-linecap="square"`, and `stroke-linejoin="miter"` — Braun/Dieter
+Rams angular/mechanical aesthetic, not SF Symbol humanist geometry.
 
-## Current State
-The iOS app uses **SF Symbols** as placeholders. They work but don't match the T3 handoff's precise geometric style. SF Symbols are rounded/humanist; T3 glyphs are angular/miter-joined/mechanical.
+## Source of Truth
 
-## T3 Glyphs Available (from glyphs.jsx)
+**Canonical T3 icon reference (Claude Design share URL, Brent-approved
+2026-04-18):**
 
-### Navigation & Chrome
-| Glyph | SVG Path | SF Symbol Fallback | Status |
-|-------|----------|-------------------|--------|
-| `back` | chevron left | `chevron.left` | Needs SVG |
-| `chevR` | chevron right | `chevron.right` | Needs SVG |
-| `chevD` | chevron down | `chevron.down` | Needs SVG |
-| `close` | X cross | `xmark` | Needs SVG |
-| `check` | checkmark | `checkmark` | Needs SVG |
-| `plus` | plus | `plus` | Needs SVG |
-| `minus` | minus | `minus` | Needs SVG |
-| `more` | three dots | `ellipsis` | Needs SVG |
-| `search` | magnifier | `magnifyingglass` | Needs SVG |
+https://claude.ai/design/p/b3aa1e0c-9e12-40df-b5ce-a3f814d989a7?file=House+Connect+-+Swiss.html&via=share
 
-### Tabs
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `home` | house outline | `house` | Needs SVG |
-| `rooms` | 4 squares grid | `square.grid.2x2` | Needs SVG |
-| `devices` | monitor/screen | `rectangle.on.rectangle` | Needs SVG |
-| `settings` | gear/sun with rays | `gearshape` | Needs SVG |
+All missing glyphs below should be exported from this design instance.
+See `/Users/brentbrooks/.claude/projects/-Users-brentbrooks-Documents-Omni-house/memory/reference_claude_design.md`
+for access notes.
 
-### Device Categories
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `lightbulb` | bulb with filament | `lightbulb` | Needs SVG |
-| `thermo` | thermometer tube | `thermometer.medium` | Needs SVG |
-| `lock` | padlock | `lock` | Needs SVG |
-| `speaker` | rectangular speaker | `hifispeaker` | Needs SVG |
-| `camera` | video camera | `video` | Needs SVG |
-| `fan` | propeller/blades | `fan` | Needs SVG |
-| `door` | door with handle | `door.left.hand.open` | Needs SVG |
+## Coverage Summary
 
-### Room Icons
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `sofa` | couch outline | `sofa` | Needs SVG |
-| `bed` | bed with pillow | `bed.double` | Needs SVG |
-| `kitchen` | fork/spoon utensils | `fork.knife` | Needs SVG |
+- `Core/UI/T3Icon.swift` — **129** SF-Symbol → Lucide mappings
+- Bundled Lucide imagesets in `Assets.xcassets/T3Icons/` — **86** unique
+- All T3-prefixed views and `Core/UI/T*.swift` primitives render via
+  `T3IconImage(systemName:)`; unmapped symbols fall back to SF Symbols.
 
-### Weather & Environment
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `sun` | sun with rays | `sun.max` | Needs SVG |
-| `cloud` | cloud | `cloud` | Needs SVG |
-| `moon` | crescent moon | `moon` | Needs SVG |
-| `drop` | water drop | `drop` | Needs SVG |
-| `wind` | wind curves | `wind` | Needs SVG |
+## Unmapped SF Symbols Still in Use
 
-### HVAC Modes
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `heat` | flame/fire | `flame` | Needs SVG |
-| `cool` | snowflake star | `snowflake` | Needs SVG |
-| `auto` | A letter | `arrow.2.squarepath` | Needs SVG |
-| `off` | power button | `power` | Needs SVG |
+Grouped by category. Each entry: `sf.name` → suggested Lucide glyph →
+status. "Needs SVG" means the Lucide SVG isn't bundled yet and must be
+exported from the Claude Design share URL above (or Lucide upstream
+with the rounded→square/miter transform applied).
 
-### Media Transport
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `play` | triangle | `play.fill` | Needs SVG |
-| `pause` | two bars | `pause.fill` | Needs SVG |
-| `next` | triangle + bar | `forward.fill` | Needs SVG |
+### Device (category chips, Diagnostics list, dashboard cards)
+- `desktopcomputer` → Lucide `monitor` → needs SVG export
+- `smoke.fill` → Lucide `alert-octagon` / custom smoke glyph → needs SVG
+- `sensor.fill` → Lucide `radar` or custom sensor glyph → needs SVG
+- `switch.2` → Lucide `toggle-right` → needs SVG
+- `poweroutlet.type.b.fill` → Lucide `plug` → needs SVG
+- `blinds.horizontal.closed` → Lucide `blinds` (custom, not in Lucide core) → needs SVG
+- `washer.fill` → Lucide `washing-machine` → needs SVG
+- `cable.connector` → Lucide `cable` → needs SVG
+- `antenna.radiowaves.left.and.right` → Lucide `radio-tower` → needs SVG
+- `externaldrive.fill` → Lucide `hard-drive` → needs SVG
+- `car.fill` → Lucide `car` → needs SVG
+- `shower.fill` → Lucide `shower-head` → needs SVG
+- `bath` → Lucide `bath` → needs SVG
+- `soundbar` → Lucide `speaker` (reuse) or custom → needs SVG
+- `video.fill` → Lucide `video` (already bundled) → **add mapping** (no new SVG needed)
 
-### Miscellaneous
-| Glyph | Description | SF Symbol Fallback | Status |
-|-------|------------|-------------------|--------|
-| `bell` | notification bell | `bell` | Needs SVG |
-| `bolt` | lightning bolt | `bolt` | Needs SVG |
-| `dot` | filled circle | TDot component | ✅ Done |
-| `wifi` | signal arcs | `wifi` | Needs SVG |
-| `wifiSlash` | wifi with slash | `wifi.slash` | Needs SVG |
-| `user` | person silhouette | `person` | Needs SVG |
-| `target` | concentric circles | `target` | Needs SVG |
-| `arrowUp` | arrow up | `arrow.up` | Needs SVG |
-| `arrowDn` | arrow down | `arrow.down` | Needs SVG |
-| `arrowR` | arrow right | `arrow.right` | Needs SVG |
-| `grid` | 4 squares | `square.grid.2x2` | Needs SVG |
-| `scenes` | star | `star` | Needs SVG |
+### Action (controls, buttons)
+- `trash` → Lucide `trash-2` (already bundled) → **add mapping** (no new SVG needed)
+- `arrow.right` → Lucide `arrow-right` → needs SVG
+- `arrow.2.squarepath` → Lucide `repeat` / `refresh-cw` → needs SVG
+- `clock.arrow.circlepath` → Lucide `history` → needs SVG
+- `paintbrush` → Lucide `paintbrush` → needs SVG
+- `link.badge.plus` → already partly mapped to `link-2`; review visual
+- `point.3.connected.trianglepath.dotted` → Lucide `network` or `share-2` → needs SVG
 
-## What to Feed Back to Claude Design
+### Status (alerts, indicators)
+- `questionmark.circle` → Lucide `help-circle` → needs SVG
+- `questionmark.app.fill` / `questionmark.app` → Lucide `help-circle` → needs SVG
+- `info.circle` → Lucide `info` → needs SVG (currently falls back to `triangle-alert`, wrong affordance)
+- `book.fill` → Lucide `book-open` → needs SVG (currently uses `sparkles` placeholder)
+- `party.popper.fill` → no close Lucide equivalent → needs custom SVG (currently uses `sparkles` placeholder)
 
-Ask Claude Design to:
-1. Export the glyphs from `glyphs.jsx` as individual SVG files (24x24 viewBox)
-2. Ensure 1.4px stroke, `stroke-linecap="square"`, `stroke-linejoin="miter"`
-3. Provide as an SVG asset catalog that can be imported into Xcode as Custom Symbol Images
-4. Or: provide as a single Swift file with `Shape` conformances for each glyph
+### Decorative / kept as SF Symbol on purpose
+These are intentionally left on Image(systemName:) or rendered inside
+non-T3 views that aren't part of this sweep:
+- `chevron.*` — already bundled; all T3 views use the Lucide variant
+- `sparkle` / `sparkles` — bundled; used for placeholder affordance
+- All tab-bar glyphs — routed through T3IconImage via tab.icon
 
-## Temporary Solution
-Using SF Symbols with `.fontWeight(.light)` and consistent 18-20px sizing across all T3 views. This approximates the thin-stroke aesthetic until custom glyphs are available.
+## Immediate Next Steps
+
+1. Add mappings for `trash` → `trash-2` and `video.fill` → `video` in
+   `Core/UI/T3Icon.swift` (assets already bundled, just missing map keys).
+2. Export the ~14 "needs SVG" glyphs above from the Claude Design share
+   URL as 24×24 viewBox SVGs with `stroke-linecap="square"` +
+   `stroke-linejoin="miter"` and drop them into
+   `Assets.xcassets/T3Icons/`.
+3. Add corresponding `"sf.name": "lucide-name"` entries in `T3Icon.map`.
+
+## Historical: Original Glyph Inventory (from `glyphs.jsx`)
+
+The original T3 handoff shipped these glyph groups; the mappings above
+reflect which are now bundled and which still need export.
+
+- **Navigation/Chrome:** back, chevR, chevD, close, check, plus, minus,
+  more, search — all bundled.
+- **Tabs:** home, rooms, devices, settings — all bundled.
+- **Device categories:** lightbulb, thermo, lock, speaker, camera, fan,
+  door — bundled; plus the additional "needs SVG" items above.
+- **Room icons:** sofa, bed, kitchen — bundled; bath/shower still pending.
+- **Weather & environment:** sun, cloud, moon, drop, wind — bundled.
+- **HVAC modes:** heat, cool, auto, off — heat/cool/off bundled; `auto`
+  (A letter) pending.
+- **Media transport:** play, pause, next/back — bundled.
+- **Misc:** bell, bolt, wifi, user, target, arrows — mostly bundled;
+  `arrow.right` / `arrow.2.squarepath` still pending.
