@@ -66,6 +66,100 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// HA area registry: area_id → HAArea.
     @ObservationIgnored private var areaRegistry: [String: HAArea] = [:]
 
+    /// SmartThings companion entities for Frame TVs, keyed by the
+    /// Frame's `media_player` entity_id. When the user has set up the
+    /// SmartThings integration alongside the core Samsung Tizen one, HA
+    /// exposes extra entities (`number.<tv>_art_brightness`,
+    /// `select.<tv>_art_color_temperature`, `switch.<tv>_art_mode`) all
+    /// tagged with the same `device_id`. We detect them during
+    /// `rebuildAccessories()` and cache the mapping so the Frame TV
+    /// detail view can unlock the art-brightness / color-temperature
+    /// sliders when a companion is present.
+    @ObservationIgnored private(set) var frameTVCompanions: [String: FrameTVSmartThingsCompanion] = [:]
+
+    /// Companion-entity bundle linked to a Frame TV. Present fields
+    /// indicate capabilities we can route; nil fields mean the user
+    /// hasn't exposed that particular SmartThings entity.
+    struct FrameTVSmartThingsCompanion: Sendable, Equatable {
+        /// `number.<tv>_art_brightness` — 0–100 art-mode brightness.
+        var artBrightnessEntityID: String?
+        /// `select.<tv>_art_color_temperature` — warm/neutral/cool select.
+        var artColorTemperatureEntityID: String?
+    }
+
+    /// Look up the SmartThings companion for a Frame TV's media_player
+    /// entity. Returns nil if the user doesn't have the SmartThings
+    /// integration set up (or the Frame isn't a recognised match).
+    func frameTVSmartThingsCompanion(forMediaPlayerEntityID entityID: String) -> FrameTVSmartThingsCompanion? {
+        frameTVCompanions[entityID]
+    }
+
+    /// Set the Frame's art-mode brightness (0.0–1.0) via the
+    /// companion `number.<tv>_art_brightness` entity. Throws if no
+    /// companion is registered or the provider isn't connected.
+    /// Sits alongside `execute(_:on:)` instead of routing through
+    /// `AccessoryCommand` because the Capability/Command enums are
+    /// exhaustive across every provider — adding a case touches nine
+    /// provider switches. Keeping this method local to the HA provider
+    /// is the narrowest change that unlocks the slider.
+    func setArtBrightness(_ value: Double, forMediaPlayerEntityID mediaPlayerEntityID: String) async throws {
+        guard let companion = frameTVCompanions[mediaPlayerEntityID],
+              let numberEntity = companion.artBrightnessEntityID else {
+            throw ProviderError.unsupportedCommand
+        }
+        // HA's number.set_value expects the entity's native unit —
+        // for SmartThings art_brightness that's 0–100.
+        let clamped = max(0.0, min(1.0, value))
+        let haValue = clamped * 100.0
+
+        if let ws = wsClient, isConnected {
+            try await ws.callService(
+                domain: "number",
+                service: "set_value",
+                data: ["value": .double(haValue)],
+                entityID: numberEntity
+            )
+        } else if let rest = restClient {
+            try await rest.callService(
+                domain: "number",
+                service: "set_value",
+                data: ["value": haValue],
+                entityID: numberEntity
+            )
+        } else {
+            throw ProviderError.notAuthorized
+        }
+    }
+
+    /// Set the Frame's art-mode color temperature via the companion
+    /// `select.<tv>_art_color_temperature` entity. Accepts the raw
+    /// option string ("warm"/"standard"/"cool" — varies by firmware).
+    /// Throws if no companion is registered or the provider isn't
+    /// connected.
+    func setArtColorTemperature(_ option: String, forMediaPlayerEntityID mediaPlayerEntityID: String) async throws {
+        guard let companion = frameTVCompanions[mediaPlayerEntityID],
+              let selectEntity = companion.artColorTemperatureEntityID else {
+            throw ProviderError.unsupportedCommand
+        }
+        if let ws = wsClient, isConnected {
+            try await ws.callService(
+                domain: "select",
+                service: "select_option",
+                data: ["option": .string(option)],
+                entityID: selectEntity
+            )
+        } else if let rest = restClient {
+            try await rest.callService(
+                domain: "select",
+                service: "select_option",
+                data: ["option": option],
+                entityID: selectEntity
+            )
+        } else {
+            throw ProviderError.notAuthorized
+        }
+    }
+
     /// Domains we care about. Entities outside these are ignored to keep
     /// the accessory list focused on controllable devices.
     private static let supportedDomains: Set<String> = [
@@ -466,6 +560,91 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         }
 
         accessories = newAccessories.sorted { $0.name < $1.name }
+
+        // After the accessory list settles, probe every Frame TV for
+        // its SmartThings companion entities. Cheap — at most a few
+        // dictionary lookups per TV.
+        rebuildFrameTVCompanions()
+    }
+
+    /// Scan television accessories for SmartThings companion entities
+    /// that unlock art-mode brightness / color temperature.
+    ///
+    /// Primary match: any `number.` / `select.` entity in the entity
+    /// registry that shares a `device_id` with the Frame's media_player
+    /// and whose entity_id contains `art_brightness` /
+    /// `art_color_temperature`.
+    ///
+    /// Fallback (for standalone entities where `device_id` is missing
+    /// or not synced): derive a base name from the media_player
+    /// entity_id by stripping the `media_player.` prefix and a trailing
+    /// `_tv`, then look up literal `number.<base>_art_brightness` /
+    /// `select.<base>_art_color_temperature` in the state cache.
+    ///
+    /// Populates `frameTVCompanions` from scratch every rebuild — the
+    /// map is derived state, not a cache.
+    private func rebuildFrameTVCompanions() {
+        var companions: [String: FrameTVSmartThingsCompanion] = [:]
+
+        for accessory in accessories
+        where accessory.category == .television && accessory.id.provider == .homeAssistant {
+            let mediaPlayerEntityID = accessory.id.nativeID
+            var companion = FrameTVSmartThingsCompanion()
+
+            // Primary: device_id linkage via the entity registry.
+            if let primaryReg = entityRegistry[mediaPlayerEntityID],
+               let deviceID = primaryReg.deviceID {
+                for (otherEntityID, regEntry) in entityRegistry
+                where regEntry.deviceID == deviceID && otherEntityID != mediaPlayerEntityID {
+                    let lower = otherEntityID.lowercased()
+                    if otherEntityID.hasPrefix("number.") && lower.contains("art_brightness") {
+                        companion.artBrightnessEntityID = otherEntityID
+                    } else if otherEntityID.hasPrefix("select.") && lower.contains("art_color_temperature") {
+                        companion.artColorTemperatureEntityID = otherEntityID
+                    }
+                }
+            }
+
+            // Fallback: name-prefix lookup in the state cache.
+            if companion.artBrightnessEntityID == nil ||
+               companion.artColorTemperatureEntityID == nil {
+                let base = baseName(fromMediaPlayerEntityID: mediaPlayerEntityID)
+                if companion.artBrightnessEntityID == nil {
+                    let candidate = "number.\(base)_art_brightness"
+                    if entityStates[candidate] != nil {
+                        companion.artBrightnessEntityID = candidate
+                    }
+                }
+                if companion.artColorTemperatureEntityID == nil {
+                    let candidate = "select.\(base)_art_color_temperature"
+                    if entityStates[candidate] != nil {
+                        companion.artColorTemperatureEntityID = candidate
+                    }
+                }
+            }
+
+            if companion.artBrightnessEntityID != nil ||
+               companion.artColorTemperatureEntityID != nil {
+                companions[mediaPlayerEntityID] = companion
+            }
+        }
+
+        frameTVCompanions = companions
+    }
+
+    /// Derive a base entity name from a media_player entity_id.
+    /// `media_player.living_room_tv` → `living_room`.
+    /// `media_player.frame_tv` → `frame`.
+    /// `media_player.samsung_frame` → `samsung_frame` (no `_tv` suffix).
+    private func baseName(fromMediaPlayerEntityID entityID: String) -> String {
+        var base = entityID
+        if base.hasPrefix("media_player.") {
+            base.removeFirst("media_player.".count)
+        }
+        if base.hasSuffix("_tv") {
+            base.removeLast("_tv".count)
+        }
+        return base
     }
 
     /// Incrementally update a single accessory when its entity state changes.
