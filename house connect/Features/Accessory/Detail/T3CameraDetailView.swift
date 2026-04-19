@@ -27,8 +27,52 @@ struct T3CameraDetailView: View {
     @State private var isTalking = false
     @State private var now = Date()
     @State private var toast: Toast?
+    @State private var showHelp = false
+    @State private var didAttach = false
+    @State private var isRetrying = false
+    @State private var lastRetryAt: Date?
 
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    // MARK: - State detection
+    //
+    // We differentiate three non-streaming cases so the user gets the
+    // right help instead of a generic error:
+    //   • `.offline`     — provider reports the entity as unreachable
+    //     (HA state == "unavailable", HomeKit accessory off the bridge).
+    //   • `.unsupported` — the camera exists but nothing in the stack
+    //     can produce a live feed. For HomeKit we proxy this as "no
+    //     HMCameraProfile attached" (no snapshot/mic/speaker/night
+    //     vision capability flags after `attach`). Classic trigger:
+    //     Logitech Circle on a cloud integration that shut down.
+    //   • `.streaming`   — happy path, render the feed panel.
+    //
+    // Non-HomeKit providers currently don't populate CameraController
+    // capability flags, so we conservatively treat them as streaming
+    // when reachable — the user can still open help manually via the
+    // "Why isn't this working?" link on the feed panel.
+    private enum FeedState { case streaming, offline, unsupported }
+
+    private var feedState: FeedState {
+        guard let accessory else { return .offline }
+        if !accessory.isReachable { return .offline }
+        if accessoryID.provider == .homeKit,
+           didAttach,
+           !cameraController.hasSnapshot,
+           !cameraController.hasMicrophone,
+           !cameraController.hasSpeaker,
+           !cameraController.hasNightVision {
+            return .unsupported
+        }
+        return .streaming
+    }
+
+    private var lastSeenLabel: String {
+        guard let lastRetryAt else { return "LAST CHECK · —" }
+        let seconds = Int(Date().timeIntervalSince(lastRetryAt))
+        if seconds < 60 { return "LAST CHECK · \(seconds)S AGO" }
+        return "LAST CHECK · \(seconds / 60)M AGO"
+    }
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -63,18 +107,175 @@ struct T3CameraDetailView: View {
                 title
                     .t3ScreenTopPad()
                 masthead
-                feedPanel
-                timelineSection
-                controlsSection
-                recentClipsSection
+                feedStateContent
+                if feedState == .streaming {
+                    timelineSection
+                    controlsSection
+                    recentClipsSection
+                }
                 Spacer(minLength: 120)
             }
         }
         .background(T3.page.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .onReceive(clockTimer) { now = $0 }
-        .onAppear { cameraController.attach(accessoryID: accessoryID, registry: registry) }
+        .onAppear {
+            cameraController.attach(accessoryID: accessoryID, registry: registry)
+            // Give attach one run loop to populate capability flags,
+            // then record that we've probed the profile. Without this
+            // we'd flash "unsupported" on every launch.
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(350))
+                didAttach = true
+            }
+        }
         .toast($toast, duration: 4)
+        .sheet(isPresented: $showHelp) {
+            T3CameraUnsupportedHelpView(
+                accessoryName: accessory?.name ?? "This camera",
+                providerLabel: providerLabel,
+                reasonCode: helpReasonCode
+            )
+            .modifier(T3SheetChromeModifier())
+        }
+    }
+
+    private var helpReasonCode: String {
+        switch feedState {
+        case .offline:     return "OFFLINE"
+        case .unsupported: return "UNSUPPORTED"
+        case .streaming:   return "HELP"
+        }
+    }
+
+    @ViewBuilder
+    private var feedStateContent: some View {
+        switch feedState {
+        case .streaming:   feedPanel
+        case .offline:     offlinePanel
+        case .unsupported: unsupportedPanel
+        }
+    }
+
+    // MARK: - Offline panel
+
+    private var offlinePanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack {
+                Rectangle().fill(T3.ink)
+                VStack(spacing: 14) {
+                    T3IconImage(systemName: "wifi.exclamationmark")
+                        .frame(width: 34, height: 34)
+                        .foregroundStyle(T3.page)
+                    Text("Camera offline")
+                        .font(T3.inter(20, weight: .medium))
+                        .foregroundStyle(T3.page)
+                    TLabel(text: lastSeenLabel, color: T3.page.opacity(0.7))
+                }
+            }
+            .frame(height: 280)
+
+            HStack(spacing: 10) {
+                Button { retryConnection() } label: {
+                    HStack(spacing: 8) {
+                        if isRetrying {
+                            ProgressView().tint(T3.page).scaleEffect(0.7)
+                        }
+                        Text(isRetrying ? "RETRYING…" : "RETRY")
+                            .font(T3.mono(12))
+                            .tracking(2)
+                            .foregroundStyle(T3.page)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(T3.ink)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRetrying)
+
+                Button { showHelp = true } label: {
+                    Text("WHY?")
+                        .font(T3.mono(12))
+                        .tracking(2)
+                        .foregroundStyle(T3.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .overlay(Rectangle().stroke(T3.ink, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.top, 14)
+
+            Text("The provider isn't reporting a live state for this camera. It may be powered off, off the network, or the manufacturer's cloud service is down.")
+                .font(T3.inter(13, weight: .regular))
+                .foregroundStyle(T3.sub)
+                .lineSpacing(3)
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.top, 14)
+                .padding(.bottom, 6)
+        }
+    }
+
+    // MARK: - Unsupported panel
+
+    private var unsupportedPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack {
+                Rectangle().fill(T3.page)
+                    .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
+                VStack(spacing: 14) {
+                    T3IconImage(systemName: "questionmark.circle")
+                        .frame(width: 34, height: 34)
+                        .foregroundStyle(T3.ink)
+                    Text("No live feed available")
+                        .font(T3.inter(20, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                    TLabel(text: "UNSUPPORTED  ·  \(providerLabel)")
+                }
+            }
+            .frame(height: 240)
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.top, 4)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("This camera doesn't expose a stream we can show. That's usually a cloud-only camera (Logitech Circle, older Arlo) or a missing Home Assistant integration — not a bug on your end.")
+                    .font(T3.inter(14, weight: .regular))
+                    .foregroundStyle(T3.ink)
+                    .lineSpacing(4)
+
+                Button { showHelp = true } label: {
+                    HStack(spacing: 10) {
+                        T3IconImage(systemName: "questionmark.circle")
+                            .frame(width: 14, height: 14)
+                            .foregroundStyle(T3.page)
+                        Text("WHY ISN'T THIS WORKING?")
+                            .font(T3.mono(12))
+                            .tracking(2)
+                            .foregroundStyle(T3.page)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(T3.ink)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open camera help")
+            }
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.top, 18)
+        }
+    }
+
+    private func retryConnection() {
+        isRetrying = true
+        lastRetryAt = Date()
+        Task { @MainActor in
+            if let provider = registry.provider(for: accessoryID.provider) {
+                try? await provider.refresh()
+            }
+            try? await Task.sleep(for: .milliseconds(600))
+            isRetrying = false
+        }
     }
 
     // MARK: - Masthead
@@ -130,6 +331,25 @@ struct T3CameraDetailView: View {
     // MARK: - Feed
 
     private var feedPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            feedPanelCore
+            Button { showHelp = true } label: {
+                HStack(spacing: 6) {
+                    T3IconImage(systemName: "questionmark.circle")
+                        .frame(width: 11, height: 11)
+                        .foregroundStyle(T3.sub)
+                    TLabel(text: "WHY ISN'T THIS WORKING?")
+                }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.top, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open camera help")
+        }
+    }
+
+    private var feedPanelCore: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 // Dark feed background
