@@ -16,6 +16,11 @@ struct T3SpeakerDetailView: View {
 
     @State private var isPlaying: Bool = true
     @State private var volume: Double = 0.65
+    @State private var toast: Toast?
+    // Captured at the start of a volume drag so we can revert the
+    // tick scale if the committed value fails to apply.
+    @State private var dragStartVolume: Double = 0
+    @State private var dragInProgress: Bool = false
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -84,6 +89,7 @@ struct T3SpeakerDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toast($toast, duration: 4)
         .onAppear {
             if let acc = accessory {
                 isPlaying = acc.playbackState == .playing
@@ -138,7 +144,13 @@ struct T3SpeakerDetailView: View {
 
             // Previous — outlined circle
             Button {
-                Task { try? await registry.execute(.previous, on: accessoryID) }
+                Task { @MainActor in
+                    await T3ActionFeedback.perform(
+                        action: { try await registry.execute(.previous, on: accessoryID) },
+                        toast: { toast = .error("Couldn't skip back") },
+                        errorDescription: "Speaker previous"
+                    )
+                }
             } label: {
                 Circle()
                     .stroke(T3.rule, lineWidth: 1)
@@ -154,9 +166,16 @@ struct T3SpeakerDetailView: View {
 
             // Play/Pause — 72px orange primary button
             Button {
+                let previous = isPlaying
                 isPlaying.toggle()
-                Task {
-                    try? await registry.execute(isPlaying ? .play : .pause, on: accessoryID)
+                let nowPlaying = isPlaying
+                Task { @MainActor in
+                    await T3ActionFeedback.perform(
+                        action: { try await registry.execute(nowPlaying ? .play : .pause, on: accessoryID) },
+                        onFailure: { isPlaying = previous },
+                        toast: { toast = .error("Couldn't \(nowPlaying ? "play" : "pause")") },
+                        errorDescription: "Speaker transport"
+                    )
                 }
             } label: {
                 Circle()
@@ -172,7 +191,13 @@ struct T3SpeakerDetailView: View {
 
             // Next — outlined circle
             Button {
-                Task { try? await registry.execute(.next, on: accessoryID) }
+                Task { @MainActor in
+                    await T3ActionFeedback.perform(
+                        action: { try await registry.execute(.next, on: accessoryID) },
+                        toast: { toast = .error("Couldn't skip forward") },
+                        errorDescription: "Speaker next"
+                    )
+                }
             } label: {
                 Circle()
                     .stroke(T3.rule, lineWidth: 1)
@@ -214,10 +239,25 @@ struct T3SpeakerDetailView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
+                            if !dragInProgress {
+                                dragStartVolume = volume
+                                dragInProgress = true
+                            }
                             volume = max(0, min(1, value.location.x / geo.size.width))
                         }
                         .onEnded { _ in
-                            Task { try? await registry.execute(.setVolume(Int(volume * 100)), on: accessoryID) }
+                            let startValue = dragStartVolume
+                            let committedValue = volume
+                            dragInProgress = false
+                            Task { @MainActor in
+                                await T3ActionFeedback.perform(
+                                    action: { try await registry.execute(.setVolume(Int(committedValue * 100)), on: accessoryID) },
+                                    onFailure: { volume = startValue },
+                                    successHaptic: .none,
+                                    toast: { toast = .error("Couldn't set volume") },
+                                    errorDescription: "Speaker volume drag"
+                                )
+                            }
                         }
                 )
             }
