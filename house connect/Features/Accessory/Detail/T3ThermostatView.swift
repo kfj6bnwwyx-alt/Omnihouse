@@ -59,6 +59,7 @@ struct T3ThermostatView: View {
                     // Huge number
                     VStack(alignment: .leading, spacing: 0) {
                         TLabel(text: "Interior")
+                            .accessibilityHidden(true)
 
                         HStack(alignment: .firstTextBaseline, spacing: 0) {
                             Text("\(currentTemp)")
@@ -73,6 +74,8 @@ struct T3ThermostatView: View {
                         }
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Interior temperature \(currentTemp) degrees")
 
                         // Target + buttons
                         HStack {
@@ -83,6 +86,8 @@ struct T3ThermostatView: View {
                                     .foregroundStyle(T3.ink)
                                     .monospacedDigit()
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Target temperature \(targetTemp) degrees")
 
                             Spacer()
 
@@ -99,6 +104,8 @@ struct T3ThermostatView: View {
                                                 .foregroundStyle(T3.ink)
                                         )
                                 }
+                                .accessibilityLabel("Decrease target temperature")
+                                .accessibilityAddTraits(.isButton)
 
                                 // Plus button — orange filled circle
                                 adjustButton(delta: 1) {
@@ -111,6 +118,8 @@ struct T3ThermostatView: View {
                                                 .foregroundStyle(T3.page)
                                         )
                                 }
+                                .accessibilityLabel("Increase target temperature")
+                                .accessibilityAddTraits(.isButton)
                             }
                         }
                         .padding(.top, 8)
@@ -138,6 +147,34 @@ struct T3ThermostatView: View {
 
                     // Schedule
                     scheduleSection
+
+                    TRule()
+
+                    // History row — navigates into the event timeline view.
+                    NavigationLink {
+                        T3ThermostatHistoryView(
+                            entityID: accessoryID.nativeID,
+                            name: accessory?.name ?? "Thermostat"
+                        )
+                    } label: {
+                        HStack {
+                            T3IconImage(systemName: "clock")
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(T3.ink)
+                            Text("History")
+                                .font(T3.inter(14, weight: .medium))
+                                .foregroundStyle(T3.ink)
+                            Spacer()
+                            T3IconImage(systemName: "chevron.right")
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(T3.sub)
+                        }
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.vertical, 18)
+                    }
+                    .buttonStyle(.t3Row)
+
+                    TRule()
 
                     Spacer(minLength: 120)
                 }

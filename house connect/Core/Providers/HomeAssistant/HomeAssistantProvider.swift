@@ -901,6 +901,142 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         return result[statisticID] ?? []
     }
 
+    // MARK: - Thermostat history
+
+    /// One point in a thermostat's history timeline. Built from HA's
+    /// `/api/history/period` REST response, which returns every
+    /// recorder row touching the entity over the window.
+    struct HAHistoryPoint: Identifiable, Sendable {
+        let id = UUID()
+        /// When HA recorded this state row (`last_updated` from the API).
+        let timestamp: Date
+        /// The climate entity's top-level state — "heat", "cool", "off",
+        /// "auto", "heat_cool". Matches the `state` column.
+        let state: String
+        /// Target setpoint in the server's native unit (°C on HA's
+        /// default metric profile, °F if the HA install is imperial).
+        /// The caller is responsible for conversion.
+        let temperature: Double?
+        /// Currently-measured indoor temperature.
+        let currentTemperature: Double?
+        /// Active HVAC action — "heating", "cooling", "idle", "off".
+        /// Distinct from `state`: a thermostat in "heat" mode may be
+        /// `idle` between calls for heat.
+        let hvacAction: String?
+        /// Preset name if set ("eco", "home", "away"…).
+        let presetMode: String?
+    }
+
+    /// Fetch recorder history for a single thermostat entity over the
+    /// last `hoursBack` hours. Uses the REST `/api/history/period`
+    /// endpoint — cheaper than a WebSocket one-shot for a view that
+    /// opens on demand, and the WebSocket client doesn't currently
+    /// expose a raw history command. Points are returned in
+    /// chronological ascending order; de-duplication of unchanged
+    /// points is the caller's responsibility.
+    func fetchThermostatHistory(
+        entityID: String,
+        hoursBack: Int = 24
+    ) async throws -> [HAHistoryPoint] {
+        guard let rest = restClient,
+              let token = tokenStore.token(for: .homeAssistantToken) else {
+            throw ProviderError.notAuthorized
+        }
+
+        let end = Date()
+        let start = end.addingTimeInterval(TimeInterval(-hoursBack * 3600))
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let startStr = iso.string(from: start)
+        let endStr = iso.string(from: end)
+
+        // Build: /api/history/period/<start>?filter_entity_id=<entity>&end_time=<end>&minimal_response=false
+        let encodedStart = startStr.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? startStr
+        let path = "api/history/period/\(encodedStart)"
+        guard var components = URLComponents(
+            url: rest.baseURL.appendingPathComponent(path),
+            resolvingAgainstBaseURL: false
+        ) else {
+            throw ProviderError.notAuthorized
+        }
+        components.queryItems = [
+            URLQueryItem(name: "filter_entity_id", value: entityID),
+            URLQueryItem(name: "end_time", value: endStr),
+            URLQueryItem(name: "minimal_response", value: "false"),
+            URLQueryItem(name: "no_attributes", value: "false")
+        ]
+        guard let url = components.url else {
+            throw ProviderError.notAuthorized
+        }
+
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 15
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw ProviderError.notAuthorized
+        }
+
+        // HA returns a 2D array: [[ state_row, state_row, ... ]] — one
+        // inner array per requested entity. We asked for exactly one.
+        // State rows are objects whose shape matches HAEntityState
+        // minimally — but many fields (like `context`) are absent. Use
+        // JSONSerialization + manual decoding rather than HAEntityState
+        // to keep the parse tolerant of historical-row quirks.
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [[[String: Any]]],
+              let rows = root.first else {
+            return []
+        }
+
+        let isoParsers: [ISO8601DateFormatter] = {
+            let withFrac = ISO8601DateFormatter()
+            withFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let noFrac = ISO8601DateFormatter()
+            noFrac.formatOptions = [.withInternetDateTime]
+            return [withFrac, noFrac]
+        }()
+
+        func parseDate(_ s: String) -> Date? {
+            for f in isoParsers {
+                if let d = f.date(from: s) { return d }
+            }
+            return nil
+        }
+
+        var points: [HAHistoryPoint] = []
+        points.reserveCapacity(rows.count)
+
+        for row in rows {
+            guard let stateStr = row["state"] as? String else { continue }
+            let tsString = (row["last_updated"] as? String)
+                ?? (row["last_changed"] as? String)
+            guard let tsString, let timestamp = parseDate(tsString) else { continue }
+
+            let attrs = row["attributes"] as? [String: Any] ?? [:]
+            let temperature = attrs["temperature"] as? Double
+                ?? (attrs["temperature"] as? Int).map(Double.init)
+            let currentTemperature = attrs["current_temperature"] as? Double
+                ?? (attrs["current_temperature"] as? Int).map(Double.init)
+            let hvacAction = attrs["hvac_action"] as? String
+            let presetMode = attrs["preset_mode"] as? String
+
+            points.append(HAHistoryPoint(
+                timestamp: timestamp,
+                state: stateStr,
+                temperature: temperature,
+                currentTemperature: currentTemperature,
+                hvacAction: hvacAction,
+                presetMode: presetMode
+            ))
+        }
+
+        points.sort { $0.timestamp < $1.timestamp }
+        return points
+    }
+
     // MARK: - Diagnostics surface
 
     /// Read-only snapshot of integration health. Derived each access
