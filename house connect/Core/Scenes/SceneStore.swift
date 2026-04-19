@@ -83,6 +83,55 @@ final class SceneStore {
         save()
     }
 
+    /// Re-insert a scene at the given index. Clamped to valid bounds.
+    /// Used by the list's "undo delete" flow to restore a just-deleted
+    /// scene at its original position without disturbing neighbours.
+    func insert(_ scene: HCScene, at index: Int) {
+        let clamped = max(0, min(index, scenes.count))
+        scenes.insert(scene, at: clamped)
+        save()
+    }
+
+    /// Create a copy of the given scene with a new UUID, its actions
+    /// rewritten with fresh IDs, and a " Copy" suffix on the name (or
+    /// " Copy 2", " Copy 3"… if that name is already taken). Inserted
+    /// immediately after the source so the new row appears next to it.
+    @discardableResult
+    func duplicate(_ scene: HCScene) -> HCScene {
+        // Fresh action IDs so the copy is structurally independent —
+        // editing the duplicate's actions must not mutate the original.
+        let freshActions = scene.actions.map { action in
+            SceneAction(id: UUID(),
+                        accessoryID: action.accessoryID,
+                        command: action.command)
+        }
+        let newName = uniqueCopyName(basedOn: scene.name)
+        let copy = HCScene(id: UUID(),
+                           name: newName,
+                           iconSystemName: scene.iconSystemName,
+                           actions: freshActions)
+        if let idx = scenes.firstIndex(where: { $0.id == scene.id }) {
+            scenes.insert(copy, at: idx + 1)
+        } else {
+            scenes.append(copy)
+        }
+        save()
+        return copy
+    }
+
+    /// Finds the first available "<name> Copy", "<name> Copy 2", …
+    /// that isn't already in use. Scans against current scene names
+    /// case-insensitively so the UI doesn't produce visually
+    /// duplicate-looking labels.
+    private func uniqueCopyName(basedOn name: String) -> String {
+        let existing = Set(scenes.map { $0.name.lowercased() })
+        let base = "\(name) Copy"
+        if !existing.contains(base.lowercased()) { return base }
+        var n = 2
+        while existing.contains("\(base) \(n)".lowercased()) { n += 1 }
+        return "\(base) \(n)"
+    }
+
     func scene(id: UUID) -> HCScene? {
         scenes.first { $0.id == id }
     }

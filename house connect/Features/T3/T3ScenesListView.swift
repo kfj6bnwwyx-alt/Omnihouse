@@ -24,6 +24,34 @@ struct T3ScenesListView: View {
     @State private var runProgress: (done: Int, total: Int) = (0, 0)
     @State private var toast: Toast?
     @State private var showCreateSceneSheet: Bool = false
+
+    // MARK: - Row management state
+    //
+    // The scenes list used to be read-only; these states back the swipe
+    // actions added in CC Wave. We use a context menu rather than
+    // SwiftUI `.swipeActions` because the rows live inside a ScrollView
+    // / VStack rather than a `List` — swipeActions only works on List
+    // rows, and restructuring the list breaks the existing run-chip
+    // overlays. Long-press → menu with Rename / Duplicate / Delete
+    // matches the interaction surface we wanted without refactoring
+    // the layout.
+    @State private var renameTarget: HCScene?
+    @State private var renameText: String = ""
+    @State private var deleteTarget: HCScene?
+    /// Pending-undo snapshot for the most recently deleted scene. Held
+    /// for 10 seconds in an inline banner at the bottom of the screen;
+    /// after that it drops to nil and the delete is permanent.
+    @State private var undoState: UndoState?
+    @State private var undoDismissTask: Task<Void, Never>?
+
+    /// Snapshot of a just-deleted scene plus the index it was at, so
+    /// "Undo" can put it back in the same spot. Storing the whole
+    /// `HCScene` (not just the ID) means the scene stays restorable
+    /// even though SceneStore has already removed + re-saved the file.
+    private struct UndoState: Equatable {
+        let scene: HCScene
+        let index: Int
+    }
     /// Scene + result pair presented in the detail sheet when a run
     /// finishes with partial or full failure. Kept as a tuple-wrapped
     /// Identifiable so SwiftUI can drive `.sheet(item:)`.
@@ -100,6 +128,24 @@ struct T3ScenesListView: View {
                         .overlay(alignment: .bottom) {
                             if i == sceneStore.scenes.count - 1 { TRule() }
                         }
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                beginRename(scene)
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button {
+                                duplicateScene(scene)
+                            } label: {
+                                Label("Duplicate", systemImage: "square.on.square")
+                            }
+                            Button(role: .destructive) {
+                                deleteTarget = scene
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
 
                     // Add scene dashed button
@@ -129,12 +175,153 @@ struct T3ScenesListView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .toast($toast)
+        .overlay(alignment: .bottom) {
+            if let undo = undoState {
+                undoBanner(for: undo)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.82),
+                   value: undoState)
         .sheet(isPresented: $showCreateSceneSheet) {
             T3SceneEditorView()
         }
         .sheet(item: $pendingResult) { pending in
             T3SceneRunResultSheet(scene: pending.scene, result: pending.result)
         }
+        .alert("Delete \u{201C}\(deleteTarget?.name ?? "")\u{201D}?",
+               isPresented: deleteAlertBinding,
+               presenting: deleteTarget) { scene in
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+            Button("Delete", role: .destructive) { performDelete(scene) }
+        } message: { _ in
+            Text("This scene will be removed. You can undo within 10 seconds.")
+        }
+        .alert("Rename scene",
+               isPresented: renameAlertBinding,
+               presenting: renameTarget) { _ in
+            TextField("Scene name", text: $renameText)
+            Button("Cancel", role: .cancel) { renameTarget = nil }
+            Button("Save") { commitRename() }
+        } message: { scene in
+            Text("Enter a new name for \u{201C}\(scene.name)\u{201D}.")
+        }
+    }
+
+    // MARK: - Row action handlers
+
+    private var deleteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        )
+    }
+
+    private var renameAlertBinding: Binding<Bool> {
+        Binding(
+            get: { renameTarget != nil },
+            set: { if !$0 { renameTarget = nil } }
+        )
+    }
+
+    private func beginRename(_ scene: HCScene) {
+        renameText = scene.name
+        renameTarget = scene
+    }
+
+    private func commitRename() {
+        guard let target = renameTarget else { return }
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        renameTarget = nil
+        guard !trimmed.isEmpty, trimmed != target.name else { return }
+        var updated = target
+        updated.name = trimmed
+        sceneStore.update(updated)
+        toast = .success("Renamed")
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
+    }
+
+    private func duplicateScene(_ scene: HCScene) {
+        _ = sceneStore.duplicate(scene)
+        toast = .success("Scene duplicated")
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+
+    private func performDelete(_ scene: HCScene) {
+        // Capture original index before removal so undo restores the
+        // scene at the same spot — inserting at the end would feel
+        // like a reorder bug.
+        guard let index = sceneStore.scenes.firstIndex(where: { $0.id == scene.id }) else {
+            deleteTarget = nil
+            return
+        }
+        sceneStore.remove(id: scene.id)
+        deleteTarget = nil
+        undoDismissTask?.cancel()
+        undoState = UndoState(scene: scene, index: index)
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        #endif
+        // 10-second window, matching iOS system "undo" affordances
+        // (Mail swipe-to-archive is ~5s, but users asked for a longer
+        // grace period on destructive scene edits).
+        let snapshot = undoState
+        undoDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
+            if !Task.isCancelled, undoState == snapshot {
+                undoState = nil
+            }
+        }
+    }
+
+    private func undoDelete() {
+        guard let undo = undoState else { return }
+        sceneStore.insert(undo.scene, at: undo.index)
+        undoDismissTask?.cancel()
+        undoDismissTask = nil
+        undoState = nil
+        toast = .success("Scene restored")
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+
+    /// Bottom-anchored undo banner with a UNDO button. Styled to match
+    /// the T3 aesthetic — ink background, panel-color text, single
+    /// hairline rule — so it doesn't visually fight the green/red
+    /// success/error toasts that float at the top of the screen.
+    @ViewBuilder
+    private func undoBanner(for undo: UndoState) -> some View {
+        HStack(spacing: 12) {
+            Text("Scene deleted")
+                .font(T3.inter(14, weight: .medium))
+                .foregroundStyle(T3.panel)
+            Spacer()
+            Button {
+                undoDelete()
+            } label: {
+                Text("UNDO")
+                    .font(T3.mono(11))
+                    .tracking(1)
+                    .foregroundStyle(T3.panel)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .overlay(
+                        Rectangle()
+                            .stroke(T3.panel, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(T3.ink)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.bottom, 24)
     }
 
     // MARK: - Empty state
