@@ -20,6 +20,7 @@ struct T3HomeDashboardView: View {
     @Environment(SceneStore.self) private var sceneStore
     @Environment(WeatherService.self) private var weather
     @Environment(AppEventStore.self) private var eventStore
+    @Environment(T3TabNavigator.self) private var navigator
 
     @State private var selectedSceneIndex: Int = 0
     @State private var runningSceneID: UUID?
@@ -28,6 +29,11 @@ struct T3HomeDashboardView: View {
     /// User's display name for the greeting. Set in Settings → Profile.
     /// Empty = no personalization ("Good morning." without a comma).
     @AppStorage("profile.firstName") private var firstName: String = ""
+
+    /// Comma-separated list of pinned scene UUIDs for the Quick Actions row.
+    /// Empty string = no pins (we fall back to the first 4 scenes alphabetically).
+    /// TODO: Wave W+ — build an edit UI for pinning/reordering scenes.
+    @AppStorage("dashboard.quickActionSceneIDs") private var quickActionSceneIDsRaw: String = ""
 
     private var rooms: [Room] {
         let allRooms = registry.allRooms
@@ -74,6 +80,8 @@ struct T3HomeDashboardView: View {
                 masthead
                 TRule()
                 weatherStrip
+                TRule()
+                quickActionsSection
                 TRule()
                 scenesSection
                 TRule()
@@ -230,6 +238,105 @@ struct T3HomeDashboardView: View {
                 .foregroundStyle(T3.sub)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Quick Actions
+
+    /// Resolved list of scenes pinned for quick access.
+    /// Priority:
+    ///   1. Parse `quickActionSceneIDsRaw` (comma-separated UUIDs), preserve order,
+    ///      skip IDs that no longer resolve to a scene.
+    ///   2. If that list is empty, fall back to the first 4 scenes sorted by name
+    ///      (stable + predictable until the pin/edit UI lands).
+    ///   3. Cap at 4 chips so the row stays glanceable.
+    private var quickActionScenes: [HCScene] {
+        let all = sceneStore.scenes
+        let ids: [UUID] = quickActionSceneIDsRaw
+            .split(separator: ",")
+            .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
+
+        if !ids.isEmpty {
+            let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+            let pinned = ids.compactMap { byID[$0] }
+            if !pinned.isEmpty { return Array(pinned.prefix(4)) }
+        }
+
+        return Array(all.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }.prefix(4))
+    }
+
+    private var quickActionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            TSectionHead(title: "Quick Actions", count: nil)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    let pinned = quickActionScenes
+                    if pinned.isEmpty {
+                        quickActionPlaceholder
+                    } else {
+                        ForEach(pinned) { scene in
+                            quickActionChip(scene)
+                        }
+                    }
+                }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.bottom, 18)
+            }
+        }
+    }
+
+    private func quickActionChip(_ scene: HCScene) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            runScene(scene)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                T3IconImage(systemName: scene.iconSystemName)
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(T3.ink)
+                Spacer(minLength: 0)
+                Text(scene.name)
+                    .font(T3.inter(12, weight: .medium))
+                    .tracking(-0.2)
+                    .foregroundStyle(T3.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(10)
+            .frame(width: 100, height: 72, alignment: .topLeading)
+            .background(T3.panel)
+            .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Placeholder chip shown when no scenes exist / are pinned.
+    /// Taps route to Settings → Scenes so the user can create one.
+    private var quickActionPlaceholder: some View {
+        Button {
+            navigator.goToSettings(.scenes)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                T3IconImage(systemName: "plus")
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(T3.sub)
+                Spacer(minLength: 0)
+                Text("Create a scene to pin it here")
+                    .font(T3.inter(11, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(10)
+            .frame(width: 180, height: 72, alignment: .topLeading)
+            .background(T3.panel)
+            .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Scenes
