@@ -40,6 +40,16 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// Whether the WebSocket is connected.
     private(set) var isConnected: Bool = false
 
+    /// Timestamp of the most recent successful WebSocket connection.
+    /// Set on `didConnect`, cleared on `disconnect()`. Used by the
+    /// diagnostics screen to show "Connected for Xh Ym".
+    private(set) var connectedAt: Date?
+
+    /// Timestamp of the most recent inbound state change or full state
+    /// dump. Lets the diagnostics screen show "Last state update: 4s ago"
+    /// as a cheap liveness signal without any extra plumbing.
+    private(set) var lastStateUpdateAt: Date?
+
     /// HA scenes (scene.* entities) available for activation.
     private(set) var scenes: [HAScene] = []
 
@@ -329,6 +339,8 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         haVersion = nil
         lastError = nil
         lastRefreshed = nil
+        connectedAt = nil
+        lastStateUpdateAt = nil
     }
 
     // MARK: - HomeAssistantWebSocketDelegate
@@ -337,6 +349,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         Task { @MainActor in
             self.haVersion = version
             self.isConnected = true
+            self.connectedAt = Date()
             self.authorizationState = .authorized
             self.lastError = nil
             self.startPingTimer()
@@ -346,6 +359,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     nonisolated func didDisconnect(error: Error?) {
         Task { @MainActor in
             self.isConnected = false
+            self.connectedAt = nil
             self.pingTask?.cancel()
             if let error {
                 self.lastError = error.localizedDescription
@@ -371,6 +385,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     nonisolated func didReceiveStateChange(entityID: String, newState: HAEntityState) {
         Task { @MainActor in
             self.entityStates[entityID] = newState
+            self.lastStateUpdateAt = Date()
             self.rebuildAccessory(for: entityID)
         }
     }
@@ -382,6 +397,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
             for state in states {
                 self.entityStates[state.entityID] = state
             }
+            self.lastStateUpdateAt = Date()
 
             // Cancel any stale pending rebuild (e.g. from a rapid
             // reconnect) to avoid overlapping rebuilds and UI flicker.
@@ -883,5 +899,47 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
             period: period
         )
         return result[statisticID] ?? []
+    }
+
+    // MARK: - Diagnostics surface
+
+    /// Read-only snapshot of integration health. Derived each access
+    /// from cached registries so the diagnostics screen always sees
+    /// fresh numbers without holding a reference to internal storage.
+    /// Cheap — these maps are already in memory.
+    struct DiagnosticsSnapshot: Sendable {
+        var entityCount: Int
+        var entitiesByDomain: [(domain: String, count: Int)]
+        var deviceRegistryCount: Int
+        var entityRegistryCount: Int
+        var areaRegistryCount: Int
+        var unclassifiedAccessories: [(name: String, entityID: String)]
+    }
+
+    /// Build a diagnostics snapshot from cached state. Runs on the main
+    /// actor in O(n) over entities; n is at most a few thousand and the
+    /// screen only reads this on demand / refresh, so no caching needed.
+    func diagnosticsSnapshot() -> DiagnosticsSnapshot {
+        var counts: [String: Int] = [:]
+        for (_, entity) in entityStates {
+            counts[entity.domain, default: 0] += 1
+        }
+        let sorted = counts
+            .map { (domain: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+
+        let unclassified = accessories
+            .filter { $0.category == .other }
+            .map { (name: $0.name, entityID: $0.id.nativeID) }
+            .sorted { $0.name < $1.name }
+
+        return DiagnosticsSnapshot(
+            entityCount: entityStates.count,
+            entitiesByDomain: sorted,
+            deviceRegistryCount: deviceRegistry.count,
+            entityRegistryCount: entityRegistry.count,
+            areaRegistryCount: areaRegistry.count,
+            unclassifiedAccessories: unclassified
+        )
     }
 }
