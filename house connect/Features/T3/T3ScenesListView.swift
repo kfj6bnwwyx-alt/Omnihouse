@@ -53,6 +53,8 @@ struct T3ScenesListView: View {
                                     .font(T3.inter(15, weight: .medium))
                                     .tracking(-0.2)
                                     .foregroundStyle(T3.ink)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                                 TLabel(text: "\(scene.actions.count) actions")
                             }
 

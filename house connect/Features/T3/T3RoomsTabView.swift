@@ -64,6 +64,8 @@ struct T3RoomsTabView: View {
                                     Text(room.name)
                                         .font(T3.inter(18, weight: .medium))
                                         .foregroundStyle(T3.ink)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
 
                                     HStack(spacing: 6) {
                                         if activeCount > 0 { TDot(size: 6) }

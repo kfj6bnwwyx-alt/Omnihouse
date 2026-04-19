@@ -264,6 +264,8 @@ struct T3HomeDashboardView: View {
                     .font(T3.inter(13, weight: .medium))
                     .tracking(-0.2)
                     .foregroundStyle(selected ? T3.page : T3.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -312,6 +314,7 @@ struct T3HomeDashboardView: View {
                                     .tracking(-0.4)
                                     .foregroundStyle(T3.ink)
                                     .lineLimit(1)
+                                    .truncationMode(.tail)
 
                                 HStack(spacing: 6) {
                                     if activeDevices > 0 { TDot(size: 6) }
