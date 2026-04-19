@@ -40,6 +40,15 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// Whether the WebSocket is connected.
     private(set) var isConnected: Bool = false
 
+    /// Whether the active HA connection is using the remote (off-network)
+    /// URL rather than the local one. Published for the UI so it can
+    /// surface an "on cellular / remote" badge. Wave HH (2026-04-18).
+    private(set) var isUsingRemote: Bool = false
+
+    /// Base URL currently in use for HA REST + WS, if connected. Driven
+    /// by the endpoint resolver. Wave HH.
+    private(set) var currentEndpoint: URL?
+
     /// Timestamp of the most recent successful WebSocket connection.
     /// Set on `didConnect`, cleared on `disconnect()`. Used by the
     /// diagnostics screen to show "Connected for Xh Ym".
@@ -63,6 +72,9 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     @ObservationIgnored private var restClient: HomeAssistantRESTClient?
     @ObservationIgnored private var pingTask: Task<Void, Never>?
     @ObservationIgnored private var pendingRebuildTask: Task<Void, Never>?
+    /// Wave HH — local-vs-remote URL resolver + cache. Created on first
+    /// `start()`, reused for reconnects so the NWPathMonitor keeps running.
+    @ObservationIgnored private var endpointResolver: HAEndpointResolver?
 
     /// entity_id → HAEntityState cache. Updated in real time via WebSocket.
     @ObservationIgnored private var entityStates: [String: HAEntityState] = [:]
@@ -198,17 +210,24 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
             return
         }
 
-        // Collect candidate URLs: local first (fastest), remote/Tailscale as fallback.
-        var candidates: [(label: String, url: URL)] = []
-        if let local = tokenStore.token(for: .homeAssistantURL),
-           let url = URL(string: local) {
-            candidates.append(("local", url))
-        }
-        if let remote = tokenStore.token(for: .homeAssistantRemoteURL),
-           let url = URL(string: remote) {
-            candidates.append(("remote", url))
+        // Wave HH — delegate local-vs-remote selection to HAEndpointResolver.
+        // It caches the last-successful URL and invalidates on network change
+        // (Wi-Fi ⇄ cellular), so reconnects after a path flip re-probe from
+        // scratch rather than hammering a URL that only works at home.
+        let localURL = tokenStore.token(for: .homeAssistantURL)
+            .flatMap { URL(string: $0) }
+        let remoteURL = tokenStore.token(for: .homeAssistantRemoteURL)
+            .flatMap { URL(string: $0) }
+
+        let resolver: HAEndpointResolver
+        if let existing = endpointResolver {
+            resolver = existing
+        } else {
+            resolver = HAEndpointResolver(localURL: localURL, remoteURL: remoteURL)
+            endpointResolver = resolver
         }
 
+        let candidates = resolver.candidates
         guard !candidates.isEmpty else {
             authorizationState = .notDetermined
             lastError = "No Home Assistant URL configured"
@@ -216,29 +235,36 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         }
 
         // Try each URL in order — first reachable one wins.
-        var connectedURL: URL?
-        for (label, url) in candidates {
-            let testClient = HomeAssistantRESTClient(baseURL: url, token: token)
+        var winner: HAEndpointResolver.Candidate?
+        for candidate in candidates {
+            let testClient = HomeAssistantRESTClient(baseURL: candidate.url, token: token)
             let reachable = await testClient.checkConnection()
             if reachable {
                 #if DEBUG
-                print("[ha.provider] connected via \(label): \(url)")
+                print("[ha.provider] connected via \(candidate.label): \(candidate.url)")
                 #endif
-                connectedURL = url
+                winner = candidate
                 break
             } else {
                 #if DEBUG
-                print("[ha.provider] \(label) unreachable: \(url)")
+                print("[ha.provider] \(candidate.label) unreachable: \(candidate.url)")
                 #endif
             }
         }
 
-        guard let baseURL = connectedURL else {
+        guard let winner else {
             let urls = candidates.map(\.url.absoluteString).joined(separator: ", ")
             authorizationState = .unavailable(reason: "Can't reach Home Assistant")
             lastError = "Tried \(urls) — all unreachable. Check your network."
+            isUsingRemote = false
+            currentEndpoint = nil
             return
         }
+
+        resolver.recordSuccess(winner)
+        isUsingRemote = winner.isRemote
+        currentEndpoint = winner.url
+        let baseURL = winner.url
 
         let rest = HomeAssistantRESTClient(baseURL: baseURL, token: token)
         restClient = rest

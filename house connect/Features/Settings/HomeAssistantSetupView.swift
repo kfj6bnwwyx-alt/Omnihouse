@@ -22,9 +22,13 @@ struct HomeAssistantSetupView: View {
     @State private var error: String?
     @State private var connectionMode: ConnectionMode = .manual
 
-    // Test-connection state (Wave DD)
+    // Test-connection state (Wave DD, extended in Wave HH)
     @State private var isTesting: Bool = false
     @State private var testResult: HAConnectionTestResult?
+    /// Wave HH — when the user has provided a remote URL we test both
+    /// in parallel and show two result rows. Nil when only local is
+    /// configured (single-row behaviour preserved).
+    @State private var remoteTestResult: HAConnectionTestResult?
     @State private var urlValidationError: String?
     @State private var allowSaveOverride: Bool = false
 
@@ -89,13 +93,21 @@ struct HomeAssistantSetupView: View {
             invalidateTest()
         }
         .onChange(of: manualURL) { _, _ in invalidateTest() }
+        .onChange(of: remoteURL) { _, _ in invalidateTest() }
         .onChange(of: token) { _, _ in invalidateTest() }
     }
 
     private func invalidateTest() {
         testResult = nil
+        remoteTestResult = nil
         allowSaveOverride = false
         urlValidationError = nil
+    }
+
+    /// Trimmed remote URL, or nil if the user left it blank.
+    private var trimmedRemoteURL: String? {
+        let t = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 
     // MARK: - Mode segmented
@@ -234,8 +246,8 @@ struct HomeAssistantSetupView: View {
             TSectionHead(title: "Remote", count: "OPTIONAL")
 
             VStack(alignment: .leading, spacing: 10) {
-                TLabel(text: "TAILSCALE OR EXTERNAL URL")
-                TextField("http://100.x.x.x:8123", text: $remoteURL)
+                TLabel(text: "REMOTE URL (OPTIONAL)")
+                TextField("https://YOUR-ID.ui.nabu.casa", text: $remoteURL)
                     .textContentType(.URL)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -248,7 +260,7 @@ struct HomeAssistantSetupView: View {
                     .frame(height: focusedField == .remoteURL ? 1.5 : 1)
                     .animation(.easeOut(duration: 0.18), value: focusedField)
 
-                Text("Used as fallback when the local URL isn't reachable — e.g. when you're away from home on cellular.")
+                Text("For use when away from home Wi-Fi. Enable Nabu Casa Cloud or a reverse proxy in Home Assistant. Tailscale URLs also work.")
                     .font(T3.inter(12, weight: .regular))
                     .foregroundStyle(T3.sub)
                     .lineSpacing(2)
@@ -337,7 +349,14 @@ struct HomeAssistantSetupView: View {
                 }
 
                 if let testResult {
-                    testResultView(testResult)
+                    if trimmedRemoteURL != nil {
+                        testResultView(testResult, label: "LOCAL")
+                    } else {
+                        testResultView(testResult, label: nil)
+                    }
+                }
+                if let remoteTestResult {
+                    testResultView(remoteTestResult, label: "REMOTE")
                 }
             }
             .padding(.horizontal, T3.screenPadding)
@@ -348,34 +367,38 @@ struct HomeAssistantSetupView: View {
     }
 
     @ViewBuilder
-    private func testResultView(_ result: HAConnectionTestResult) -> some View {
+    private func testResultView(
+        _ result: HAConnectionTestResult,
+        label prefix: String?
+    ) -> some View {
+        let p = prefix.map { "\($0) · " } ?? ""
         switch result.status {
         case .success:
             testResultRow(
                 icon: "checkmark",
                 color: T3.ok,
-                label: "CONNECTED",
+                label: "\(p)CONNECTED",
                 message: result.message
             )
         case .authFailed:
             testResultRow(
                 icon: "lock.slash",
                 color: T3.danger,
-                label: "TOKEN REJECTED",
+                label: "\(p)TOKEN REJECTED",
                 message: result.message
             )
         case .unreachable:
             testResultRow(
                 icon: "wifi.slash",
                 color: T3.danger,
-                label: "UNREACHABLE",
+                label: "\(p)UNREACHABLE",
                 message: result.message
             )
         case .invalidURL:
             testResultRow(
                 icon: "exclamationmark.triangle",
                 color: T3.danger,
-                label: "INVALID URL",
+                label: "\(p)INVALID URL",
                 message: result.message
             )
         }
@@ -412,13 +435,19 @@ struct HomeAssistantSetupView: View {
         !effectiveURL.isEmpty && !token.isEmpty && !isTesting && !isConnecting
     }
 
+    /// Wave HH — "passed" if at least one of the configured URLs
+    /// succeeded. When a remote URL isn't configured, this reduces to
+    /// "local passed" — matching pre-Wave-HH behaviour.
     private var testPassed: Bool {
-        testResult?.status == .success
+        if testResult?.status == .success { return true }
+        if remoteTestResult?.status == .success { return true }
+        return false
     }
 
     private func runTest() async {
         urlValidationError = nil
         testResult = nil
+        remoteTestResult = nil
         allowSaveOverride = false
 
         let raw = effectiveURL
@@ -437,11 +466,27 @@ struct HomeAssistantSetupView: View {
         _ = url
 
         isTesting = true
-        let result = await HomeAssistantProvider.testConnection(
-            urlString: raw,
-            token: token
-        )
-        testResult = result
+        let remote = trimmedRemoteURL
+        let localTokenCopy = token
+        let localRaw = raw
+
+        // If a remote URL is set, test both in parallel so the user sees
+        // the slower of the two in under the per-request timeout (5s).
+        if let remote {
+            async let localResult = HomeAssistantProvider.testConnection(
+                urlString: localRaw, token: localTokenCopy
+            )
+            async let remoteResult = HomeAssistantProvider.testConnection(
+                urlString: remote, token: localTokenCopy
+            )
+            let (l, r) = await (localResult, remoteResult)
+            testResult = l
+            remoteTestResult = r
+        } else {
+            testResult = await HomeAssistantProvider.testConnection(
+                urlString: localRaw, token: localTokenCopy
+            )
+        }
         isTesting = false
     }
 
@@ -469,11 +514,12 @@ struct HomeAssistantSetupView: View {
             .buttonStyle(.plain)
             .disabled(!canConnect)
 
-            // "Save anyway" override — surfaces only when the test
-            // failed, because HA might be temporarily down and we
-            // don't want to strand the user.
-            if let status = testResult?.status,
-               status != .success,
+            // "Save anyway" override — surfaces only when no URL passed
+            // the test, because HA might be temporarily down and we
+            // don't want to strand the user. Wave HH — considers both
+            // local and remote results.
+            if testResult != nil,
+               !testPassed,
                !allowSaveOverride {
                 Button {
                     allowSaveOverride = true
@@ -527,48 +573,71 @@ struct HomeAssistantSetupView: View {
         .padding(.vertical, 14)
     }
 
-    // MARK: - Connect logic (unchanged)
+    // MARK: - Connect logic (Wave HH — dual-URL aware)
+
+    /// Normalize a raw URL string: trim whitespace, default scheme to
+    /// http, strip trailing slashes.
+    private func normalize(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !s.lowercased().hasPrefix("http://"),
+           !s.lowercased().hasPrefix("https://") {
+            s = "http://\(s)"
+        }
+        while s.hasSuffix("/") { s = String(s.dropLast()) }
+        return s
+    }
 
     private func connect() async {
         isConnecting = true
         error = nil
 
-        var urlString = effectiveURL
-        if !urlString.hasPrefix("http") {
-            urlString = "http://\(urlString)"
-        }
-        if urlString.hasSuffix("/") {
-            urlString = String(urlString.dropLast())
-        }
+        let localNormalized = normalize(effectiveURL)
+        let remoteNormalized = trimmedRemoteURL.map(normalize)
 
-        guard let url = URL(string: urlString) else {
-            error = "Invalid URL: \(urlString)"
+        guard let localURL = URL(string: localNormalized) else {
+            error = "Invalid URL: \(localNormalized)"
             isConnecting = false
             return
         }
 
-        let testClient = HomeAssistantRESTClient(baseURL: url, token: token)
-        let reachable = await testClient.checkConnection()
+        // Try local first, then remote. Allows setup while off-network —
+        // if the local URL is unreachable right now but the remote one
+        // works, we save both and let the provider's resolver pick.
+        var urlString = localNormalized
+        var url = localURL
+        var reachable = await HomeAssistantRESTClient(baseURL: localURL, token: token).checkConnection()
+
+        if !reachable, let remoteNormalized, let remoteURLObj = URL(string: remoteNormalized) {
+            let remoteReachable = await HomeAssistantRESTClient(baseURL: remoteURLObj, token: token).checkConnection()
+            if remoteReachable {
+                urlString = remoteNormalized
+                url = remoteURLObj
+                reachable = true
+            }
+        }
 
         guard reachable else {
-            error = "Can't reach Home Assistant at \(urlString). Check: (1) your phone is on the same Wi-Fi, (2) HA is running, (3) the URL is correct."
+            error = "Can't reach Home Assistant at \(localNormalized). Check: (1) your phone is on the same Wi-Fi as HA, (2) HA is running, (3) the URL is correct. If you're away from home, add a Remote URL."
             isConnecting = false
             return
         }
+        _ = urlString
+
+        // Verify token against whichever URL we reached.
+        let authClient = HomeAssistantRESTClient(baseURL: url, token: token)
 
         do {
-            _ = try await testClient.getConfig()
+            _ = try await authClient.getConfig()
 
             let tokenStore = KeychainTokenStore()
             try tokenStore.set(token, for: .homeAssistantToken)
-            try tokenStore.set(urlString, for: .homeAssistantURL)
+            // Always persist the configured local URL (even if we
+            // reached HA via remote this time) so later attempts on
+            // home Wi-Fi hit the fast path. Wave HH.
+            try tokenStore.set(localNormalized, for: .homeAssistantURL)
 
-            let trimmedRemote = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedRemote.isEmpty {
-                var remote = trimmedRemote
-                if !remote.hasPrefix("http") { remote = "http://\(remote)" }
-                if remote.hasSuffix("/") { remote = String(remote.dropLast()) }
-                try tokenStore.set(remote, for: .homeAssistantRemoteURL)
+            if let remoteNormalized {
+                try tokenStore.set(remoteNormalized, for: .homeAssistantRemoteURL)
             }
 
             if let provider = registry.provider(for: .homeAssistant) as? HomeAssistantProvider {
