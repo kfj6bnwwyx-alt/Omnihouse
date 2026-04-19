@@ -371,6 +371,7 @@ struct T3SceneEditorView: View {
         case .lock: return "lock.fill"
         case .speaker: return "music.note"
         case .television: return "tv.fill"
+        case .appleTV: return "tv.fill"
         case .camera: return "camera.fill"
         case .sensor: return "sensor.tag.radiowaves.forward.fill"
         case .smokeAlarm: return "flame.fill"

@@ -154,6 +154,8 @@ enum T3Icon {
         "paintpalette.fill": "palette",
         "photo.artframe": "image",
         "tv": "tv",
+        "appletv": "tv",
+        "appletv.fill": "tv",
         "calendar.badge.clock": "calendar-clock",
         "clock": "clock",
         "clock.badge.questionmark": "clock",

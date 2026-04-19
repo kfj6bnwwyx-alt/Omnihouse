@@ -237,6 +237,7 @@ struct NetworkListView: View {
         case .blinds: "blinds.horizontal.closed"
         case .speaker: "hifispeaker.fill"
         case .television: "tv.fill"
+        case .appleTV: "tv.fill"
         case .smokeAlarm: "smoke.fill"
         case .other: "questionmark.app.fill"
         }

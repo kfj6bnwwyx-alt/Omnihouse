@@ -67,6 +67,9 @@ struct T3DeviceDetailView: View {
         case .television:
             T3FrameTVDetailView(accessoryID: accessoryID)
 
+        case .appleTV:
+            T3AppleTVDetailView(accessoryID: accessoryID)
+
         case .camera:
             T3CameraDetailView(accessoryID: accessoryID)
 

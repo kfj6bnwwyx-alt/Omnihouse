@@ -179,6 +179,7 @@ struct T3DeviceRow: View {
         case .switch, .outlet: "poweroutlet.type.b.fill"
         case .sensor: "sensor.fill"
         case .television: "tv"
+        case .appleTV: "tv"
         case .smokeAlarm: "smoke.fill"
         case .other: "questionmark.app"
         }

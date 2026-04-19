@@ -24,7 +24,7 @@ struct T3DeviceNetworkTopologyView: View {
     // T3 treatment ships here for now.
 
     private var interestingCategories: Set<Accessory.Category> {
-        [.speaker, .lock, .camera, .thermostat, .sensor, .light, .smokeAlarm, .switch, .outlet, .fan, .blinds, .television, .other]
+        [.speaker, .lock, .camera, .thermostat, .sensor, .light, .smokeAlarm, .switch, .outlet, .fan, .blinds, .television, .appleTV, .other]
     }
 
     private var nodes: [Accessory] {
@@ -166,6 +166,7 @@ struct T3DeviceNetworkTopologyView: View {
         case .blinds: "Blinds"
         case .speaker: "Speaker"
         case .television: "TV"
+        case .appleTV: "Apple TV"
         case .smokeAlarm: "Smoke"
         case .other: "Device"
         }
@@ -184,6 +185,7 @@ struct T3DeviceNetworkTopologyView: View {
         case .blinds: "blinds.horizontal.closed"
         case .speaker: "hifispeaker.fill"
         case .television: "tv.fill"
+        case .appleTV: "tv.fill"
         case .smokeAlarm: "smoke.fill"
         case .other: "questionmark.app.fill"
         }

@@ -280,6 +280,7 @@ struct T3ProviderDetailView: View {
         case .switch: return "power"
         case .sensor: return "target"
         case .television: return "tv"
+        case .appleTV: return "tv"
         case .smokeAlarm: return "exclamationmark.triangle"
         case .other: return "ellipsis"
         }

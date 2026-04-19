@@ -89,9 +89,19 @@ struct Accessory: Identifiable, Hashable, Sendable, Codable {
         /// `mediaInputSource` / `samsungvd.mediaInputSource`, and by
         /// `HomeKitProvider` from `HMAccessoryCategoryTypeTelevision`.
         case television
-        /// Smoke / CO detector (Nest Protect, etc.). Distinguished from
-        /// generic `.sensor` so `T3DeviceDetailView` routes to
-        /// `T3SmokeAlarmDetailView` instead of the generic sensor screen.
+        /// Apple TV (4K / HD). Added 2026-04-18 for the T3 Apple TV
+        /// detail screen. Detected by `HomeAssistantCapabilityMapper`
+        /// from the `apple_tv` core integration — entities land under
+        /// the `media_player.*` domain so we distinguish them from
+        /// Samsung Frame TVs (`.television`) via entity_id / friendly
+        /// name heuristics. Routes to `T3AppleTVDetailView`.
+        case appleTV
+        /// Smoke / CO detector (Nest Protect, etc.). Retained so smoke
+        /// `binary_sensor` entities from HA still carry a distinct
+        /// category through the stack; the routing now falls through
+        /// to the generic `T3AccessoryDetailView` (the dedicated detail
+        /// screen was removed 2026-04-18 since no HA integration path
+        /// exposes a real Protect).
         case smokeAlarm
         case other
     }
@@ -263,6 +273,7 @@ extension Accessory.Category {
         case .blinds: "Blinds"
         case .speaker: "Speaker"
         case .television: "Television"
+        case .appleTV: "Apple TV"
         case .smokeAlarm: "Smoke Alarm"
         case .other: "Other"
         }

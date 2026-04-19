@@ -42,6 +42,18 @@ enum HomeAssistantCapabilityMapper {
         case "cover":         return .blinds
         case "lock":          return .lock
         case "media_player":
+            // Apple TV — HA's `apple_tv` core integration exposes each
+            // device as a `media_player.*` entity. There's no dedicated
+            // device_class, so we detect via entity_id / friendly name
+            // heuristics. This runs before the generic TV branch so an
+            // Apple TV correctly lands on `T3AppleTVDetailView` instead
+            // of the Samsung Frame detail.
+            let lowerID = entity.entityID.lowercased()
+            let lowerName = (entity.attributes.friendlyName ?? "").lowercased()
+            if lowerID.contains("apple_tv") || lowerID.contains("appletv")
+                || lowerName.contains("apple tv") {
+                return .appleTV
+            }
             if entity.attributes.deviceClass == "tv" {
                 return .television
             }
