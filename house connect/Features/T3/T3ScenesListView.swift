@@ -24,6 +24,19 @@ struct T3ScenesListView: View {
     @State private var runProgress: (done: Int, total: Int) = (0, 0)
     @State private var toast: Toast?
     @State private var showCreateSceneSheet: Bool = false
+    /// Scene + result pair presented in the detail sheet when a run
+    /// finishes with partial or full failure. Kept as a tuple-wrapped
+    /// Identifiable so SwiftUI can drive `.sheet(item:)`.
+    @State private var pendingResult: PendingResult?
+
+    /// Wraps scene + result for sheet presentation. Identified by the
+    /// scene ID so presenting twice in a row (second run, new failure)
+    /// correctly replaces the sheet contents.
+    private struct PendingResult: Identifiable {
+        let scene: HCScene
+        let result: SceneRunResult
+        var id: UUID { scene.id }
+    }
 
     var body: some View {
         ZStack {
@@ -119,6 +132,9 @@ struct T3ScenesListView: View {
         .sheet(isPresented: $showCreateSceneSheet) {
             T3SceneEditorView()
         }
+        .sheet(item: $pendingResult) { pending in
+            T3SceneRunResultSheet(scene: pending.scene, result: pending.result)
+        }
     }
 
     // MARK: - Empty state
@@ -190,12 +206,15 @@ struct T3ScenesListView: View {
         Task {
             let result = await SceneRunner(registry: registry).run(scene)
             await MainActor.run {
-                completeRun(scene: scene, succeeded: result.succeeded, total: result.total, isFullSuccess: result.isFullSuccess)
+                completeRun(scene: scene, result: result)
             }
         }
     }
 
-    private func completeRun(scene: HCScene, succeeded: Int, total: Int, isFullSuccess: Bool) {
+    private func completeRun(scene: HCScene, result: SceneRunResult) {
+        let succeeded = result.succeeded
+        let total = result.total
+        let isFullSuccess = result.isFullSuccess
         runningSceneID = nil
         runProgress = (succeeded, total)
         doneSceneID = scene.id
@@ -239,6 +258,13 @@ struct T3ScenesListView: View {
                 toast = .error("Couldn't run \(scene.name)")
             } else {
                 toast = .error("\(scene.name): \(succeeded)/\(total)")
+            }
+            // Present the per-device detail sheet automatically so the
+            // user can see which devices failed and retry just those.
+            // Only when there's at least one action — an empty scene
+            // (total == 0) has nothing to show.
+            if total > 0 {
+                pendingResult = PendingResult(scene: scene, result: result)
             }
         }
     }
