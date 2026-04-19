@@ -46,6 +46,21 @@ final class ProviderRegistry {
         }
     }
 
+    /// Re-polls every registered provider. Fired on foreground resume
+    /// (see `RootContainerView.scenePhase`) so the UI re-syncs after the
+    /// app has been suspended. Push-driven providers (HomeKit, and the
+    /// Home Assistant WebSocket while connected) inherit the no-op
+    /// default on `AccessoryProvider.refresh`; poll-based providers
+    /// (SmartThings, Sonos, Nest) override it and do real work. Runs
+    /// providers sequentially because most of them hit rate-limited
+    /// cloud APIs — the parallelism win is small and the risk of
+    /// tripping throttles is real.
+    func refreshAll() async {
+        for provider in providers {
+            await provider.refresh()
+        }
+    }
+
     /// Routes the command to the provider indicated by the accessory's ID.
     func execute(_ command: AccessoryCommand, on accessoryID: AccessoryID) async throws {
         guard let provider = provider(for: accessoryID.provider) else {
