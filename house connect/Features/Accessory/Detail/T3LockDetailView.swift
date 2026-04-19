@@ -69,9 +69,12 @@ struct T3LockDetailView: View {
 
                     TRule()
 
-                    // Stats strip
+                    // Stats strip. Battery renders with a low-battery
+                    // visual warning: <20% swaps to T3.danger tint and
+                    // appends a small "Low" label so users notice
+                    // before the lock actually dies.
                     HStack(spacing: 18) {
-                        statCell(label: "Battery", value: "87%")
+                        batteryStatCell(percent: batteryPercent)
                         statCell(label: "Signal", value: "Strong")
                         statCell(label: "Firmware", value: "2.1.4")
                     }
@@ -294,6 +297,45 @@ struct T3LockDetailView: View {
                 )
             }
         }
+    }
+
+    // Hardcoded today; will be driven off real Accessory.battery when
+    // that field lands on the lock model.
+    private var batteryPercent: Int { 87 }
+
+    // Battery stat cell with low-battery visual warning.
+    //   • <20%:  danger tint on the value + a small "Low" chip.
+    //   • 20–49%: T3.sub styling (de-emphasized) — user aware but not alarmed.
+    //   • >=50%:  standard T3.ink styling.
+    @ViewBuilder
+    private func batteryStatCell(percent: Int) -> some View {
+        let isLow = percent < 20
+        let isMedium = percent < 50 && !isLow
+
+        VStack(alignment: .leading, spacing: 4) {
+            TLabel(text: "Battery")
+            HStack(spacing: 6) {
+                Text("\(percent)%")
+                    .font(T3.inter(16, weight: .medium))
+                    .foregroundStyle(isLow ? T3.danger : (isMedium ? T3.sub : T3.ink))
+                if isLow {
+                    Text("LOW")
+                        .font(T3.mono(9))
+                        .tracking(1.4)
+                        .foregroundStyle(T3.danger)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .overlay(
+                            Rectangle().stroke(T3.danger, lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isLow
+                            ? "Battery \(percent) percent, low"
+                            : "Battery \(percent) percent")
     }
 
     private func statCell(label: String, value: String) -> some View {
