@@ -53,6 +53,14 @@ struct T3SettingsTabView: View {
                     rowContent(icon: "bolt", title: "Energy", sub: "Sensor · rate")
                 }
                 .buttonStyle(.t3Row)
+                // Home Assistant Diagnostics — inline destination for
+                // the same reason as Energy above (enum owned by Root).
+                NavigationLink {
+                    T3HADiagnosticsView()
+                } label: {
+                    rowContent(icon: "waveform.path.ecg", title: "Home Assistant Diagnostics", sub: "HA health · counts · versions")
+                }
+                .buttonStyle(.t3Row)
 
                 // Network
                 TSectionHead(title: "Network", count: "01")
