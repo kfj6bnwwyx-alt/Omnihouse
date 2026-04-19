@@ -15,8 +15,10 @@
 //    • CameraDetailView calls `attach(accessoryID:registry:)` once.
 //    • The controller reads the HMCameraProfile's sub-controls and
 //      publishes capability booleans (hasSnapshot, hasMicrophone, …).
-//    • Action methods (takeSnapshot, toggleMicrophone, …) fire the
-//      corresponding HomeKit call and update published state.
+//    • Action methods (takeSnapshot, toggleMicrophone, …) are now
+//      `async throws`. Errors propagate to the caller so detail views
+//      can surface them via T3ActionFeedback (haptic + toast + log)
+//      instead of swallowing into a local statusMessage.
 //
 
 import Foundation
@@ -25,6 +27,26 @@ import Observation
 #if canImport(HomeKit)
 import HomeKit
 #endif
+
+/// Errors thrown by CameraController when the camera has no capability
+/// for the requested action (e.g. no snapshot control, no microphone).
+enum CameraControllerError: LocalizedError {
+    case noSnapshotControl
+    case noMicrophone
+    case noSpeaker
+    case noNightVision
+    case snapshotFailed(Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .noSnapshotControl: return "Camera has no snapshot control."
+        case .noMicrophone:      return "Camera has no microphone."
+        case .noSpeaker:         return "Camera has no speaker."
+        case .noNightVision:     return "Camera has no night-vision setting."
+        case .snapshotFailed(let e): return "Snapshot failed: \(e.localizedDescription)"
+        }
+    }
+}
 
 @MainActor
 @Observable
@@ -51,7 +73,8 @@ final class CameraController {
     private(set) var isSpeakerMuted: Bool = false
     private(set) var nightVisionEnabled: Bool = false
 
-    /// Brief message for the UI ("Snapshot taken", error text, etc.)
+    /// Secondary status line (e.g. "Snapshot taken"). Errors no longer
+    /// land here — detail views route those through T3ActionFeedback.
     var statusMessage: String?
 
     /// Simple activity event for the Recent Activity card.
@@ -131,75 +154,83 @@ final class CameraController {
 
     // MARK: - Actions
 
-    /// Take a snapshot via the HomeKit snapshot control.
-    func takeSnapshot() {
+    /// Take a snapshot via the HomeKit snapshot control. Throws if the
+    /// camera has no snapshot capability or the snapshot call fails.
+    func takeSnapshot() async throws {
         #if canImport(HomeKit)
-        guard let sc = snapshotControl else { return }
+        guard let sc = snapshotControl else {
+            throw CameraControllerError.noSnapshotControl
+        }
         isTakingSnapshot = true
         statusMessage = nil
 
-        let delegate = SnapshotDelegate { [weak self] _, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.isTakingSnapshot = false
-                if let error {
-                    self.statusMessage = "Snapshot failed: \(error.localizedDescription)"
-                } else {
-                    self.statusMessage = "Snapshot taken"
+        // Bridge the delegate callback into an async throws call.
+        do {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                let delegate = SnapshotDelegate { _, error in
+                    if let error {
+                        cont.resume(throwing: CameraControllerError.snapshotFailed(error))
+                    } else {
+                        cont.resume(returning: ())
+                    }
                 }
+                self.snapshotDelegate = delegate
+                sc.delegate = delegate
+                sc.takeSnapshot()
             }
+            isTakingSnapshot = false
+            statusMessage = "Snapshot taken"
+        } catch {
+            isTakingSnapshot = false
+            throw error
         }
-        self.snapshotDelegate = delegate
-        sc.delegate = delegate
-        sc.takeSnapshot()
+        #else
+        throw CameraControllerError.noSnapshotControl
         #endif
     }
 
-    /// Toggle the camera's microphone (two-way audio).
-    func toggleMicrophone() {
+    /// Toggle the camera's microphone (two-way audio). Throws on
+    /// missing capability or provider write failure.
+    func toggleMicrophone() async throws {
         #if canImport(HomeKit)
-        guard let ch = micMuteCharacteristic else { return }
+        guard let ch = micMuteCharacteristic else {
+            throw CameraControllerError.noMicrophone
+        }
         let newMuted = !isMicrophoneMuted
-        Task {
-            do {
-                try await ch.writeValue(NSNumber(value: newMuted))
-                self.isMicrophoneMuted = newMuted
-            } catch {
-                statusMessage = "Mic toggle failed: \(error.localizedDescription)"
-            }
-        }
+        try await ch.writeValue(NSNumber(value: newMuted))
+        self.isMicrophoneMuted = newMuted
+        #else
+        throw CameraControllerError.noMicrophone
         #endif
     }
 
-    /// Toggle the camera's speaker.
-    func toggleSpeaker() {
+    /// Toggle the camera's speaker. Throws on missing capability or
+    /// provider write failure.
+    func toggleSpeaker() async throws {
         #if canImport(HomeKit)
-        guard let ch = speakerMuteCharacteristic else { return }
+        guard let ch = speakerMuteCharacteristic else {
+            throw CameraControllerError.noSpeaker
+        }
         let newMuted = !isSpeakerMuted
-        Task {
-            do {
-                try await ch.writeValue(NSNumber(value: newMuted))
-                self.isSpeakerMuted = newMuted
-            } catch {
-                statusMessage = "Speaker toggle failed: \(error.localizedDescription)"
-            }
-        }
+        try await ch.writeValue(NSNumber(value: newMuted))
+        self.isSpeakerMuted = newMuted
+        #else
+        throw CameraControllerError.noSpeaker
         #endif
     }
 
-    /// Toggle night vision on/off.
-    func toggleNightVision() {
+    /// Toggle night vision on/off. Throws on missing capability or
+    /// provider write failure.
+    func toggleNightVision() async throws {
         #if canImport(HomeKit)
-        guard let ch = nightVisionCharacteristic else { return }
-        let newValue = !nightVisionEnabled
-        Task {
-            do {
-                try await ch.writeValue(NSNumber(value: newValue))
-                self.nightVisionEnabled = newValue
-            } catch {
-                statusMessage = "Night vision toggle failed: \(error.localizedDescription)"
-            }
+        guard let ch = nightVisionCharacteristic else {
+            throw CameraControllerError.noNightVision
         }
+        let newValue = !nightVisionEnabled
+        try await ch.writeValue(NSNumber(value: newValue))
+        self.nightVisionEnabled = newValue
+        #else
+        throw CameraControllerError.noNightVision
         #endif
     }
 

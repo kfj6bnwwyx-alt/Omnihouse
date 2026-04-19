@@ -26,6 +26,7 @@ struct T3CameraDetailView: View {
     @State private var isArmed = true
     @State private var isTalking = false
     @State private var now = Date()
+    @State private var toast: Toast?
 
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -73,6 +74,7 @@ struct T3CameraDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onReceive(clockTimer) { now = $0 }
         .onAppear { cameraController.attach(accessoryID: accessoryID, registry: registry) }
+        .toast($toast, duration: 4)
     }
 
     // MARK: - Masthead
@@ -260,16 +262,41 @@ struct T3CameraDetailView: View {
         VStack(spacing: 0) {
             HStack {
                 controlButton(label: "SNAP", filled: false, a11y: "Take snapshot") {
-                    cameraController.takeSnapshot()
+                    Task { @MainActor in
+                        await T3ActionFeedback.perform(
+                            action: { try await cameraController.takeSnapshot() },
+                            successHaptic: .light,
+                            toast: { toast = .error("Couldn't take snapshot") },
+                            errorDescription: "Camera snapshot"
+                        )
+                    }
                 }
                 Spacer()
                 controlButton(label: "TALK", filled: isTalking, a11y: "Push to talk") {
-                    cameraController.toggleMicrophone()
+                    let previous = isTalking
                     isTalking.toggle()
+                    Task { @MainActor in
+                        await T3ActionFeedback.perform(
+                            action: { try await cameraController.toggleMicrophone() },
+                            onFailure: { isTalking = previous },
+                            successHaptic: .light,
+                            toast: { toast = .error("Couldn't toggle microphone") },
+                            errorDescription: "Camera microphone"
+                        )
+                    }
                 }
                 Spacer()
-                controlButton(label: "SIREN", filled: false, a11y: "Activate siren") { }
+                // SIREN: no siren capability on HMCameraProfile (HomeKit
+                // doesn't model cameras-with-sirens as a first-class
+                // control). Leave as local-only feedback for now — when
+                // a siren capability is added on CameraController, wire
+                // it here via T3ActionFeedback.perform.
+                controlButton(label: "SIREN", filled: false, a11y: "Activate siren") {
+                    toast = .error("Siren not supported on this camera")
+                }
                 Spacer()
+                // ARM/DISARM is UI-only today (no provider mapping for
+                // camera arm state yet). Keep as local @State toggle.
                 controlButton(label: isArmed ? "ARMED" : "ARM", filled: isArmed,
                               a11y: isArmed ? "Disarm camera" : "Arm camera") {
                     isArmed.toggle()
