@@ -31,7 +31,7 @@ struct T3SettingsTabView: View {
                 settingsRow(icon: "wifi", title: "Connections", sub: "\(registry.providers.count) providers", destination: .providers)
 
                 // Home
-                TSectionHead(title: "Home", count: "04")
+                TSectionHead(title: "Home", count: "05")
                 settingsRow(icon: "square.grid.2x2", title: "Rooms", sub: "\(registry.allRooms.count) rooms", destination: .rooms)
                 settingsRow(icon: "sparkles", title: "Scenes", sub: "Cross-ecosystem presets", destination: .scenes)
                 settingsRow(icon: "gearshape.2", title: "Automations", sub: "Home Assistant automations", destination: .automations)
@@ -42,6 +42,17 @@ struct T3SettingsTabView: View {
                 // once routing ownership consolidates. Parallel agent owns
                 // that file; not touched here to avoid conflict.
                 settingsRow(icon: "music.note", title: "Audio Zones", sub: "Multi-room audio", destination: .audioZones)
+                // Energy — inline destination rather than a
+                // SettingsDestination case because the enum + root
+                // switch live in Root views (off-limits for this
+                // change). Swap to a SettingsDestination case when
+                // the routing enum opens up for edits.
+                NavigationLink {
+                    T3EnergySettingsView()
+                } label: {
+                    rowContent(icon: "bolt", title: "Energy", sub: "Sensor · rate")
+                }
+                .buttonStyle(.t3Row)
 
                 // Network
                 TSectionHead(title: "Network", count: "01")
