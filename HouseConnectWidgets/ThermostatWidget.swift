@@ -6,32 +6,116 @@
 //  name, current target temp, a segmented bar representing position in
 //  the min-max range, the mode label, and current temp + humidity.
 //
-//  Reads placeholder data until the App Group shared container is wired.
+//  Wave EE (2026-04-18): Converted from StaticConfiguration to
+//  AppIntentConfiguration so users can long-press the widget → Edit Widget
+//  and pick which thermostat entity to display (Brent now has two Nest
+//  thermostats live in Home Assistant: bedroom + family room).
+//
+//  The live data path still reads placeholder values — the main app does
+//  not yet write thermostat snapshots to a shared App Group. When that
+//  lands, the provider can simply key into the shared defaults using
+//  `configuration.thermostat.id` to pull the matching entry. For now the
+//  selection drives `roomName` and the entry identity so each widget
+//  instance visually reflects the user's pick.
 //
 
+import AppIntents
 import SwiftUI
 import WidgetKit
 
+// MARK: - Thermostat entity
+
+/// An `AppEntity` representing a single Home Assistant `climate.*` entity.
+/// Surfaced to the widget configuration UI so the user can pick which
+/// thermostat each widget instance shows.
+struct ThermostatEntity: AppEntity, Identifiable, Hashable {
+    /// Home Assistant entity id (e.g. `climate.bedroom_thermostat`).
+    var id: String
+    /// Friendly name rendered in the widget header.
+    var name: String
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        TypeDisplayRepresentation(name: "Thermostat")
+    }
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)")
+    }
+
+    static var defaultQuery = ThermostatEntityQuery()
+
+    /// Hard-coded set of known thermostats Brent has live in Home Assistant.
+    /// When the App Group shared-storage contract lands, this list should
+    /// be rehydrated from `UserDefaults(suiteName:)` instead.
+    static let allKnown: [ThermostatEntity] = [
+        ThermostatEntity(id: "climate.bedroom_thermostat", name: "Bedroom"),
+        ThermostatEntity(id: "climate.family_room_thermostat", name: "Family Room")
+    ]
+}
+
+struct ThermostatEntityQuery: EntityQuery {
+    func entities(for identifiers: [ThermostatEntity.ID]) async throws -> [ThermostatEntity] {
+        ThermostatEntity.allKnown.filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [ThermostatEntity] {
+        ThermostatEntity.allKnown
+    }
+
+    func defaultResult() async -> ThermostatEntity? {
+        ThermostatEntity.allKnown.first
+    }
+}
+
+// MARK: - Configuration intent
+
+struct ThermostatSelectionIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Select Thermostat"
+    static var description = IntentDescription("Choose which thermostat this widget should display.")
+
+    @Parameter(title: "Thermostat")
+    var thermostat: ThermostatEntity?
+}
+
 // MARK: - Timeline
 
-struct ThermostatWidgetProvider: TimelineProvider {
+struct ThermostatWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> ThermostatWidgetEntry {
         .placeholder
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (ThermostatWidgetEntry) -> Void) {
-        completion(.placeholder)
+    func snapshot(for configuration: ThermostatSelectionIntent, in context: Context) async -> ThermostatWidgetEntry {
+        entry(for: configuration.thermostat)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<ThermostatWidgetEntry>) -> Void) {
-        let entry = ThermostatWidgetEntry.placeholder
-        let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
-        completion(timeline)
+    func timeline(for configuration: ThermostatSelectionIntent, in context: Context) async -> Timeline<ThermostatWidgetEntry> {
+        let entry = entry(for: configuration.thermostat)
+        return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(900)))
+    }
+
+    /// Builds an entry for the selected thermostat. Values other than the
+    /// room name stay at placeholder defaults until the App Group shared
+    /// snapshot path is wired up.
+    private func entry(for selection: ThermostatEntity?) -> ThermostatWidgetEntry {
+        let resolved = selection ?? ThermostatEntity.allKnown.first ?? ThermostatEntity(id: "climate.unknown", name: "Thermostat")
+        return ThermostatWidgetEntry(
+            date: Date(),
+            entityID: resolved.id,
+            roomName: resolved.name,
+            targetTemp: 72,
+            currentTemp: 71,
+            humidity: 45,
+            mode: "Heating",
+            useFahrenheit: true,
+            rangeMin: 60,
+            rangeMax: 85
+        )
     }
 }
 
 struct ThermostatWidgetEntry: TimelineEntry {
     let date: Date
+    let entityID: String
     let roomName: String
     let targetTemp: Int
     let currentTemp: Int
@@ -43,6 +127,7 @@ struct ThermostatWidgetEntry: TimelineEntry {
 
     static let placeholder = ThermostatWidgetEntry(
         date: Date(),
+        entityID: "climate.placeholder",
         roomName: "Living Room",
         targetTemp: 72,
         currentTemp: 71,
@@ -178,12 +263,16 @@ struct ThermostatWidget: Widget {
     let kind = "ThermostatWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: ThermostatWidgetProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: ThermostatSelectionIntent.self,
+            provider: ThermostatWidgetProvider()
+        ) { entry in
             ThermostatWidgetView(entry: entry)
                 .containerBackground(T3.page, for: .widget)
         }
         .configurationDisplayName("Thermostat")
-        .description("Glance at your thermostat's target, current temperature, and humidity.")
+        .description("Glance at a thermostat's target, current temperature, and humidity. Long-press to pick which thermostat.")
         .supportedFamilies([.systemMedium])
     }
 }
