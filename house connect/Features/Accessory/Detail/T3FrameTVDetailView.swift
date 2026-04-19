@@ -26,12 +26,17 @@ struct T3FrameTVDetailView: View {
     @State private var brightness: Double = 0.7
     @State private var colorTone: Double = 0.5
     @State private var lastBrightnessBucket: Int = -1
+    @State private var isSending: Bool = false
+    @State private var toast: Toast?
+    @State private var lastNonArtSource: String?
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
     }
 
     private var isOn: Bool { accessory?.isOn ?? false }
+    private var isReachable: Bool { accessory?.isReachable ?? true }
+    private var controlsEnabled: Bool { isReachable && !isSending }
 
     private var isArtMode: Bool {
         guard let s = accessory?.currentSource?.lowercased() else { return false }
@@ -46,6 +51,17 @@ struct T3FrameTVDetailView: View {
     }
 
     var body: some View {
+        Group {
+            if !isReachable {
+                T3DeviceOfflineView(accessoryID: accessoryID)
+            } else {
+                content
+            }
+        }
+        .toast($toast)
+    }
+
+    private var content: some View {
         ZStack {
             T3.page.ignoresSafeArea()
 
@@ -91,17 +107,29 @@ struct T3FrameTVDetailView: View {
                         TRule()
                     }
 
-                    // Brightness
+                    // Brightness — disabled; requires SmartThings integration
                     TSectionHead(title: "Brightness")
                     brightnessScale
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.bottom, 6)
+                    Text("Requires SmartThings integration")
+                        .font(T3.mono(10))
+                        .tracking(1.2)
+                        .foregroundStyle(T3.sub)
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.bottom, 22)
 
                     TRule()
 
-                    // Color tone
+                    // Color tone — also unsupported by core Samsung Tizen
                     TSectionHead(title: "Color Tone")
                     colorToneScale
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.bottom, 6)
+                    Text("Requires SmartThings integration")
+                        .font(T3.mono(10))
+                        .tracking(1.2)
+                        .foregroundStyle(T3.sub)
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.bottom, 22)
 
@@ -119,10 +147,11 @@ struct T3FrameTVDetailView: View {
 
                     TRule()
 
-                    // Destructive zone
+                    // Destructive zone — Frame TVs expose no reset service
+                    // via HA's media_player domain. We keep the affordance
+                    // and surface the reason via toast when tapped.
                     Button {
-                        // Placeholder — Frame TVs don't expose a reset via HA media_player.
-                        // Leaving the affordance for future when we add a companion service.
+                        toast = .error("Not available via Home Assistant. Use the TV remote.")
                     } label: {
                         Text("Reset Frame")
                             .font(T3.inter(14, weight: .medium))
@@ -203,16 +232,18 @@ struct T3FrameTVDetailView: View {
     private var transportRow: some View {
         HStack(spacing: 1) {
             transportButton(icon: isOn ? "pause" : "play", label: "POWER") {
-                Task { try? await registry.execute(.setPower(!isOn), on: accessoryID) }
+                send(.setPower(!isOn),
+                     successMessage: !isOn ? "Power on" : "Power off")
             }
-            transportButton(icon: "chevron.left", label: "PREV") {
-                // Frame TVs step art via source change — cycle source list backward if present
-                cycleArt(forward: false)
+            transportButton(icon: "image", label: isArtMode ? "EXIT ART" : "ART MODE") {
+                toggleArtMode()
             }
             transportButton(icon: "chevron.right", label: "NEXT") {
                 cycleArt(forward: true)
             }
         }
+        .opacity(controlsEnabled ? 1.0 : 0.5)
+        .disabled(!controlsEnabled)
     }
 
     private func transportButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
@@ -241,7 +272,67 @@ struct T3FrameTVDetailView: View {
         let next = forward
             ? sources[(idx + 1) % sources.count]
             : sources[(idx - 1 + sources.count) % sources.count]
-        Task { try? await registry.execute(.selectSource(next), on: accessoryID) }
+        send(.selectSource(next), successMessage: "Input · \(next)")
+    }
+
+    /// Toggle Samsung Frame Art Mode. Samsung Tizen's HA integration
+    /// exposes Art Mode as a `media_player.select_source` value — names
+    /// vary across firmware ("Art Mode", "Artmode", "Art"). We match any
+    /// source containing "art"/"ambient"; to exit we restore the last
+    /// non-art source, falling back to the first non-art source in the
+    /// list, and finally to literal "TV" (which every Frame advertises).
+    ///
+    /// TODO: If the user's HA exposes `switch.<tv>_art_mode` via
+    /// SmartThings, we'd prefer that — requires entity registry probing
+    /// that we don't do here yet. The media_player path is the common
+    /// denominator that works with the Samsung Tizen core integration.
+    private func toggleArtMode() {
+        let sources = accessory?.sourceList ?? []
+        if isArtMode {
+            // Exit: restore last non-art source, or pick something sensible.
+            let fallback = lastNonArtSource
+                ?? sources.first(where: { !$0.lowercased().contains("art")
+                                       && !$0.lowercased().contains("ambient") })
+                ?? "TV"
+            send(.selectSource(fallback), successMessage: "Exit Art Mode")
+        } else {
+            // Remember current non-art source for the eventual exit.
+            if let current = accessory?.currentSource,
+               !current.lowercased().contains("art"),
+               !current.lowercased().contains("ambient") {
+                lastNonArtSource = current
+            }
+            let artName = sources.first(where: {
+                let s = $0.lowercased()
+                return s.contains("art") || s.contains("ambient")
+            }) ?? "Art Mode"
+            send(.selectSource(artName), successMessage: "Art Mode")
+        }
+    }
+
+    // MARK: - Command helper
+
+    /// Route an `AccessoryCommand` through the registry with haptics,
+    /// toast feedback, and an `isSending` guard. Delegates the
+    /// haptic + error-logging mechanics to `T3ActionFeedback.perform`
+    /// (the established pattern across lock/light/thermostat detail
+    /// views) and layers on success-toast surfacing and the sending
+    /// flag — Frame TVs drop off the network briefly often enough
+    /// that silent `try?` calls would erode trust.
+    private func send(_ command: AccessoryCommand, successMessage: String?) {
+        guard !isSending else { return }
+        isSending = true
+        Task { @MainActor in
+            await T3ActionFeedback.perform(
+                action: { try await registry.execute(command, on: accessoryID) },
+                toast: { toast = .error("Couldn't reach the TV") },
+                errorDescription: "FrameTV"
+            )
+            if let msg = successMessage, toast?.kind != .error {
+                toast = .success(msg)
+            }
+            isSending = false
+        }
     }
 
     // MARK: - Input selector
@@ -251,7 +342,7 @@ struct T3FrameTVDetailView: View {
             HStack(spacing: 6) {
                 ForEach(sources, id: \.self) { source in
                     Button {
-                        Task { try? await registry.execute(.selectSource(source), on: accessoryID) }
+                        send(.selectSource(source), successMessage: "Input · \(source)")
                     } label: {
                         Text(source)
                             .font(T3.inter(13, weight: .medium))
@@ -265,12 +356,25 @@ struct T3FrameTVDetailView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .disabled(!controlsEnabled)
                 }
             }
         }
+        .opacity(controlsEnabled ? 1.0 : 0.5)
     }
 
     // MARK: - Scales
+    //
+    // Brightness + color tone are display-only in wave F. Samsung
+    // Tizen's HA integration doesn't surface either control, and the
+    // `AccessoryCommand.setBrightness` case routes to `light.turn_on`
+    // in `HomeAssistantCapabilityMapper` — which would error for a
+    // `media_player` entity. We keep the Pencil mock's visual rhythm
+    // by rendering the scales at half opacity with gestures stripped
+    // off; the SmartThings caption below explains the gap. When we
+    // wire up SmartThings (`number.<tv>_art_brightness`) we can
+    // restore the drag gesture here — `lastBrightnessBucket` stays
+    // as scaffolding for that future bucketed-haptic behavior.
 
     private var brightnessScale: some View {
         VStack(spacing: 6) {
@@ -287,28 +391,12 @@ struct T3FrameTVDetailView: View {
                     TDot(size: 10).position(x: brightness * geo.size.width, y: 22)
                 }
                 .frame(width: geo.size.width, height: 28)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let v = max(0, min(1, value.location.x / geo.size.width))
-                            brightness = v
-                            let bucket = Int((v * 10).rounded(.down))
-                            if bucket != lastBrightnessBucket {
-                                lastBrightnessBucket = bucket
-                                #if canImport(UIKit)
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                #endif
-                            }
-                        }
-                        .onEnded { _ in
-                            Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
-                        }
-                )
             }
             .frame(height: 28)
             HStack { TLabel(text: "0"); Spacer(); TLabel(text: "50"); Spacer(); TLabel(text: "100") }
         }
+        .opacity(0.4)
+        .allowsHitTesting(false)
     }
 
     private var colorToneScale: some View {
@@ -326,17 +414,12 @@ struct T3FrameTVDetailView: View {
                     TDot(size: 10).position(x: colorTone * geo.size.width, y: 22)
                 }
                 .frame(width: geo.size.width, height: 28)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            colorTone = max(0, min(1, value.location.x / geo.size.width))
-                        }
-                )
             }
             .frame(height: 28)
             HStack { TLabel(text: "Warm"); Spacer(); TLabel(text: "Neutral"); Spacer(); TLabel(text: "Cool") }
         }
+        .opacity(0.4)
+        .allowsHitTesting(false)
     }
 
     // MARK: - Stat cell
