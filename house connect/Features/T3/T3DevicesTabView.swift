@@ -13,6 +13,10 @@ struct T3DevicesTabView: View {
 
     @State private var filter: String = "All"
     @State private var showAddDeviceSheet: Bool = false
+    /// Short settle gate so the empty state doesn't flash during the
+    /// first render before provider accessories stream in. See the
+    /// matching comment in T3RoomsTabView.
+    @State private var didSettle = false
 
     private let filters = ["All", "On", "Lights", "Climate", "Media"]
 
@@ -63,6 +67,16 @@ struct T3DevicesTabView: View {
                     .padding(.bottom, 16)
                 }
 
+                if registry.allAccessories.isEmpty && didSettle {
+                    T3EmptyState(
+                        iconSystemName: "server",
+                        title: "No devices connected",
+                        subtitle: "Connect Home Assistant in Settings to see your devices here.",
+                        actionTitle: "Open Settings",
+                        action: { navigator.goToSettings(.providers) }
+                    )
+                }
+
                 // Device rows — tap navigates to detail
                 ForEach(Array(devices.enumerated()), id: \.element.id) { i, device in
                     NavigationLink(value: device.id) {
@@ -97,6 +111,11 @@ struct T3DevicesTabView: View {
         }
         .background(T3.page.ignoresSafeArea())
         .tint(T3.accent)
+        .task {
+            guard !didSettle else { return }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            didSettle = true
+        }
         .refreshable {
             await withTaskGroup(of: Void.self) { group in
                 for provider in registry.providers {
