@@ -21,6 +21,10 @@ struct T3LightDetailView: View {
     @State private var brightness: Double = 0.82
     @State private var colorTemp: String = "Warm"
     @State private var lastHapticBucket: Int = -1
+    @State private var toast: Toast?
+    // Captured at the start of a brightness drag so we can revert
+    // the slider if the final committed value fails to apply.
+    @State private var dragStartBrightness: Double = 0
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -55,8 +59,20 @@ struct T3LightDetailView: View {
                             Spacer()
 
                             TPill(isOn: $isOn, size: CGSize(width: 48, height: 26))
-                                .onChange(of: isOn) { _, v in
-                                    Task { try? await registry.execute(.setPower(v), on: accessoryID) }
+                                .onChange(of: isOn) { oldValue, newValue in
+                                    // Snapshot the prior state so a revert
+                                    // closure can put it back if the command
+                                    // fails. Without this the pill would stay
+                                    // lit after a silent provider error.
+                                    let previous = oldValue
+                                    Task { @MainActor in
+                                        await T3ActionFeedback.perform(
+                                            action: { try await registry.execute(.setPower(newValue), on: accessoryID) },
+                                            onFailure: { isOn = previous },
+                                            toast: { toast = .error("Couldn't reach \(accessory?.name ?? "light")") },
+                                            errorDescription: "Light power"
+                                        )
+                                    }
                                 }
                         }
                     }
@@ -75,9 +91,22 @@ struct T3LightDetailView: View {
                     HStack(spacing: 8) {
                         ForEach([25, 50, 75, 100], id: \.self) { pct in
                             Button {
+                                let previousBrightness = brightness
+                                let previousIsOn = isOn
                                 brightness = Double(pct) / 100.0
                                 isOn = true
-                                Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
+                                let newBrightness = brightness
+                                Task { @MainActor in
+                                    await T3ActionFeedback.perform(
+                                        action: { try await registry.execute(.setBrightness(newBrightness), on: accessoryID) },
+                                        onFailure: {
+                                            brightness = previousBrightness
+                                            isOn = previousIsOn
+                                        },
+                                        toast: { toast = .error("Couldn't set brightness") },
+                                        errorDescription: "Light quick-pick"
+                                    )
+                                }
                             } label: {
                                 Text("\(pct)")
                                     .font(T3.mono(11))
@@ -166,6 +195,7 @@ struct T3LightDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toast($toast, duration: 4)
         .onAppear {
             if let acc = accessory {
                 isOn = acc.isOn ?? false
@@ -198,6 +228,12 @@ struct T3LightDetailView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
+                            if lastHapticBucket == -1 {
+                                // First tick of a fresh drag — capture the
+                                // pre-drag brightness so we can roll back to
+                                // it if the provider rejects the final value.
+                                dragStartBrightness = brightness
+                            }
                             let newVal = max(0, min(1, value.location.x / geo.size.width))
                             brightness = newVal
                             // Fire a light tick haptic each time the value
@@ -212,7 +248,20 @@ struct T3LightDetailView: View {
                             }
                         }
                         .onEnded { _ in
-                            Task { try? await registry.execute(.setBrightness(brightness), on: accessoryID) }
+                            let startValue = dragStartBrightness
+                            let committedValue = brightness
+                            lastHapticBucket = -1
+                            Task { @MainActor in
+                                await T3ActionFeedback.perform(
+                                    action: { try await registry.execute(.setBrightness(committedValue), on: accessoryID) },
+                                    onFailure: { brightness = startValue },
+                                    // Drag already fires per-bucket ticks — an
+                                    // extra .light on success would feel double.
+                                    successHaptic: .none,
+                                    toast: { toast = .error("Couldn't set brightness") },
+                                    errorDescription: "Light brightness drag"
+                                )
+                            }
                         }
                 )
             }
