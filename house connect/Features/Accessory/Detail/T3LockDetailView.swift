@@ -23,6 +23,7 @@ struct T3LockDetailView: View {
     @State private var isHolding: Bool = false
     @State private var commitFlash: Bool = false
     @State private var holdTimer: Timer?
+    @State private var toast: Toast?
     private let holdDuration: TimeInterval = T3.LongPress.light
 
     private var accessory: Accessory? {
@@ -119,6 +120,7 @@ struct T3LockDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toast($toast, duration: 4)
     }
 
     // MARK: - Lock Circle
@@ -219,17 +221,26 @@ struct T3LockDetailView: View {
         }
     }
 
+    // Unlock flow — security-relevant. Previously fired a medium haptic
+    // and animated the UI to the "unlocked" state before awaiting the
+    // provider command, then `try? await`-swallowed any failure. That
+    // meant a failed unlock looked identical to a successful one.
+    //
+    // Fix: snapshot the previous state, animate the optimistic commit
+    // flash, dispatch the command via T3ActionFeedback. On success the
+    // primitive fires a .medium haptic (confirming actual unlock). On
+    // failure it fires a warning haptic, invokes the revert closure to
+    // snap isLocked back to true, and surfaces a toast so the user
+    // actually sees that the unlock didn't happen.
     private func commitUnlock() {
         holdTimer?.invalidate()
         holdTimer = nil
         isHolding = false
         holdProgress = 1.0
 
-        #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        #endif
+        let previousIsLocked = isLocked
 
-        // Flash orange, then settle to unlocked (ink)
+        // Flash orange, then settle to unlocked (ink) — optimistic UI
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
             commitFlash = true
         }
@@ -239,16 +250,27 @@ struct T3LockDetailView: View {
                 isLocked = false
                 holdProgress = 0
             }
-            Task {
-                try? await registry.execute(.setPower(true), on: accessoryID)
+            Task { @MainActor in
+                await T3ActionFeedback.perform(
+                    action: { try await registry.execute(.setPower(true), on: accessoryID) },
+                    onFailure: {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                            isLocked = previousIsLocked
+                        }
+                    },
+                    successHaptic: .medium,
+                    toast: { toast = .error("Couldn't unlock — try again") },
+                    errorDescription: "Lock unlock"
+                )
             }
         }
     }
 
+    // Lock flow — same pattern, lower stakes. Revert toggles isLocked
+    // back to false on failure so the UI doesn't lie about securing
+    // the door when the command failed.
     private func commitLock() {
-        #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
+        let previousIsLocked = isLocked
 
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
             commitFlash = true
@@ -258,8 +280,18 @@ struct T3LockDetailView: View {
                 commitFlash = false
                 isLocked = true
             }
-            Task {
-                try? await registry.execute(.setPower(false), on: accessoryID)
+            Task { @MainActor in
+                await T3ActionFeedback.perform(
+                    action: { try await registry.execute(.setPower(false), on: accessoryID) },
+                    onFailure: {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                            isLocked = previousIsLocked
+                        }
+                    },
+                    successHaptic: .light,
+                    toast: { toast = .error("Couldn't lock — try again") },
+                    errorDescription: "Lock lock"
+                )
             }
         }
     }
