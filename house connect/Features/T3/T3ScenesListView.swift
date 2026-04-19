@@ -34,6 +34,10 @@ struct T3ScenesListView: View {
                     THeader(backLabel: "Home", onBack: { dismiss() })
                     TTitle(title: "Scenes.", subtitle: "\(sceneStore.scenes.count) scenes configured")
 
+                    if sceneStore.scenes.isEmpty {
+                        emptyState
+                    }
+
                     ForEach(Array(sceneStore.scenes.enumerated()), id: \.element.id) { i, scene in
                         HStack(spacing: 14) {
                             TLabel(text: String(format: "%02d", i + 1))
@@ -113,6 +117,26 @@ struct T3ScenesListView: View {
         .sheet(isPresented: $showCreateSceneSheet) {
             T3SceneEditorView()
         }
+    }
+
+    // MARK: - Empty state
+
+    /// T3-styled blank state rendered when the user has no scenes.
+    /// Kept deliberately monochrome — the `+` add-scene affordance
+    /// below (dashed rectangle) already carries the call to action.
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Text("No scenes yet")
+                .font(T3.inter(18, weight: .medium))
+                .tracking(-0.4)
+                .foregroundStyle(T3.ink)
+            Text("Tap + to create your first scene")
+                .font(T3.inter(13, weight: .regular))
+                .foregroundStyle(T3.sub)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 56)
     }
 
     @ViewBuilder
@@ -206,7 +230,14 @@ struct T3ScenesListView: View {
         }
 
         if !isFullSuccess {
-            toast = .error("\(scene.name): \(succeeded)/\(total)")
+            // Total failure (0 succeeded out of N) gets a distinct
+            // message — "can't run at all" reads different from a
+            // partial. Warning haptic already fired above.
+            if succeeded == 0 && total > 0 {
+                toast = .error("Couldn't run \(scene.name)")
+            } else {
+                toast = .error("\(scene.name): \(succeeded)/\(total)")
+            }
         }
     }
 }
