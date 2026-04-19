@@ -20,5 +20,6 @@ struct HouseConnectWidgetsBundle: WidgetBundle {
         SmokeAlertLiveActivity()
         CameraWidget()
         ThermostatWidget()
+        SceneRunWidget()
     }
 }
