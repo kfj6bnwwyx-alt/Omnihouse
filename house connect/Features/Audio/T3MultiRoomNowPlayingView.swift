@@ -22,6 +22,10 @@ struct T3MultiRoomNowPlayingView: View {
     @State private var groupVolume: Double = 0.5
     @State private var lastVolumeBucket: Int = -1
     @State private var toast: Toast?
+    // Captured at the start of a group-volume drag so we can revert
+    // the tick scale if the committed value fails to apply.
+    @State private var dragStartGroupVolume: Double = 0
+    @State private var groupDragInProgress: Bool = false
 
     // MARK: - Derived state
 
@@ -185,7 +189,7 @@ struct T3MultiRoomNowPlayingView: View {
         HStack(spacing: 28) {
             Spacer()
 
-            Button { sendCommand(.previous) } label: {
+            Button { sendTransport(.previous, label: "skip back") } label: {
                 Circle()
                     .stroke(T3.rule, lineWidth: 1)
                     .fill(T3.panel)
@@ -200,7 +204,8 @@ struct T3MultiRoomNowPlayingView: View {
             .accessibilityLabel("Previous track")
 
             Button {
-                sendCommand(isPlaying ? .pause : .play)
+                let cmd: AccessoryCommand = isPlaying ? .pause : .play
+                sendTransport(cmd, label: isPlaying ? "pause" : "play")
             } label: {
                 Circle()
                     .fill(T3.accent)
@@ -214,7 +219,7 @@ struct T3MultiRoomNowPlayingView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(isPlaying ? "Pause" : "Play")
 
-            Button { sendCommand(.next) } label: {
+            Button { sendTransport(.next, label: "skip forward") } label: {
                 Circle()
                     .stroke(T3.rule, lineWidth: 1)
                     .fill(T3.panel)
@@ -252,6 +257,10 @@ struct T3MultiRoomNowPlayingView: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if !groupDragInProgress {
+                            dragStartGroupVolume = groupVolume
+                            groupDragInProgress = true
+                        }
                         let v = max(0, min(1, value.location.x / geo.size.width))
                         groupVolume = v
                         let bucket = Int((v * 10).rounded(.down))
@@ -263,7 +272,19 @@ struct T3MultiRoomNowPlayingView: View {
                         }
                     }
                     .onEnded { _ in
-                        sendCommand(.setGroupVolume(Int(groupVolume * 100)))
+                        let startValue = dragStartGroupVolume
+                        let committedValue = groupVolume
+                        groupDragInProgress = false
+                        let coordinator = coordinatorID
+                        Task { @MainActor in
+                            await T3ActionFeedback.perform(
+                                action: { try await registry.execute(.setGroupVolume(Int(committedValue * 100)), on: coordinator) },
+                                onFailure: { groupVolume = startValue },
+                                successHaptic: .none,
+                                toast: { toast = .error("Couldn't set group volume") },
+                                errorDescription: "Multi-room group volume drag"
+                            )
+                        }
                     }
             )
         }
@@ -291,13 +312,15 @@ struct T3MultiRoomNowPlayingView: View {
                 }
                 if !isCoordinator, let accessory {
                     Button {
-                        Task {
-                            do {
-                                try await registry.execute(.leaveSpeakerGroup, on: accessory.id)
-                                toast = .success("\(name) removed")
-                            } catch {
-                                toast = .error("Couldn't remove \(name)")
-                            }
+                        Task { @MainActor in
+                            await T3ActionFeedback.perform(
+                                action: {
+                                    try await registry.execute(.leaveSpeakerGroup, on: accessory.id)
+                                    toast = .success("\(name) removed")
+                                },
+                                toast: { toast = .error("Couldn't remove \(name)") },
+                                errorDescription: "Multi-room leave group"
+                            )
                         }
                     } label: {
                         Text("×")
@@ -316,7 +339,14 @@ struct T3MultiRoomNowPlayingView: View {
                     TToggle(isOn: Binding(
                         get: { muted },
                         set: { newValue in
-                            Task { try? await registry.execute(.setMute(newValue), on: accessory.id) }
+                            let speakerName = name
+                            Task { @MainActor in
+                                await T3ActionFeedback.perform(
+                                    action: { try await registry.execute(.setMute(newValue), on: accessory.id) },
+                                    toast: { toast = .error("Couldn't \(newValue ? "mute" : "unmute") \(speakerName)") },
+                                    errorDescription: "Multi-room mute"
+                                )
+                            }
                         }
                     ), accessibilityLabel: "Mute \(name)")
                 }
@@ -342,7 +372,13 @@ struct T3MultiRoomNowPlayingView: View {
                 DragGesture(minimumDistance: 0)
                     .onEnded { value in
                         let v = max(0, min(1, value.location.x / geo.size.width))
-                        Task { try? await registry.execute(.setVolume(Int(v * 100)), on: accessoryID) }
+                        Task { @MainActor in
+                            await T3ActionFeedback.perform(
+                                action: { try await registry.execute(.setVolume(Int(v * 100)), on: accessoryID) },
+                                toast: { toast = .error("Couldn't set volume") },
+                                errorDescription: "Multi-room per-speaker volume"
+                            )
+                        }
                     }
             )
         }
@@ -358,13 +394,18 @@ struct T3MultiRoomNowPlayingView: View {
             .name ?? accessory.name
     }
 
-    private func sendCommand(_ command: AccessoryCommand) {
-        Task {
-            do {
-                try await registry.execute(command, on: coordinatorID)
-            } catch {
-                toast = .error(error.localizedDescription)
-            }
+    /// Fire a transport command on the group coordinator, routing
+    /// through T3ActionFeedback so failures produce a toast + haptic.
+    /// We don't optimistically flip `isPlaying` — it's derived from
+    /// the live accessory model, so there's nothing local to revert.
+    private func sendTransport(_ command: AccessoryCommand, label: String) {
+        let coord = coordinatorID
+        Task { @MainActor in
+            await T3ActionFeedback.perform(
+                action: { try await registry.execute(command, on: coord) },
+                toast: { toast = .error("Couldn't \(label)") },
+                errorDescription: "Multi-room transport"
+            )
         }
     }
 }
