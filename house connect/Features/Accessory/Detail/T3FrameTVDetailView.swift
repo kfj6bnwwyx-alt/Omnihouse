@@ -29,6 +29,11 @@ struct T3FrameTVDetailView: View {
     @State private var isSending: Bool = false
     @State private var toast: Toast?
     @State private var lastNonArtSource: String?
+    /// Snapshot of `brightness` captured at gesture start so a failed
+    /// `number.set_value` call can revert cleanly — same optimistic
+    /// update / rollback pattern the lock and thermostat detail views
+    /// use when HA rejects the command.
+    @State private var brightnessPreDrag: Double = 0.7
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -41,6 +46,26 @@ struct T3FrameTVDetailView: View {
     private var isArtMode: Bool {
         guard let s = accessory?.currentSource?.lowercased() else { return false }
         return s.contains("art") || s.contains("ambient")
+    }
+
+    /// SmartThings companion entities probed by the HA provider.
+    /// Non-nil when the user has set up the SmartThings integration
+    /// alongside the core Samsung Tizen one and either the art
+    /// brightness `number.` entity or the color-temperature `select.`
+    /// entity is present.
+    private var smartThingsCompanion: HomeAssistantProvider.FrameTVSmartThingsCompanion? {
+        guard accessoryID.provider == .homeAssistant,
+              let ha = registry.provider(for: .homeAssistant) as? HomeAssistantProvider
+        else { return nil }
+        return ha.frameTVSmartThingsCompanion(forMediaPlayerEntityID: accessoryID.nativeID)
+    }
+
+    private var hasArtBrightness: Bool {
+        smartThingsCompanion?.artBrightnessEntityID != nil
+    }
+
+    private var hasArtColorTemperature: Bool {
+        smartThingsCompanion?.artColorTemperatureEntityID != nil
     }
 
     private var roomName: String? {
@@ -107,31 +132,43 @@ struct T3FrameTVDetailView: View {
                         TRule()
                     }
 
-                    // Brightness — disabled; requires SmartThings integration
+                    // Brightness — live when the SmartThings companion
+                    // `number.<tv>_art_brightness` is exposed; otherwise
+                    // we fall back to the disabled placeholder + caption
+                    // (core Samsung Tizen doesn't expose brightness).
                     TSectionHead(title: "Brightness")
                     brightnessScale
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.bottom, 6)
-                    Text("Requires SmartThings integration")
-                        .font(T3.mono(10))
-                        .tracking(1.2)
-                        .foregroundStyle(T3.sub)
-                        .padding(.horizontal, T3.screenPadding)
-                        .padding(.bottom, 22)
+                    if !hasArtBrightness {
+                        Text("Requires SmartThings integration")
+                            .font(T3.mono(10))
+                            .tracking(1.2)
+                            .foregroundStyle(T3.sub)
+                            .padding(.horizontal, T3.screenPadding)
+                            .padding(.bottom, 22)
+                    } else {
+                        Spacer().frame(height: 16)
+                    }
 
                     TRule()
 
-                    // Color tone — also unsupported by core Samsung Tizen
+                    // Color tone — live when the SmartThings companion
+                    // `select.<tv>_art_color_temperature` is exposed.
                     TSectionHead(title: "Color Tone")
                     colorToneScale
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.bottom, 6)
-                    Text("Requires SmartThings integration")
-                        .font(T3.mono(10))
-                        .tracking(1.2)
-                        .foregroundStyle(T3.sub)
-                        .padding(.horizontal, T3.screenPadding)
-                        .padding(.bottom, 22)
+                    if !hasArtColorTemperature {
+                        Text("Requires SmartThings integration")
+                            .font(T3.mono(10))
+                            .tracking(1.2)
+                            .foregroundStyle(T3.sub)
+                            .padding(.horizontal, T3.screenPadding)
+                            .padding(.bottom, 22)
+                    } else {
+                        Spacer().frame(height: 16)
+                    }
 
                     TRule()
 
@@ -391,12 +428,58 @@ struct T3FrameTVDetailView: View {
                     TDot(size: 10).position(x: brightness * geo.size.width, y: 22)
                 }
                 .frame(width: geo.size.width, height: 28)
+                .contentShape(Rectangle())
+                .gesture(
+                    hasArtBrightness
+                        ? DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if brightnessPreDrag == brightness {
+                                    brightnessPreDrag = brightness
+                                }
+                                let raw = value.location.x / geo.size.width
+                                brightness = min(1.0, max(0.0, raw))
+                            }
+                            .onEnded { _ in
+                                commitArtBrightness(brightness)
+                            }
+                        : nil
+                )
             }
             .frame(height: 28)
             HStack { TLabel(text: "0"); Spacer(); TLabel(text: "50"); Spacer(); TLabel(text: "100") }
         }
-        .opacity(0.4)
-        .allowsHitTesting(false)
+        .opacity(hasArtBrightness && controlsEnabled ? 1.0 : 0.4)
+        .allowsHitTesting(hasArtBrightness && controlsEnabled)
+    }
+
+    /// Send the art-brightness value to HA's SmartThings companion
+    /// `number.<tv>_art_brightness` entity via
+    /// `HomeAssistantProvider.setArtBrightness`. Rolls back on failure
+    /// to the snapshot captured at drag start — matches the Lock / Light
+    /// detail views' optimistic-update pattern.
+    private func commitArtBrightness(_ value: Double) {
+        guard hasArtBrightness, !isSending else { return }
+        guard let ha = registry.provider(for: .homeAssistant) as? HomeAssistantProvider else { return }
+        let snapshot = brightnessPreDrag
+        isSending = true
+        Task { @MainActor in
+            await T3ActionFeedback.perform(
+                action: {
+                    try await ha.setArtBrightness(
+                        value,
+                        forMediaPlayerEntityID: accessoryID.nativeID
+                    )
+                },
+                onFailure: { brightness = snapshot },
+                toast: { toast = .error("Couldn't set brightness") },
+                errorDescription: "FrameTV.artBrightness"
+            )
+            if toast?.kind != .error {
+                toast = .success("Brightness · \(Int(value * 100))%")
+            }
+            brightnessPreDrag = brightness
+            isSending = false
+        }
     }
 
     private var colorToneScale: some View {
