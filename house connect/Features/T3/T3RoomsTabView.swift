@@ -10,6 +10,12 @@ import SwiftUI
 struct T3RoomsTabView: View {
     @Environment(ProviderRegistry.self) private var registry
     @State private var showingCreate = false
+    /// Short post-appearance gate so the empty state doesn't flash
+    /// during the first render, before provider rooms stream in.
+    /// `ProviderRegistry` has no `isLoading` flag to hang this on, so
+    /// we use a 400ms delay — short enough to feel instant when there
+    /// genuinely are zero rooms, long enough to avoid the flash.
+    @State private var didSettle = false
 
     private var rooms: [Room] {
         var seen = Set<String>()
@@ -24,6 +30,16 @@ struct T3RoomsTabView: View {
                     subtitle: "\(registry.allAccessories.filter { $0.isOn == true }.count) devices active across the house"
                 )
                 .t3ScreenTopPad()
+
+                if rooms.isEmpty && didSettle {
+                    T3EmptyState(
+                        iconSystemName: "sofa.fill",
+                        title: "No rooms yet",
+                        subtitle: "Create a room to organize your devices.",
+                        actionTitle: "Create Room",
+                        action: { showingCreate = true }
+                    )
+                }
 
                 // 2-column grid
                 let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
@@ -97,6 +113,11 @@ struct T3RoomsTabView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .task {
+            guard !didSettle else { return }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            didSettle = true
+        }
         .sheet(isPresented: $showingCreate) {
             T3CreateRoomSheet()
                 .environment(registry)
