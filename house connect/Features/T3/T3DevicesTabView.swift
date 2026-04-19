@@ -2,7 +2,7 @@
 //  T3DevicesTabView.swift
 //  house connect
 //
-//  T3/Swiss Devices tab — flat filterable list with filter chips.
+//  T3/Swiss Devices tab — flat filterable list with search + category chips.
 //
 
 import SwiftUI
@@ -12,22 +12,59 @@ struct T3DevicesTabView: View {
     @Environment(T3TabNavigator.self) private var navigator
 
     @State private var filter: String = "All"
+    @State private var searchQuery: String = ""
+    @FocusState private var searchFocused: Bool
     @State private var showAddDeviceSheet: Bool = false
     /// Short settle gate so the empty state doesn't flash during the
     /// first render before provider accessories stream in. See the
     /// matching comment in T3RoomsTabView.
     @State private var didSettle = false
 
-    private let filters = ["All", "On", "Lights", "Climate", "Media"]
+    /// Category chip -> set of `Accessory.Category` values. "All" is a
+    /// sentinel that skips category filtering entirely. "Sensors" collects
+    /// sensors + smoke alarms since they share the same "thing that reports"
+    /// mental model; "Security" groups locks + cameras.
+    private let filters = ["All", "Lights", "Climate", "Security", "Media", "Sensors"]
+
+    private func categories(for chip: String) -> Set<Accessory.Category>? {
+        switch chip {
+        case "Lights":   return [.light, .switch, .outlet]
+        case "Climate":  return [.thermostat, .fan]
+        case "Security": return [.lock, .camera]
+        case "Media":    return [.speaker, .television, .appleTV]
+        case "Sensors":  return [.sensor, .smokeAlarm]
+        default:         return nil // "All"
+        }
+    }
+
+    /// Room name lookup so search can match "Living Room" etc.
+    private func roomName(for id: String?) -> String? {
+        guard let id else { return nil }
+        return registry.allRooms.first(where: { $0.id == id })?.name
+    }
+
+    private var totalCount: Int { registry.allAccessories.count }
 
     private var devices: [Accessory] {
         let all = registry.allAccessories.sorted { $0.name < $1.name }
-        switch filter {
-        case "On": return all.filter { $0.isOn == true }
-        case "Lights": return all.filter { $0.category == .light }
-        case "Climate": return all.filter { $0.category == .thermostat }
-        case "Media": return all.filter { $0.category == .speaker || $0.category == .television }
-        default: return all
+
+        // Category filter
+        let categoryFiltered: [Accessory]
+        if let allowed = categories(for: filter) {
+            categoryFiltered = all.filter { allowed.contains($0.category) }
+        } else {
+            categoryFiltered = all
+        }
+
+        // Search filter (name + category label + room name, case-insensitive substring)
+        let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return categoryFiltered }
+        let q = trimmed.lowercased()
+        return categoryFiltered.filter { acc in
+            if acc.name.lowercased().contains(q) { return true }
+            if acc.category.displayLabel.lowercased().contains(q) { return true }
+            if let r = roomName(for: acc.roomID), r.lowercased().contains(q) { return true }
+            return false
         }
     }
 
@@ -40,12 +77,17 @@ struct T3DevicesTabView: View {
                 )
                 .t3ScreenTopPad()
 
+                // Search bar
+                searchBar
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.bottom, 12)
+
                 // Filter chips
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(filters, id: \.self) { f in
                             Button {
-                                filter = f
+                                filter = (filter == f && f != "All") ? "All" : f
                             } label: {
                                 Text(f)
                                     .font(T3.inter(13, weight: .medium))
@@ -61,19 +103,54 @@ struct T3DevicesTabView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("\(f) category filter")
+                            .accessibilityAddTraits(filter == f ? .isSelected : [])
                         }
                     }
                     .padding(.horizontal, T3.screenPadding)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 10)
                 }
 
+                // Result count badge — only show when we have devices at all
+                if totalCount > 0 {
+                    Text("\(devices.count) of \(totalCount) devices")
+                        .font(T3.mono(10))
+                        .foregroundStyle(T3.sub)
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.bottom, 12)
+                        .accessibilityLabel("Showing \(devices.count) of \(totalCount) devices")
+                }
+
+                // Empty states — order matters.
                 if registry.allAccessories.isEmpty && didSettle {
+                    // No devices connected at all.
                     T3EmptyState(
                         iconSystemName: "server",
                         title: "No devices connected",
                         subtitle: "Connect Home Assistant in Settings to see your devices here.",
                         actionTitle: "Open Settings",
                         action: { navigator.goToSettings(.providers) }
+                    )
+                } else if devices.isEmpty && !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    // Query non-empty but nothing matches.
+                    T3EmptyState(
+                        iconSystemName: "magnifyingglass",
+                        title: "No matches for \"\(searchQuery)\"",
+                        subtitle: "Try a different name, category, or room.",
+                        actionTitle: "Clear search",
+                        action: {
+                            searchQuery = ""
+                            searchFocused = false
+                        }
+                    )
+                } else if devices.isEmpty && filter != "All" {
+                    // Query empty, but category filter yields nothing.
+                    T3EmptyState(
+                        iconSystemName: "server",
+                        title: "No \(filter.lowercased()) devices",
+                        subtitle: "Nothing in this category yet.",
+                        actionTitle: "Show all",
+                        action: { filter = "All" }
                     )
                 }
 
@@ -128,5 +205,47 @@ struct T3DevicesTabView: View {
                 navigator.goToSettings(.providers)
             })
         }
+    }
+
+    // MARK: - Search bar
+
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            T3IconImage(systemName: "magnifyingglass")
+                .frame(width: 14, height: 14)
+                .foregroundStyle(T3.sub)
+
+            TextField("", text: $searchQuery, prompt: Text("Search devices").foregroundColor(T3.sub))
+                .font(T3.inter(14))
+                .foregroundStyle(T3.ink)
+                .tint(T3.ink)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                .submitLabel(.search)
+                .focused($searchFocused)
+                .accessibilityLabel("Search devices")
+
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                    searchFocused = true
+                } label: {
+                    T3IconImage(systemName: "xmark")
+                        .frame(width: 12, height: 12)
+                        .foregroundStyle(T3.sub)
+                        .padding(4)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .overlay(
+            Rectangle()
+                .stroke(T3.rule, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { searchFocused = true }
     }
 }
