@@ -41,9 +41,11 @@ struct T3LightDetailView: View {
                     // Eyebrow + big number + toggle
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 10) {
-                            if isOn { TDot(size: 8) }
+                            if isOn { TDot(size: 8).accessibilityHidden(true) }
                             TLabel(text: isOn ? "On" : "Off")
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(accessory?.name ?? "Light"), \(isOn ? "on, \(Int(brightness * 100)) percent brightness" : "off")")
 
                         HStack(alignment: .firstTextBaseline) {
                             Text("\(Int(brightness * 100))")
@@ -51,14 +53,18 @@ struct T3LightDetailView: View {
                                 .tracking(-4)
                                 .foregroundStyle(T3.ink)
                                 .monospacedDigit()
+                                .accessibilityHidden(true)
 
                             Text("%")
                                 .font(T3.inter(36, weight: .light))
                                 .foregroundStyle(isOn ? T3.accent : T3.sub)
+                                .accessibilityHidden(true)
 
                             Spacer()
 
                             TPill(isOn: $isOn, size: CGSize(width: 48, height: 26))
+                                .accessibilityLabel(isOn ? "Turn off" : "Turn on")
+                                .accessibilityAddTraits(.isButton)
                                 .onChange(of: isOn) { oldValue, newValue in
                                     // Snapshot the prior state so a revert
                                     // closure can put it back if the command
@@ -120,6 +126,8 @@ struct T3LightDetailView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Set brightness to \(pct) percent")
+                            .accessibilityAddTraits(Int(brightness * 100) == pct ? [.isButton, .isSelected] : .isButton)
                         }
                     }
                     .padding(3)
@@ -165,6 +173,8 @@ struct T3LightDetailView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("\(name) color temperature, \(kelvin)")
+                            .accessibilityAddTraits(colorTemp == name ? [.isButton, .isSelected] : .isButton)
                         }
                     }
                     .padding(3)
@@ -274,6 +284,29 @@ struct T3LightDetailView: View {
                 Spacer()
                 TLabel(text: "100")
             }
+            .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Brightness")
+        .accessibilityValue("\(Int(brightness * 100)) percent")
+        .accessibilityAdjustableAction { direction in
+            let step = 0.05
+            let previous = brightness
+            switch direction {
+            case .increment: brightness = min(1, brightness + step)
+            case .decrement: brightness = max(0, brightness - step)
+            @unknown default: break
+            }
+            let newVal = brightness
+            Task { @MainActor in
+                await T3ActionFeedback.perform(
+                    action: { try await registry.execute(.setBrightness(newVal), on: accessoryID) },
+                    onFailure: { brightness = previous },
+                    successHaptic: .none,
+                    toast: { toast = .error("Couldn't set brightness") },
+                    errorDescription: "Light brightness a11y adjust"
+                )
+            }
         }
     }
 
@@ -285,5 +318,7 @@ struct T3LightDetailView: View {
                 .foregroundStyle(T3.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value)")
     }
 }

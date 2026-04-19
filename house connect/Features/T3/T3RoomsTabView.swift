@@ -54,8 +54,10 @@ struct T3RoomsTabView: View {
                                     T3IconImage(systemName: roomIcon(room.name))
                                         .frame(width: 22, height: 22)
                                         .foregroundStyle(T3.ink)
+                                        .accessibilityHidden(true)
                                     Spacer()
                                     TLabel(text: String(format: "%02d", i + 1))
+                                        .accessibilityHidden(true)
                                 }
 
                                 Spacer()
@@ -87,6 +89,9 @@ struct T3RoomsTabView: View {
                             }
                         }
                         .buttonStyle(.t3Row)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(room.name), \(activeCount) of \(deviceCount) devices on")
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
 
@@ -96,6 +101,7 @@ struct T3RoomsTabView: View {
                         T3IconImage(systemName: "plus")
                             .frame(width: 14, height: 14)
                             .foregroundStyle(T3.sub)
+                            .accessibilityHidden(true)
                         Text("New room")
                             .font(T3.inter(14, weight: .medium))
                             .foregroundStyle(T3.sub)
@@ -108,6 +114,7 @@ struct T3RoomsTabView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Create new room")
                 .padding(.horizontal, T3.screenPadding)
                 .padding(.top, 16)
 

@@ -122,15 +122,20 @@ struct T3HomeDashboardView: View {
                     T3IconImage(systemName: "bell")
                         .frame(width: 18, height: 18)
                         .foregroundStyle(T3.ink)
+                        .accessibilityHidden(true)
                     if eventStore.unreadCount > 0 {
                         TDot(size: 6)
                             .offset(x: 2, y: -2)
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(eventStore.unreadCount > 0
+                                ? "Notifications, \(eventStore.unreadCount) unread"
+                                : "Notifications")
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.bottom, 12)
@@ -154,9 +159,12 @@ struct T3HomeDashboardView: View {
 
             HStack(spacing: 10) {
                 TDot(size: 8)
+                    .accessibilityHidden(true)
                 TLabel(text: "\(activeCount) active · \(offlineCount) offline · \(standbyCount) standby")
             }
             .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(activeCount) devices active, \(offlineCount) offline, \(standbyCount) on standby")
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.top, 20)
@@ -242,6 +250,8 @@ struct T3HomeDashboardView: View {
                 .foregroundStyle(T3.sub)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value) \(unit ?? ""), \(sub)")
     }
 
     // MARK: - Quick Actions
@@ -325,6 +335,7 @@ struct T3HomeDashboardView: View {
                 T3IconImage(systemName: scene.iconSystemName)
                     .frame(width: 24, height: 24)
                     .foregroundStyle(T3.ink)
+                    .accessibilityHidden(true)
                 Spacer(minLength: 0)
                 Text(scene.name)
                     .font(T3.inter(12, weight: .medium))
@@ -341,6 +352,8 @@ struct T3HomeDashboardView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Run \(scene.name) scene")
+        .accessibilityAddTraits(.isButton)
     }
 
     /// Placeholder chip shown when no scenes exist / are pinned.
@@ -368,6 +381,7 @@ struct T3HomeDashboardView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Create a scene to pin here")
     }
 
     // MARK: - Scenes
@@ -398,6 +412,7 @@ struct T3HomeDashboardView: View {
                 T3IconImage(systemName: scene.iconSystemName)
                     .frame(width: 14, height: 14)
                     .foregroundStyle(selected ? T3.page : T3.ink)
+                    .accessibilityHidden(true)
                 Text(scene.name)
                     .font(T3.inter(13, weight: .medium))
                     .tracking(-0.2)
@@ -417,6 +432,8 @@ struct T3HomeDashboardView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Run \(scene.name) scene")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Rooms (2-column grid)
@@ -439,8 +456,10 @@ struct T3HomeDashboardView: View {
                                 T3IconImage(systemName: roomIcon(room.name))
                                     .frame(width: 22, height: 22)
                                     .foregroundStyle(T3.ink)
+                                    .accessibilityHidden(true)
                                 Spacer()
                                 TLabel(text: String(format: "%02d", i + 1))
+                                    .accessibilityHidden(true)
                             }
 
                             Spacer()
@@ -476,6 +495,9 @@ struct T3HomeDashboardView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(room.name), \(activeDevices) of \(deviceCount) devices on")
+                    .accessibilityAddTraits(.isButton)
                 }
             }
         }
@@ -517,6 +539,7 @@ struct T3HomeDashboardView: View {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(T3.ink)
                     .frame(width: 28)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(T3.inter(15, weight: .medium))
@@ -527,6 +550,7 @@ struct T3HomeDashboardView: View {
                 T3IconImage(systemName: "arrow.right")
                     .frame(width: 14, height: 14)
                     .foregroundStyle(T3.sub)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, T3.screenPadding)
             .padding(.vertical, 14)
@@ -536,6 +560,9 @@ struct T3HomeDashboardView: View {
             }
         }
         .buttonStyle(.t3Row)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(sub)")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Scene execution

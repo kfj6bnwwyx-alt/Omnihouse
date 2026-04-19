@@ -161,6 +161,7 @@ struct T3ThermostatView: View {
                             T3IconImage(systemName: "clock")
                                 .frame(width: 16, height: 16)
                                 .foregroundStyle(T3.ink)
+                                .accessibilityHidden(true)
                             Text("History")
                                 .font(T3.inter(14, weight: .medium))
                                 .foregroundStyle(T3.ink)
@@ -168,11 +169,14 @@ struct T3ThermostatView: View {
                             T3IconImage(systemName: "chevron.right")
                                 .frame(width: 12, height: 12)
                                 .foregroundStyle(T3.sub)
+                                .accessibilityHidden(true)
                         }
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.vertical, 18)
                     }
                     .buttonStyle(.t3Row)
+                    .accessibilityLabel("View temperature history")
+                    .accessibilityAddTraits(.isButton)
 
                     TRule()
 
@@ -256,6 +260,7 @@ struct T3ThermostatView: View {
                             T3IconImage(systemName: icon)
                                 .frame(width: 14, height: 14)
                                 .foregroundStyle(selectedMode == mode ? T3.page : T3.ink)
+                                .accessibilityHidden(true)
                             Text(label)
                                 .font(T3.inter(11, weight: .medium))
                                 .foregroundStyle(selectedMode == mode ? T3.page : T3.ink)
@@ -268,6 +273,8 @@ struct T3ThermostatView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(label) mode")
+                    .accessibilityAddTraits(selectedMode == mode ? [.isButton, .isSelected] : .isButton)
                 }
             }
             .padding(3)
@@ -306,6 +313,8 @@ struct T3ThermostatView: View {
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value)")
     }
 
     // MARK: - Schedule

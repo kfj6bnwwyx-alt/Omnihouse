@@ -46,6 +46,7 @@ struct T3LockDetailView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 10) {
                             TDot(size: 8, color: isLocked ? T3.accent : T3.sub)
+                                .accessibilityHidden(true)
                             TLabel(text: isLocked ? "Secured" : "Unlocked")
                         }
 
@@ -109,6 +110,7 @@ struct T3LockDetailView: View {
                             T3IconImage(systemName: entry.locked ? "lock.fill" : "checkmark")
                                 .frame(width: 14, height: 14)
                                 .foregroundStyle(T3.sub)
+                                .accessibilityHidden(true)
                         }
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.vertical, 12)
@@ -116,6 +118,8 @@ struct T3LockDetailView: View {
                         .overlay(alignment: .bottom) {
                             if i == recentAccess.count - 1 { TRule() }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(entry.time), \(entry.action) by \(entry.who)")
                     }
 
                     Spacer(minLength: 120)
@@ -346,6 +350,8 @@ struct T3LockDetailView: View {
                 .foregroundStyle(T3.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value)")
     }
 
     private var recentAccess: [(time: String, action: String, who: String, locked: Bool)] {

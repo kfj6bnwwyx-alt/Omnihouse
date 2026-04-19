@@ -160,6 +160,9 @@ struct T3DevicesTabView: View {
                         T3DeviceRow(device: device, index: i, isLast: i == devices.count - 1)
                     }
                     .buttonStyle(.t3Row)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(device.name), \(device.category.displayLabel), \(device.isOn == true ? "on" : (device.isReachable ? "off" : "offline"))")
+                    .accessibilityAddTraits(.isButton)
                 }
 
                 // Add device dashed button
@@ -168,6 +171,7 @@ struct T3DevicesTabView: View {
                         T3IconImage(systemName: "plus")
                             .frame(width: 14, height: 14)
                             .foregroundStyle(T3.sub)
+                            .accessibilityHidden(true)
                         Text("Add device")
                             .font(T3.inter(14, weight: .medium))
                             .foregroundStyle(T3.sub)
@@ -180,6 +184,7 @@ struct T3DevicesTabView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add device")
                 .padding(.horizontal, T3.screenPadding)
                 .padding(.top, 16)
 
@@ -214,6 +219,7 @@ struct T3DevicesTabView: View {
             T3IconImage(systemName: "magnifyingglass")
                 .frame(width: 14, height: 14)
                 .foregroundStyle(T3.sub)
+                .accessibilityHidden(true)
 
             TextField("", text: $searchQuery, prompt: Text("Search devices").foregroundColor(T3.sub))
                 .font(T3.inter(14))

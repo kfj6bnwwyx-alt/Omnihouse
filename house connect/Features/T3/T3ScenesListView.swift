@@ -83,11 +83,13 @@ struct T3ScenesListView: View {
                         HStack(spacing: 14) {
                             TLabel(text: String(format: "%02d", i + 1))
                                 .frame(width: 28)
+                                .accessibilityHidden(true)
 
                             T3IconImage(systemName: scene.iconSystemName)
                                 .frame(width: 18, height: 18)
                                 .foregroundStyle(T3.ink)
                                 .frame(width: 28)
+                                .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(scene.name)
@@ -98,6 +100,8 @@ struct T3ScenesListView: View {
                                     .truncationMode(.tail)
                                 TLabel(text: "\(scene.actions.count) actions")
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(scene.name), \(scene.actions.count) actions")
 
                             Spacer()
 
@@ -108,6 +112,9 @@ struct T3ScenesListView: View {
                                 runChipLabel(for: scene)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(runningSceneID == scene.id
+                                                ? "Running \(scene.name)"
+                                                : "Run \(scene.name)")
                             .overlay(
                                 // One-shot completion ring
                                 Group {
@@ -154,6 +161,7 @@ struct T3ScenesListView: View {
                             T3IconImage(systemName: "plus")
                                 .frame(width: 14, height: 14)
                                 .foregroundStyle(T3.sub)
+                                .accessibilityHidden(true)
                             Text("Add scene")
                                 .font(T3.inter(14, weight: .medium))
                                 .foregroundStyle(T3.sub)
@@ -166,6 +174,7 @@ struct T3ScenesListView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Add scene")
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.top, 16)
 
