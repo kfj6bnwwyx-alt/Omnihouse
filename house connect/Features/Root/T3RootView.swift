@@ -10,10 +10,6 @@
 import SwiftUI
 
 struct T3RootView: View {
-    #if os(iOS)
-    @Environment(SmokeAlertController.self) private var smokeAlertController
-    #endif
-
     @State private var navigator = T3TabNavigator()
 
     var body: some View {
@@ -80,23 +76,5 @@ struct T3RootView: View {
         // which gates the splash transition on startAll completion.
         // Do not call `registry.startAll()` here — it would re-start
         // providers after the splash already awaited them.
-        #if os(iOS)
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { smokeAlertController.activeAlertContext != nil },
-                set: { if !$0 { Task { await smokeAlertController.end(reason: .simulationStopped) } } }
-            )
-        ) {
-            if let ctx = smokeAlertController.activeAlertContext {
-                T3SmokeAlarmAlertView(
-                    roomName: ctx.roomName ?? "Unknown Room",
-                    deviceName: ctx.deviceName,
-                    detectedAt: ctx.triggeredAt,
-                    onSilence: { Task { await smokeAlertController.end(reason: .simulationStopped) } },
-                    onDismiss: { Task { await smokeAlertController.end(reason: .simulationStopped) } }
-                )
-            }
-        }
-        #endif
     }
 }
