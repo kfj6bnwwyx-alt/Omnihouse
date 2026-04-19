@@ -22,6 +22,7 @@ struct T3ThermostatView: View {
     @State private var selectedMode: HVACMode = .heat
     @State private var repeatTimer: Timer?
     @State private var didRepeat: Bool = false
+    @State private var toast: Toast?
 
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
@@ -143,6 +144,7 @@ struct T3ThermostatView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toast($toast, duration: 4)
         .onAppear {
             if let mode = accessory?.hvacMode {
                 selectedMode = mode
@@ -202,9 +204,15 @@ struct T3ThermostatView: View {
                     (.off, "Off", "power"),
                 ], id: \.0) { mode, label, icon in
                     Button {
+                        let previousMode = selectedMode
                         selectedMode = mode
-                        Task {
-                            try? await registry.execute(.setHVACMode(mode), on: accessoryID)
+                        Task { @MainActor in
+                            await T3ActionFeedback.perform(
+                                action: { try await registry.execute(.setHVACMode(mode), on: accessoryID) },
+                                onFailure: { selectedMode = previousMode },
+                                toast: { toast = .error("Couldn't change mode") },
+                                errorDescription: "Thermostat mode"
+                            )
                         }
                     } label: {
                         VStack(spacing: 4) {
@@ -363,13 +371,34 @@ struct T3ThermostatView: View {
     // MARK: - Actions
 
     private func adjustTarget(by delta: Int) {
+        let previousTarget = targetTemp
         let newTarget = targetTemp + delta
         guard newTarget >= range.0 && newTarget <= range.1 else { return }
         targetDraft = newTarget
         let celsius = Double(newTarget - 32) * 5.0 / 9.0
-        Task {
-            try? await registry.execute(.setTargetTemperature(celsius), on: accessoryID)
-            targetDraft = nil
+        Task { @MainActor in
+            await T3ActionFeedback.perform(
+                action: { try await registry.execute(.setTargetTemperature(celsius), on: accessoryID) },
+                onFailure: {
+                    // Roll back to the pre-tap target so the UI doesn't
+                    // claim a setpoint the thermostat never accepted.
+                    // We write into targetDraft rather than clearing it
+                    // so the display doesn't briefly snap to the
+                    // (possibly stale) accessory capability value.
+                    targetDraft = previousTarget
+                },
+                // Haptic already fires on the tap/long-press — avoid a
+                // second success tick.
+                successHaptic: .none,
+                toast: { toast = .error("Couldn't set target temperature") },
+                errorDescription: "Thermostat setpoint"
+            )
+            // On success, clear the draft so targetTemp falls back to
+            // reading from the provider. On failure the revert above
+            // has already written the previous value into the draft.
+            if targetDraft == newTarget {
+                targetDraft = nil
+            }
         }
     }
 }
