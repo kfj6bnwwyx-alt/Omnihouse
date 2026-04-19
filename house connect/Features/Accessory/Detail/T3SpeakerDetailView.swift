@@ -49,6 +49,9 @@ struct T3SpeakerDetailView: View {
                             .font(T3.inter(42, weight: .medium))
                             .tracking(-1.4)
                             .foregroundStyle(T3.ink)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                            .minimumScaleFactor(0.7)
                             .padding(.top, 8)
                     }
                     .padding(.horizontal, T3.screenPadding)
@@ -116,10 +119,12 @@ struct T3SpeakerDetailView: View {
                     .font(T3.inter(16, weight: .medium))
                     .foregroundStyle(T3.ink)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(accessory?.nowPlaying?.artist ?? "Sleigh Bells")
                     .font(T3.inter(12, weight: .regular))
                     .foregroundStyle(T3.sub)
                     .lineLimit(1)
+                    .truncationMode(.tail)
             }
 
             Spacer()
@@ -277,6 +282,8 @@ struct T3SpeakerDetailView: View {
                     Text(room)
                         .font(T3.inter(15, weight: .medium))
                         .foregroundStyle(T3.ink)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer()
                     TPill(isOn: .constant(i == 0))
                 }

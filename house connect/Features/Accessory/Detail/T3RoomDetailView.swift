@@ -57,6 +57,9 @@ struct T3RoomDetailView: View {
                             .font(T3.inter(42, weight: .medium))
                             .tracking(-1.4)
                             .foregroundStyle(T3.ink)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                            .minimumScaleFactor(0.7)
                             .padding(.top, 8)
 
                         Text("\(activeCount) of \(devices.count) devices on · \(providers.joined(separator: " + "))")
@@ -121,6 +124,8 @@ struct T3DeviceRow: View {
                     .font(T3.inter(15, weight: .medium))
                     .tracking(-0.2)
                     .foregroundStyle(T3.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 HStack(spacing: 8) {
                     if device.isOn == true { TDot(size: 5) }

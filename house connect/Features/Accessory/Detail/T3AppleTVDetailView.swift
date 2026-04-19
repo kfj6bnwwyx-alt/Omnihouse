@@ -179,10 +179,12 @@ struct T3AppleTVDetailView: View {
                         .font(T3.inter(18, weight: .bold))
                         .foregroundStyle(T3.ink)
                         .lineLimit(2)
+                        .truncationMode(.tail)
                     Text(heroSubtitle)
                         .font(T3.inter(14, weight: .regular))
                         .foregroundStyle(T3.sub)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                     if let progress = progressFraction {
                         progressBar(progress)
                             .padding(.top, 6)
@@ -324,6 +326,8 @@ struct T3AppleTVDetailView: View {
                             Text(source)
                                 .font(T3.inter(13, weight: .medium))
                                 .foregroundStyle(source == accessory?.currentSource ? T3.page : T3.ink)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
                                 .background(
@@ -378,6 +382,7 @@ struct T3AppleTVDetailView: View {
                 .font(T3.inter(16, weight: .medium))
                 .foregroundStyle(T3.ink)
                 .lineLimit(1)
+                .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
