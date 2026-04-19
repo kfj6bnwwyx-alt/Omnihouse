@@ -52,15 +52,11 @@ struct T3NotificationsView: View {
                     )
 
                     if eventStore.events.isEmpty {
-                        VStack(spacing: 12) {
-                            TLabel(text: "No notifications")
-                            Text("Events will appear as your devices change state.")
-                                .font(T3.inter(13, weight: .regular))
-                                .foregroundStyle(T3.sub)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
+                        T3EmptyState(
+                            iconSystemName: "bell",
+                            title: "All caught up",
+                            subtitle: "New alerts and events will appear here."
+                        )
                     } else {
                         ForEach(Array(eventStore.events.prefix(30).enumerated()), id: \.element.id) { i, event in
                             HStack(spacing: 14) {
