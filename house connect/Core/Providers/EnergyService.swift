@@ -51,9 +51,33 @@ final class EnergyService {
     /// previews and unit tests).
     private weak var registry: ProviderRegistry?
 
-    /// TODO(config): surface a user rate-plan setting instead of this
-    /// hardcoded US-average $/kWh figure.
-    private let rateUSDPerKwh: Double = 0.15
+    /// Default $/kWh used when the user hasn't configured a rate in
+    /// Settings → Energy. Roughly the US residential average.
+    static let defaultRateUSDPerKwh: Double = 0.15
+
+    /// UserDefaults key for the user-selected HA energy sensor entity
+    /// ID. Mirrors `@AppStorage("energy.entityID")` in the settings
+    /// surface, so reads/writes go through the same bucket.
+    static let entityIDDefaultsKey: String = "energy.entityID"
+
+    /// UserDefaults key for the user-configured $/kWh rate. Mirrors
+    /// `@AppStorage("energy.ratePerKwh")`.
+    static let ratePerKwhDefaultsKey: String = "energy.ratePerKwh"
+
+    /// Resolve the currently-configured energy sensor entity ID.
+    /// Falls back to the HA provider's default when the user hasn't
+    /// picked one yet.
+    private var configuredEntityID: String {
+        let stored = UserDefaults.standard.string(forKey: Self.entityIDDefaultsKey) ?? ""
+        return stored.isEmpty ? HomeAssistantProvider.defaultEnergyStatisticID : stored
+    }
+
+    /// Resolve the currently-configured $/kWh rate, falling back to the
+    /// default when the user hasn't set one.
+    private var configuredRateUSDPerKwh: Double {
+        let stored = UserDefaults.standard.double(forKey: Self.ratePerKwhDefaultsKey)
+        return stored > 0 ? stored : Self.defaultRateUSDPerKwh
+    }
 
     init(registry: ProviderRegistry? = nil) {
         self.registry = registry
@@ -86,16 +110,19 @@ final class EnergyService {
     /// the observable properties. Throws on any failure so `refresh()`
     /// can decide whether to fall back.
     private func refreshFromHomeAssistant(_ ha: HomeAssistantProvider) async throws {
+        let entityID = configuredEntityID
         // Hourly for the last 24h (used for today/yesterday splits and
         // the hourly chart).
         let hourlyEntries = try await ha.fetchEnergyStatistics(
             period: .hour,
-            lookback: .seconds(60 * 60 * 48)   // 48h so we can compute yesterday too
+            lookback: .seconds(60 * 60 * 48),   // 48h so we can compute yesterday too
+            statisticID: entityID
         )
         // Daily for the month-so-far total.
         let dailyEntries = try await ha.fetchEnergyStatistics(
             period: .day,
-            lookback: .seconds(60 * 60 * 24 * 31)
+            lookback: .seconds(60 * 60 * 24 * 31),
+            statisticID: entityID
         )
 
         let calendar = Calendar.current
@@ -142,7 +169,7 @@ final class EnergyService {
         self.hourly = hourly
         self.categories = nil
         self.monthKwh = monthTotal
-        self.estMonthCostUSD = monthTotal * rateUSDPerKwh
+        self.estMonthCostUSD = monthTotal * configuredRateUSDPerKwh
         self.lastUpdated = Date()
     }
 
@@ -199,7 +226,7 @@ final class EnergyService {
 
         let dayOfMonth = calendar.component(.day, from: Date())
         let month = today * Double(dayOfMonth) * 0.95
-        let cost = month * rateUSDPerKwh
+        let cost = month * configuredRateUSDPerKwh
 
         self.todayKwh = today
         self.yesterdayKwh = yesterday

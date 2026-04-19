@@ -814,9 +814,48 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
 
     /// Default statistic ID used for whole-home energy totals. HA's
     /// Energy dashboard typically exposes this as a cumulative kWh
-    /// sensor. TODO(config): surface a user-configurable sensor picker
-    /// instead of hardcoding a single ID.
+    /// sensor. Users can override this in Settings → Energy; the
+    /// chosen value is persisted under `@AppStorage("energy.entityID")`.
     static let defaultEnergyStatisticID: String = "sensor.energy_home_total"
+
+    /// One candidate sensor that could drive the Energy dashboard.
+    /// Returned by `fetchEnergySensorCandidates()`.
+    struct EnergySensorCandidate: Hashable, Sendable, Identifiable {
+        let entityID: String
+        let friendlyName: String
+        let unit: String?
+        var id: String { entityID }
+    }
+
+    /// Enumerate `sensor.*` entities in the cached state that look like
+    /// energy totals — either `device_class == "energy"` or
+    /// `state_class == "total"` (or `"total_increasing"`) with a kWh
+    /// unit. Sorted alphabetically by friendly name for stable picker
+    /// presentation. Operates on the in-memory state cache, so the
+    /// result is only as fresh as the last WebSocket sync.
+    func fetchEnergySensorCandidates() async -> [EnergySensorCandidate] {
+        var out: [EnergySensorCandidate] = []
+        for (entityID, entity) in entityStates {
+            guard entityID.hasPrefix("sensor.") else { continue }
+            let unit = entity.attributes.unitOfMeasurement
+            let deviceClass = entity.attributes.deviceClass
+            let stateClass = entity.attributes.raw?["state_class"]?.stringValue
+
+            let isEnergyClass = deviceClass == "energy"
+            let isKwhTotal = (stateClass == "total" || stateClass == "total_increasing")
+                && (unit?.lowercased() == "kwh" || unit?.lowercased() == "wh")
+
+            guard isEnergyClass || isKwhTotal else { continue }
+
+            let friendly = entity.attributes.friendlyName ?? entityID
+            out.append(EnergySensorCandidate(
+                entityID: entityID,
+                friendlyName: friendly,
+                unit: unit
+            ))
+        }
+        return out.sorted { $0.friendlyName.localizedCaseInsensitiveCompare($1.friendlyName) == .orderedAscending }
+    }
 
     /// Fetch recorder statistics for the default home-energy sensor
     /// over the past `lookback` window. Returns the entries for the
