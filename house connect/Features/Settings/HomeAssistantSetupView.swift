@@ -22,6 +22,12 @@ struct HomeAssistantSetupView: View {
     @State private var error: String?
     @State private var connectionMode: ConnectionMode = .manual
 
+    // Test-connection state (Wave DD)
+    @State private var isTesting: Bool = false
+    @State private var testResult: HAConnectionTestResult?
+    @State private var urlValidationError: String?
+    @State private var allowSaveOverride: Bool = false
+
     @FocusState private var focusedField: Field?
 
     enum ConnectionMode: String, CaseIterable {
@@ -51,6 +57,7 @@ struct HomeAssistantSetupView: View {
                 serverSection
                 remoteSection
                 tokenSection
+                testSection
                 connectSection
 
                 if let error {
@@ -79,7 +86,16 @@ struct HomeAssistantSetupView: View {
                let first = discovery.instances.first {
                 manualURL = first.url.absoluteString
             }
+            invalidateTest()
         }
+        .onChange(of: manualURL) { _, _ in invalidateTest() }
+        .onChange(of: token) { _, _ in invalidateTest() }
+    }
+
+    private func invalidateTest() {
+        testResult = nil
+        allowSaveOverride = false
+        urlValidationError = nil
     }
 
     // MARK: - Mode segmented
@@ -278,6 +294,157 @@ struct HomeAssistantSetupView: View {
         }
     }
 
+    // MARK: - Test Connection (Wave DD)
+
+    private var testSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TSectionHead(title: "Verify", count: "")
+
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    focusedField = nil
+                    Task { await runTest() }
+                } label: {
+                    HStack(spacing: 10) {
+                        if isTesting {
+                            ProgressView().tint(T3.ink).scaleEffect(0.8)
+                        } else {
+                            T3IconImage(systemName: "bolt.horizontal")
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(T3.ink)
+                        }
+                        Text(isTesting ? "TESTING…" : "TEST CONNECTION")
+                            .font(T3.mono(11))
+                            .tracking(2)
+                            .foregroundStyle(T3.ink)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .overlay(Rectangle().stroke(T3.ink, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canTest)
+                .opacity(canTest ? 1.0 : 0.4)
+
+                if let urlValidationError {
+                    testResultRow(
+                        icon: "exclamationmark.triangle",
+                        color: T3.danger,
+                        label: "INVALID URL",
+                        message: urlValidationError
+                    )
+                }
+
+                if let testResult {
+                    testResultView(testResult)
+                }
+            }
+            .padding(.horizontal, T3.screenPadding)
+            .padding(.vertical, 14)
+            .overlay(alignment: .top) { TRule() }
+            .overlay(alignment: .bottom) { TRule() }
+        }
+    }
+
+    @ViewBuilder
+    private func testResultView(_ result: HAConnectionTestResult) -> some View {
+        switch result.status {
+        case .success:
+            testResultRow(
+                icon: "checkmark",
+                color: T3.ok,
+                label: "CONNECTED",
+                message: result.message
+            )
+        case .authFailed:
+            testResultRow(
+                icon: "lock.slash",
+                color: T3.danger,
+                label: "TOKEN REJECTED",
+                message: result.message
+            )
+        case .unreachable:
+            testResultRow(
+                icon: "wifi.slash",
+                color: T3.danger,
+                label: "UNREACHABLE",
+                message: result.message
+            )
+        case .invalidURL:
+            testResultRow(
+                icon: "exclamationmark.triangle",
+                color: T3.danger,
+                label: "INVALID URL",
+                message: result.message
+            )
+        }
+    }
+
+    private func testResultRow(
+        icon: String,
+        color: Color,
+        label: String,
+        message: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Rectangle()
+                .fill(color)
+                .frame(width: 2)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    T3IconImage(systemName: icon)
+                        .frame(width: 11, height: 11)
+                        .foregroundStyle(color)
+                    TLabel(text: label, color: color)
+                }
+                Text(message)
+                    .font(T3.inter(13, weight: .regular))
+                    .foregroundStyle(T3.ink)
+                    .lineSpacing(3)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var canTest: Bool {
+        !effectiveURL.isEmpty && !token.isEmpty && !isTesting && !isConnecting
+    }
+
+    private var testPassed: Bool {
+        testResult?.status == .success
+    }
+
+    private func runTest() async {
+        urlValidationError = nil
+        testResult = nil
+        allowSaveOverride = false
+
+        let raw = effectiveURL
+        // Local lightweight shape check — the provider helper also
+        // re-validates, but we surface specific feedback here.
+        var normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !normalized.lowercased().hasPrefix("http://"),
+           !normalized.lowercased().hasPrefix("https://") {
+            normalized = "http://\(normalized)"
+        }
+        guard let url = URL(string: normalized),
+              let host = url.host, !host.isEmpty else {
+            urlValidationError = "That URL doesn't look right. Example: http://192.168.1.100:8123"
+            return
+        }
+        _ = url
+
+        isTesting = true
+        let result = await HomeAssistantProvider.testConnection(
+            urlString: raw,
+            token: token
+        )
+        testResult = result
+        isTesting = false
+    }
+
     // MARK: - Connect
 
     private var connectSection: some View {
@@ -290,7 +457,7 @@ struct HomeAssistantSetupView: View {
                     if isConnecting {
                         ProgressView().tint(T3.page).scaleEffect(0.8)
                     }
-                    Text(isConnecting ? "CONNECTING…" : "CONNECT")
+                    Text(connectButtonTitle)
                         .font(T3.mono(12))
                         .tracking(2)
                         .foregroundStyle(T3.page)
@@ -301,13 +468,44 @@ struct HomeAssistantSetupView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canConnect)
+
+            // "Save anyway" override — surfaces only when the test
+            // failed, because HA might be temporarily down and we
+            // don't want to strand the user.
+            if let status = testResult?.status,
+               status != .success,
+               !allowSaveOverride {
+                Button {
+                    allowSaveOverride = true
+                } label: {
+                    Text("SAVE ANYWAY")
+                        .font(T3.mono(11))
+                        .tracking(2)
+                        .foregroundStyle(T3.sub)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.top, 24)
     }
 
+    private var connectButtonTitle: String {
+        if isConnecting { return "CONNECTING…" }
+        if testPassed { return "CONNECT" }
+        if allowSaveOverride { return "SAVE ANYWAY" }
+        return "CONNECT"
+    }
+
+    /// Save is gated on a successful test (or explicit user override)
+    /// plus the basics — URL, token, and no in-flight request.
     private var canConnect: Bool {
-        !effectiveURL.isEmpty && !token.isEmpty && !isConnecting
+        guard !effectiveURL.isEmpty, !token.isEmpty,
+              !isConnecting, !isTesting else { return false }
+        return testPassed || allowSaveOverride
     }
 
     private func errorBlock(_ message: String) -> some View {

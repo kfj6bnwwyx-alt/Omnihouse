@@ -943,3 +943,99 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         )
     }
 }
+
+// MARK: - Connection test (setup screen)
+
+/// Result of a pre-save connection test from HomeAssistantSetupView.
+/// Drives the inline status UI: green check on success, red line with a
+/// specific message on failure. Kept outside the @MainActor class so
+/// the setup view can refer to it without actor hops.
+struct HAConnectionTestResult: Sendable {
+    enum Status: Sendable {
+        case success
+        case authFailed
+        case unreachable
+        case invalidURL
+    }
+
+    let status: Status
+    let version: String?
+    let message: String
+}
+
+extension HomeAssistantProvider {
+    /// Verify an HA URL + token before the user commits to saving.
+    /// Normalizes the URL (default scheme http, strip trailing slash)
+    /// and hits `/api/` with a 5-second timeout. 200 → success, 401 →
+    /// authFailed, transport failure → unreachable.
+    nonisolated static func testConnection(
+        urlString: String,
+        token: String
+    ) async -> HAConnectionTestResult {
+        var normalized = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            return HAConnectionTestResult(status: .invalidURL, version: nil,
+                                          message: "Enter a URL for your Home Assistant server.")
+        }
+        if !normalized.lowercased().hasPrefix("http://"),
+           !normalized.lowercased().hasPrefix("https://") {
+            normalized = "http://\(normalized)"
+        }
+        while normalized.hasSuffix("/") {
+            normalized = String(normalized.dropLast())
+        }
+
+        guard let url = URL(string: normalized + "/api/"),
+              let host = url.host, !host.isEmpty else {
+            return HAConnectionTestResult(status: .invalidURL, version: nil,
+                                          message: "That URL doesn't look right. Example: http://192.168.1.100:8123")
+        }
+
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 5
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 5
+        config.timeoutIntervalForResource = 5
+        let session = URLSession(configuration: config)
+
+        do {
+            let (data, response) = try await session.data(for: req)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+            switch status {
+            case 200:
+                // Response shape: {"message": "API running.", "version": "2024.12.0"}
+                struct Ping: Decodable { let version: String? }
+                let version = (try? JSONDecoder().decode(Ping.self, from: data))?.version
+                if let version {
+                    return HAConnectionTestResult(
+                        status: .success, version: version,
+                        message: "Connected to Home Assistant \(version)"
+                    )
+                }
+                return HAConnectionTestResult(
+                    status: .success, version: nil,
+                    message: "Connected to Home Assistant"
+                )
+            case 401, 403:
+                return HAConnectionTestResult(
+                    status: .authFailed, version: nil,
+                    message: "Server reached, but token rejected."
+                )
+            default:
+                return HAConnectionTestResult(
+                    status: .unreachable, version: nil,
+                    message: "Server responded with HTTP \(status)."
+                )
+            }
+        } catch {
+            return HAConnectionTestResult(
+                status: .unreachable, version: nil,
+                message: "Can't reach server at \(normalized)."
+            )
+        }
+    }
+}

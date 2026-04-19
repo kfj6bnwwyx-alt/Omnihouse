@@ -25,6 +25,7 @@ struct T3HomeDashboardView: View {
     @State private var selectedSceneIndex: Int = 0
     @State private var runningSceneID: UUID?
     @State private var toast: Toast?
+    @State private var isEditingQuickActions: Bool = false
 
     /// User's display name for the greeting. Set in Settings → Profile.
     /// Empty = no personalization ("Good morning." without a comma).
@@ -32,7 +33,7 @@ struct T3HomeDashboardView: View {
 
     /// Comma-separated list of pinned scene UUIDs for the Quick Actions row.
     /// Empty string = no pins (we fall back to the first 4 scenes alphabetically).
-    /// TODO: Wave W+ — build an edit UI for pinning/reordering scenes.
+    /// Edited via `T3QuickActionsEditSheet` (pencil icon on the section head).
     @AppStorage("dashboard.quickActionSceneIDs") private var quickActionSceneIDsRaw: String = ""
 
     private var rooms: [Room] {
@@ -102,6 +103,9 @@ struct T3HomeDashboardView: View {
             }
         }
         .toast($toast)
+        .sheet(isPresented: $isEditingQuickActions) {
+            T3QuickActionsEditSheet()
+        }
     }
 
     // MARK: - Masthead
@@ -264,9 +268,36 @@ struct T3HomeDashboardView: View {
         return Array(all.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }.prefix(4))
     }
 
+    /// Section head with a trailing pencil button that opens the edit sheet.
+    /// Built inline instead of using `TSectionHead` so we can slot the
+    /// pencil in the spot normally reserved for the mono count.
+    private var quickActionsHeader: some View {
+        HStack {
+            Text("Quick Actions")
+                .font(T3.inter(15, weight: .medium))
+                .foregroundStyle(T3.ink)
+            Spacer()
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                isEditingQuickActions = true
+            } label: {
+                T3IconImage(systemName: "pencil")
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(T3.ink)
+                    .frame(minWidth: 44, minHeight: 32, alignment: .trailing)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit pinned scenes")
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.top, T3.sectionTopPad)
+        .padding(.bottom, T3.sectionBottomPad)
+    }
+
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TSectionHead(title: "Quick Actions", count: nil)
+            quickActionsHeader
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
