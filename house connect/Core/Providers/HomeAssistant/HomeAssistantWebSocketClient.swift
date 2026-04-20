@@ -213,7 +213,11 @@ final class HomeAssistantWebSocketClient: Sendable {
             await handleEvent(data)
 
         case "pong":
-            break // Heartbeat response, ignore
+            struct PongPeek: Decodable { let id: Int? }
+            if let pong = try? JSONDecoder().decode(PongPeek.self, from: data),
+               let id = pong.id {
+                await state.recordPong(id: id)
+            }
 
         default:
             break
@@ -352,9 +356,17 @@ final class HomeAssistantWebSocketClient: Sendable {
     }
 
     /// Ping the server to keep the connection alive.
+    /// Records the send timestamp so the pong handler can compute RTT.
     func ping() async throws {
         let msgID = await state.nextID()
+        await state.registerPing(id: msgID)
         try? await sendRaw(["id": msgID, "type": "ping"])
+    }
+
+    /// Median WebSocket ping RTT across the last 10 samples, in milliseconds.
+    /// Nil until at least one pong has been received.
+    var medianPingRTTms: Double? {
+        get async { await state.medianRTTMs() }
     }
 
     // MARK: - Registry accessors (for the provider to read after initial fetch)
@@ -451,6 +463,13 @@ private actor WebSocketState {
     /// without contending for a shared dispatch surface.
     private var statisticsContinuations: [Int: CheckedContinuation<Data, Error>] = [:]
 
+    /// Ping RTT tracking. Maps msgID → send timestamp so the pong handler
+    /// can compute elapsed milliseconds. We only keep the last 10 samples
+    /// to bound memory and keep the median stable against outliers.
+    private var pingSentAt: [Int: Date] = [:]
+    private var recentRTTsMs: [Double] = []
+    private let maxRTTSamples = 10
+
     func nextID() -> Int {
         messageID += 1
         return messageID
@@ -477,5 +496,29 @@ private actor WebSocketState {
 
     func consumeStatisticsContinuation(id: Int) -> CheckedContinuation<Data, Error>? {
         statisticsContinuations.removeValue(forKey: id)
+    }
+
+    // MARK: - Ping RTT
+
+    func registerPing(id: Int) {
+        pingSentAt[id] = Date()
+    }
+
+    func recordPong(id: Int) {
+        guard let sent = pingSentAt.removeValue(forKey: id) else { return }
+        let rttMs = Date().timeIntervalSince(sent) * 1000.0
+        recentRTTsMs.append(rttMs)
+        if recentRTTsMs.count > maxRTTSamples {
+            recentRTTsMs.removeFirst(recentRTTsMs.count - maxRTTSamples)
+        }
+    }
+
+    func medianRTTMs() -> Double? {
+        guard !recentRTTsMs.isEmpty else { return nil }
+        let sorted = recentRTTsMs.sorted()
+        let mid = sorted.count / 2
+        return sorted.count.isMultiple(of: 2)
+            ? (sorted[mid - 1] + sorted[mid]) / 2.0
+            : sorted[mid]
     }
 }

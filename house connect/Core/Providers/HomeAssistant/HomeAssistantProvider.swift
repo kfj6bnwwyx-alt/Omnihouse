@@ -59,6 +59,11 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// as a cheap liveness signal without any extra plumbing.
     private(set) var lastStateUpdateAt: Date?
 
+    /// Median WebSocket ping RTT (ms) across the last 10 samples.
+    /// Updated 500ms after each ping in the heartbeat loop.
+    /// Nil until at least one pong has been received.
+    private(set) var wsPingMedianRTTms: Double?
+
     /// HA scenes (scene.* entities) available for activation.
     private(set) var scenes: [HAScene] = []
 
@@ -806,6 +811,13 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
                 try? await Task.sleep(for: .seconds(30))
                 guard !Task.isCancelled else { break }
                 try? await wsClient?.ping()
+                // Brief wait for the pong to arrive via the receive loop,
+                // then snapshot the updated median RTT.
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { break }
+                if let rtt = await wsClient?.medianPingRTTms {
+                    wsPingMedianRTTms = rtt
+                }
             }
         }
     }
@@ -1076,6 +1088,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         var entityRegistryCount: Int
         var areaRegistryCount: Int
         var unclassifiedAccessories: [(name: String, entityID: String)]
+        var wsPingMedianRTTms: Double?
     }
 
     /// Build a diagnostics snapshot from cached state. Runs on the main
@@ -1101,7 +1114,8 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
             deviceRegistryCount: deviceRegistry.count,
             entityRegistryCount: entityRegistry.count,
             areaRegistryCount: areaRegistry.count,
-            unclassifiedAccessories: unclassified
+            unclassifiedAccessories: unclassified,
+            wsPingMedianRTTms: wsPingMedianRTTms
         )
     }
 }

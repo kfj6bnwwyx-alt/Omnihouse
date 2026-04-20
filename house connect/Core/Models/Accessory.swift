@@ -239,6 +239,11 @@ extension Accessory {
         return nil
     }
 
+    var batteryLevel: Int? {
+        if case .batteryLevel(let percent) = capability(of: .batteryLevel) { return percent }
+        return nil
+    }
+
     // MARK: - Source / input helpers (TV, media player)
 
     var currentSource: String? {

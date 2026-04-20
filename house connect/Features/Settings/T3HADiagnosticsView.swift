@@ -12,10 +12,6 @@
 //  counts right-aligned. No cards, no gradients, no nested surfaces.
 //
 
-// TODO: Route this view from T3SettingsTabView.
-// Add a row "Home Assistant Diagnostics" linking to NavigationLink(destination: T3HADiagnosticsView()).
-// Not done in this wave to avoid conflicts with parallel Settings edits.
-
 import Combine
 import SwiftUI
 import UIKit
@@ -195,11 +191,13 @@ struct T3HADiagnosticsView: View {
             diagRow(label: "Last state update", value: "—")
         }
 
-        // TODO: Track WebSocket ping round-trip times (median of last 10)
-        // in HomeAssistantWebSocketClient. Current ping() is fire-and-forget
-        // so we have no RTT sample. Not done here to avoid touching the
-        // WS client surface in this wave.
-        diagRow(label: "WebSocket latency", value: "—")
+        let rttStr: String = {
+            if let rtt = p.wsPingMedianRTTms {
+                return String(format: "%.0f ms", rtt)
+            }
+            return "—"
+        }()
+        diagRow(label: "WebSocket latency", value: rttStr)
 
         if let last = p.lastRefreshed {
             diagRow(label: "Last registry sync", value: relativeString(from: last, to: now))

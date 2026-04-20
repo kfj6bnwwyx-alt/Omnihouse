@@ -209,6 +209,15 @@ enum T3Icon {
         "cable.connector": "cable",
         "antenna.radiowaves.left.and.right": "antenna",
 
+        // Settings surface — Appearance, HA Diagnostics, Network rows
+        "paintbrush": "palette",
+        "paintbrush.fill": "palette",
+        "waveform.path.ecg": "zap",                // closest Lucide match for ECG/latency
+        "point.3.connected.trianglepath.dotted": "link-2", // network topology
+        "doc.on.doc": "layers",                    // copy / duplicate
+        "doc.on.doc.fill": "layers",
+        "square.on.square": "layers",              // duplicate scene
+
         // Known gaps — leave unmapped so Image(systemName:) fallback still
         // renders an SF Symbol until we export the Lucide equivalents:
         // TODO(icon-gap): needs SVG — "blinds.horizontal.closed" (no close Lucide match)

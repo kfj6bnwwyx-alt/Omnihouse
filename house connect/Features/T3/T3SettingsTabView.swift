@@ -79,7 +79,7 @@ struct T3SettingsTabView: View {
                 // Version footer
                 HStack {
                     Spacer()
-                    TLabel(text: "House Connect · 1.0.0 · Build 214")
+                    TLabel(text: versionFooter)
                     Spacer()
                 }
                 .padding(.vertical, 24)
@@ -88,6 +88,12 @@ struct T3SettingsTabView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+    }
+
+    private var versionFooter: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "–"
+        return "House Connect · \(v) · Build \(b)"
     }
 
     @ViewBuilder

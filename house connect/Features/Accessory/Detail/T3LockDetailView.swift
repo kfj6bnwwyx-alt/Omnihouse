@@ -76,8 +76,8 @@ struct T3LockDetailView: View {
                     // before the lock actually dies.
                     HStack(spacing: 18) {
                         batteryStatCell(percent: batteryPercent)
-                        statCell(label: "Signal", value: "Strong")
-                        statCell(label: "Firmware", value: "2.1.4")
+                        statCell(label: "Signal", value: "—")
+                        statCell(label: "Firmware", value: "—")
                     }
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.vertical, 18)
@@ -128,6 +128,15 @@ struct T3LockDetailView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .toast($toast, duration: 4)
+        .onAppear { syncLockState() }
+        .onChange(of: accessory?.isOn) { syncLockState() }
+    }
+
+    private func syncLockState() {
+        // isOn==false → locked, isOn==true → unlocked (HA convention)
+        // Guard against overwriting optimistic UI while the user is mid-hold.
+        guard !isHolding else { return }
+        isLocked = !(accessory?.isOn ?? true)
     }
 
     // MARK: - Lock Circle
@@ -303,23 +312,22 @@ struct T3LockDetailView: View {
         }
     }
 
-    // Hardcoded today; will be driven off real Accessory.battery when
-    // that field lands on the lock model.
-    private var batteryPercent: Int { 87 }
+    private var batteryPercent: Int? { accessory?.batteryLevel }
 
     // Battery stat cell with low-battery visual warning.
-    //   • <20%:  danger tint on the value + a small "Low" chip.
-    //   • 20–49%: T3.sub styling (de-emphasized) — user aware but not alarmed.
+    //   • nil:    "—" (no battery data from provider)
+    //   • <20%:  danger tint + "LOW" chip
+    //   • 20–49%: T3.sub styling (de-emphasized)
     //   • >=50%:  standard T3.ink styling.
     @ViewBuilder
-    private func batteryStatCell(percent: Int) -> some View {
-        let isLow = percent < 20
-        let isMedium = percent < 50 && !isLow
+    private func batteryStatCell(percent: Int?) -> some View {
+        let isLow = (percent ?? 100) < 20
+        let isMedium = (percent ?? 100) < 50 && !isLow
 
         VStack(alignment: .leading, spacing: 4) {
             TLabel(text: "Battery")
             HStack(spacing: 6) {
-                Text("\(percent)%")
+                Text(percent.map { "\($0)%" } ?? "—")
                     .font(T3.inter(16, weight: .medium))
                     .foregroundStyle(isLow ? T3.danger : (isMedium ? T3.sub : T3.ink))
                 if isLow {
@@ -337,9 +345,9 @@ struct T3LockDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isLow
-                            ? "Battery \(percent) percent, low"
-                            : "Battery \(percent) percent")
+        .accessibilityLabel(percent == nil ? "Battery unknown" : (isLow
+                            ? "Battery \(percent!) percent, low"
+                            : "Battery \(percent!) percent"))
     }
 
     private func statCell(label: String, value: String) -> some View {
