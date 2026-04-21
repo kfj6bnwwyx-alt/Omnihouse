@@ -57,11 +57,11 @@ struct SmartThingsTokenEntryView: View {
                 if let errorMessage {
                     HStack(alignment: .top, spacing: 10) {
                         Rectangle()
-                            .fill(Color(red: 0.77, green: 0.25, blue: 0.20))
+                            .fill(T3.danger)
                             .frame(width: 2)
                         VStack(alignment: .leading, spacing: 4) {
                             TLabel(text: "TOKEN REJECTED",
-                                   color: Color(red: 0.77, green: 0.25, blue: 0.20))
+                                   color: T3.danger)
                             Text(errorMessage)
                                 .font(T3.inter(13, weight: .regular))
                                 .foregroundStyle(T3.ink)

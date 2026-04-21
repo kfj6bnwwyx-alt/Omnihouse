@@ -112,9 +112,6 @@ struct T3AudioZonesMapView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showSelectRooms) {
-            // Reuse the legacy select-rooms sheet until a T3 port lands.
-            // Its surfaces sit inside a presented sheet so the T3 vs legacy
-            // styling mismatch is visually contained.
             MultiRoomSelectRoomsSheet(coordinatorID: editCoordinatorID)
                 .environment(registry)
         }

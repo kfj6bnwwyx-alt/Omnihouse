@@ -51,7 +51,7 @@ struct T3RootView: View {
                     case .rooms: T3RoomsTabView()
                     case .scenes: T3ScenesListView()
                     case .automations: T3AutomationsView()
-                    case .audioZones: AudioZonesMapView()
+                    case .audioZones: T3AudioZonesMapView()
                     case .networkTopology: T3DeviceNetworkTopologyView()
                     case .about: T3AboutView()
                     case .helpFAQ: T3HelpFAQView()
