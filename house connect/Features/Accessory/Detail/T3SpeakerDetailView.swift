@@ -279,26 +279,87 @@ struct T3SpeakerDetailView: View {
 
     // MARK: - Group Section
 
-    private var groupSection: some View {
-        VStack(spacing: 0) {
-            TSectionHead(title: "Group with", count: "4 rooms")
+    /// Other speaker accessories from the same provider — candidates
+    /// for multi-room grouping. Excludes self, sorted by name.
+    private var peerSpeakers: [Accessory] {
+        registry.allAccessories
+            .filter { $0.id.provider == accessoryID.provider
+                   && $0.id != accessoryID
+                   && $0.category == .speaker }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
 
-            let groupRooms = ["Kitchen", "Bedroom", "Den", "Family Room"]
-            ForEach(Array(groupRooms.enumerated()), id: \.offset) { i, room in
-                HStack {
-                    Text(room)
-                        .font(T3.inter(15, weight: .medium))
-                        .foregroundStyle(T3.ink)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer()
-                    TPill(isOn: .constant(i == 0))
-                }
-                .padding(.horizontal, T3.screenPadding)
-                .padding(.vertical, 14)
-                .overlay(alignment: .top) { TRule() }
-                .overlay(alignment: .bottom) {
-                    if i == groupRooms.count - 1 { TRule() }
+    /// True iff `peer` is currently in the same casual group as `accessory`.
+    /// Uses `speakerGroup.groupID` for exact membership; falls back to
+    /// checking `otherMemberNames` so the UI works even when HA hasn't
+    /// propagated a groupID yet.
+    private func isGrouped(with peer: Accessory) -> Bool {
+        guard let myGroup = accessory?.speakerGroup else { return false }
+        if let peerGroupID = peer.speakerGroup?.groupID {
+            return myGroup.groupID == peerGroupID
+        }
+        // Fallback: check by name
+        let peerRoomName = roomNameFor(peer)
+        return myGroup.otherMemberNames.contains(peerRoomName)
+    }
+
+    private func roomNameFor(_ acc: Accessory) -> String {
+        guard let roomID = acc.roomID else { return acc.name }
+        return registry.allRooms
+            .first { $0.id == roomID && $0.provider == acc.id.provider }?
+            .name ?? acc.name
+    }
+
+    @ViewBuilder
+    private var groupSection: some View {
+        let peers = peerSpeakers
+        if !peers.isEmpty {
+            VStack(spacing: 0) {
+                TSectionHead(
+                    title: "Group with",
+                    count: "\(peers.count) SPEAKER\(peers.count == 1 ? "" : "S")"
+                )
+
+                ForEach(Array(peers.enumerated()), id: \.element.id) { i, peer in
+                    let grouped = isGrouped(with: peer)
+
+                    Button {
+                        Task { @MainActor in
+                            if grouped {
+                                // Tell the peer to leave the group
+                                await T3ActionFeedback.perform(
+                                    action: { try await registry.execute(.leaveSpeakerGroup, on: peer.id) },
+                                    toast: { toast = .error("Couldn't ungroup \(peer.name)") },
+                                    errorDescription: "Speaker ungroup"
+                                )
+                            } else {
+                                // Tell the peer to join the current accessory's group
+                                await T3ActionFeedback.perform(
+                                    action: { try await registry.execute(.joinSpeakerGroup(target: accessoryID), on: peer.id) },
+                                    toast: { toast = .error("Couldn't group with \(peer.name)") },
+                                    errorDescription: "Speaker group join"
+                                )
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(peer.name)
+                                    .font(T3.inter(15, weight: .medium))
+                                    .foregroundStyle(T3.ink)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                TLabel(text: roomNameFor(peer).uppercased())
+                            }
+                            Spacer()
+                            TPill(isOn: .constant(grouped))
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .buttonStyle(.t3Row)
+                    .accessibilityLabel("\(peer.name), \(grouped ? "grouped" : "not grouped")")
+                    .accessibilityHint(grouped ? "Tap to ungroup" : "Tap to add to group")
+                    .accessibilityAddTraits(.isButton)
                 }
             }
         }
