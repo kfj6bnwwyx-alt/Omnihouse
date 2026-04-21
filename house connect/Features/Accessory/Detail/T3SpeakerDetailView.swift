@@ -109,28 +109,45 @@ struct T3SpeakerDetailView: View {
                 volume = Double(acc.volumePercent ?? 65) / 100.0
             }
         }
+        // Keep isPlaying in sync when HA pushes a live update (e.g. playback
+        // ends, another user pauses from a different surface). Volume is not
+        // auto-synced because the drag gesture owns it during interaction.
+        .onChange(of: accessory?.playbackState) { _, newState in
+            guard !dragInProgress else { return }
+            isPlaying = newState == .playing
+        }
     }
 
     // MARK: - Now Playing Card
 
     private var nowPlayingCard: some View {
         HStack(spacing: 16) {
-            // Album art placeholder — ink square with orange dot
+            // Album art — 64x64 ink square, shows cover art when available
             ZStack {
                 Rectangle()
                     .fill(T3.ink)
                     .frame(width: 64, height: 64)
-                TDot(size: 10)
+                if let url = accessory?.nowPlaying?.coverArtURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        TDot(size: 10)
+                    }
+                    .frame(width: 64, height: 64)
+                    .clipped()
+                } else {
+                    TDot(size: 10)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 TLabel(text: "Now Playing")
-                Text(accessory?.nowPlaying?.title ?? "Treats")
+                Text(accessory?.nowPlaying?.title ?? "Not Playing")
                     .font(T3.inter(16, weight: .medium))
                     .foregroundStyle(T3.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text(accessory?.nowPlaying?.artist ?? "Sleigh Bells")
+                Text(accessory?.nowPlaying?.artist ?? "—")
                     .font(T3.inter(12, weight: .regular))
                     .foregroundStyle(T3.sub)
                     .lineLimit(1)

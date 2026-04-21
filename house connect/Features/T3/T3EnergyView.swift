@@ -6,10 +6,9 @@
 //  by-category breakdown.
 //
 //  Data source: `EnergyService` (Core/Providers/EnergyService.swift).
-//  Currently the service returns placeholder data derived from the
-//  current date — real Home Assistant `recorder/statistics_during_period`
-//  wiring is pending. The view renders em-dashes while values are nil,
-//  matching the SmokeAlarm placeholder pattern.
+//  The service fetches real Home Assistant `recorder/statistics_during_period`
+//  data when a provider is connected; falls back to deterministic mock data
+//  on failure. The view renders em-dashes while values are nil.
 //
 
 import SwiftUI
