@@ -32,6 +32,19 @@ struct T3CameraDetailView: View {
     @State private var isRetrying = false
     @State private var lastRetryAt: Date?
 
+    // DateFormatters are expensive to allocate. Cache them as statics so
+    // they're created once rather than on every timer tick (every second).
+    private static let clockFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "HH:mm"
+        return df
+    }()
+    private static let stampFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "d MMM · HH:mm:ss"
+        return df
+    }()
+
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     // MARK: - State detection
@@ -90,15 +103,11 @@ struct T3CameraDetailView: View {
     }
 
     private var clockString: String {
-        let df = DateFormatter()
-        df.dateFormat = "HH:mm"
-        return df.string(from: now)
+        Self.clockFormatter.string(from: now)
     }
 
     private var stampString: String {
-        let df = DateFormatter()
-        df.dateFormat = "d MMM · HH:mm:ss"
-        return df.string(from: now).uppercased()
+        Self.stampFormatter.string(from: now).uppercased()
     }
 
     var body: some View {

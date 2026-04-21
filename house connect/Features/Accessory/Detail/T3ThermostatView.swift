@@ -247,7 +247,7 @@ struct T3ThermostatView: View {
             HStack {
                 TLabel(text: "\(range.0)°")
                 Spacer()
-                TLabel(text: "75°")
+                TLabel(text: "\((range.0 + range.1) / 2)°")
                 Spacer()
                 TLabel(text: "\(range.1)°")
             }

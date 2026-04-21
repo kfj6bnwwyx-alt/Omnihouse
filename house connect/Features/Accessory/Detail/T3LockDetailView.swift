@@ -88,8 +88,14 @@ struct T3LockDetailView: View {
                     // before the lock actually dies.
                     HStack(spacing: 18) {
                         batteryStatCell(percent: batteryPercent)
-                        statCell(label: "Signal", value: "—")
-                        statCell(label: "Firmware", value: "—")
+                        statCell(
+                            label: "Events",
+                            value: isLoadingLog ? "…" : "\(accessLog.count)"
+                        )
+                        statCell(
+                            label: "Provider",
+                            value: accessoryID.provider.displayLabel
+                        )
                     }
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.vertical, 18)
