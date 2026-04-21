@@ -3,24 +3,9 @@
 //  house connect
 //
 //  Pencil `g00bw` / `woiK9` / `375nI` — Select Rooms sheet for
-//  multi-room audio. Shown when the user taps "+" on Audio Zones or
-//  "Edit Zone" on a linked group. Presents all speakers with toggles;
-//  the user picks which rooms join the group and taps the CTA to start
-//  playback.
-//
-//  Three visual states:
-//    - Normal (`g00bw`): room list with toggles, now-playing mini bar
-//    - Speaker unavailable (`woiK9`): one room shows an offline card
-//      with "Troubleshoot" link and a disabled toggle
-//    - No speakers (`375nI`): empty state with scan button and
-//      troubleshooting tips
-//
-//  Data source:
-//  ------------
-//  Speakers come from `registry.allAccessories` filtered to `.speaker`.
-//  The coordinator (if editing an existing group) is passed in; its
-//  now-playing metadata fills the mini bar. Toggle state is local —
-//  the CTA commits the selection.
+//  multi-room audio. Shows all speakers with toggles; the user picks
+//  which rooms join the group and taps the CTA to start playback.
+//  Converted to T3/Swiss design system.
 //
 
 import SwiftUI
@@ -29,8 +14,7 @@ struct MultiRoomSelectRoomsSheet: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(\.dismiss) private var dismiss
 
-    /// The group coordinator, if editing an existing group. Nil when
-    /// creating a new group from the Audio Zones "+" button.
+    /// The group coordinator when editing an existing group; nil when creating new.
     var coordinatorID: AccessoryID?
 
     @State private var selectedIDs: Set<AccessoryID> = []
@@ -39,35 +23,57 @@ struct MultiRoomSelectRoomsSheet: View {
 
     var body: some View {
         ZStack {
-            Theme.color.pageBackground.ignoresSafeArea()
+            T3.page.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                // Sheet header
+                sheetHeader
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.top, 20)
+                    .padding(.bottom, 4)
 
-                if let coordinator = coordinator {
+                TRule()
+
+                // Now-playing mini bar (when editing an existing group)
+                if let coordinator {
                     nowPlayingMiniBar(coordinator)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
                 }
 
                 if speakers.isEmpty {
-                    noSpeakersState
+                    // Reuse the shared empty state component
+                    NoSpeakersEmptyState(
+                        onScanAgain: {
+                            Task {
+                                if let sonos = registry.provider(for: .sonos) {
+                                    await sonos.refresh()
+                                }
+                            }
+                        }
+                    )
                 } else {
-                    roomList
-                        .padding(.top, 8)
+                    // Room list
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(speakers.enumerated()), id: \.element.id) { i, speaker in
+                                if !speaker.isReachable {
+                                    unavailableRow(speaker, isLast: i == speakers.count - 1)
+                                } else {
+                                    roomRow(speaker, isLast: i == speakers.count - 1)
+                                }
+                            }
+                        }
+                    }
 
                     Spacer()
 
+                    TRule()
                     ctaButton
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 24)
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.vertical, 20)
                 }
             }
         }
         .onAppear {
-            // Pre-select speakers that are already in the group.
             if let cid = coordinatorID,
                let acc = registry.allAccessories.first(where: { $0.id == cid }),
                let group = acc.speakerGroup {
@@ -92,128 +98,100 @@ struct MultiRoomSelectRoomsSheet: View {
         return registry.allAccessories.first { $0.id == cid }
     }
 
-    private var selectedCount: Int {
-        selectedIDs.count
-    }
+    private var selectedCount: Int { selectedIDs.count }
 
-    // MARK: - Header
+    // MARK: - Sheet header
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Select Rooms")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Theme.color.title)
-                Text("Choose where to play music")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.color.muted)
+    private var sheetHeader: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                TLabel(text: "Multi-room audio")
+                Text("Select rooms")
+                    .font(T3.inter(24, weight: .medium))
+                    .tracking(-0.6)
+                    .foregroundStyle(T3.ink)
             }
             Spacer()
             Button { dismiss() } label: {
-                ZStack {
-                    Circle()
-                        .fill(Theme.color.iconChipFill)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.color.subtitle)
-                }
+                T3IconImage(systemName: "xmark")
+                    .frame(width: 12, height: 12)
+                    .foregroundStyle(T3.sub)
+                    .frame(width: 32, height: 32)
+                    .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Close")
         }
     }
 
-    // MARK: - Mini now-playing bar
+    // MARK: - Now-playing mini bar
 
     private func nowPlayingMiniBar(_ coord: Accessory) -> some View {
         let np = coord.nowPlaying
-        return HStack(spacing: 12) {
-            // Album art placeholder
+        return HStack(spacing: 14) {
+            // Album art placeholder — T3 ink square
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(red: 0.12, green: 0.13, blue: 0.17))
-                    .frame(width: 48, height: 48)
-                Image(systemName: "music.note")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Theme.color.muted)
+                Rectangle()
+                    .fill(T3.ink)
+                    .frame(width: 44, height: 44)
+                T3IconImage(systemName: "music.note")
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(T3.sub)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(np?.title ?? "Not Playing")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(T3.inter(14, weight: .medium))
+                    .foregroundStyle(T3.ink)
                     .lineLimit(1)
-                Text(np?.artist ?? coord.name)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(1)
+                TLabel(text: (np?.artist ?? coord.name).uppercased())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Image(systemName: "pause.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(.white)
+            Spacer()
+
+            T3IconImage(systemName: coord.playbackState == .playing ? "pause.fill" : "play.fill")
+                .frame(width: 16, height: 16)
+                .foregroundStyle(T3.ink)
+                .accessibilityHidden(true)
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(red: 0.12, green: 0.13, blue: 0.17))
-        )
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 14)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Now playing: \(np?.title ?? "Not Playing") by \(np?.artist ?? coord.name)")
     }
 
-    // MARK: - Room list
+    // MARK: - Room row
 
-    private var roomList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(speakers) { speaker in
-                    if !speaker.isReachable {
-                        unavailableRow(speaker)
-                    } else {
-                        roomRow(speaker)
-                    }
-
-                    if speaker.id != speakers.last?.id {
-                        Divider()
-                            .padding(.horizontal, 20)
-                    }
-                }
-            }
-        }
-    }
-
-    private func roomRow(_ speaker: Accessory) -> some View {
+    private func roomRow(_ speaker: Accessory, isLast: Bool = false) -> some View {
         let isSelected = selectedIDs.contains(speaker.id)
-        return HStack(spacing: 12) {
-            Image(systemName: "hifispeaker.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(isSelected ? Theme.color.primary : Theme.color.muted)
-                .frame(width: 22)
+        return HStack(spacing: 14) {
+            T3IconImage(systemName: "hifispeaker.fill")
+                .frame(width: 16, height: 16)
+                .foregroundStyle(isSelected ? T3.accent : T3.sub)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(speaker.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.color.title)
-                Text(speakerModelLabel(speaker))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.color.muted)
+                    .font(T3.inter(14, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                TLabel(text: speakerModelLabel(speaker).uppercased())
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Toggle("", isOn: Binding(
+            TPill(isOn: Binding(
                 get: { isSelected },
                 set: { on in
                     if on { selectedIDs.insert(speaker.id) }
                     else { selectedIDs.remove(speaker.id) }
                 }
             ))
-            .labelsHidden()
-            .tint(Theme.color.primary)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 14)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(speaker.name), \(speakerModelLabel(speaker))")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
@@ -221,157 +199,53 @@ struct MultiRoomSelectRoomsSheet: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    /// Unavailable speaker row — matches Pencil `woiK9`. Red-tinted
-    /// background, "Speaker offline" subtitle, Troubleshoot link,
-    /// disabled toggle.
-    private func unavailableRow(_ speaker: Accessory) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Theme.color.danger.opacity(0.1))
-                        .frame(width: 42, height: 42)
-                    Image(systemName: "hifispeaker.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Theme.color.danger)
-                }
+    // MARK: - Unavailable row (Pencil woiK9)
 
-                VStack(alignment: .leading, spacing: 3) {
+    private func unavailableRow(_ speaker: Accessory, isLast: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Rectangle()
+                .fill(T3.danger)
+                .frame(width: 2)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    T3IconImage(systemName: "hifispeaker.fill")
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(T3.danger)
+                        .accessibilityHidden(true)
                     Text(speaker.name)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.color.title)
-                    Text("Speaker offline — last seen recently")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.color.danger)
+                        .font(T3.inter(14, weight: .medium))
+                        .foregroundStyle(T3.ink)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Toggle("", isOn: .constant(false))
-                    .labelsHidden()
-                    .disabled(true)
-            }
-
-            HStack {
-                Spacer()
+                Text("Speaker offline — last seen recently")
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.danger)
                 Text("Troubleshoot")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.color.primary)
+                    .font(T3.inter(12, weight: .medium))
+                    .foregroundStyle(T3.accent)
+                    .padding(.top, 2)
             }
-            .padding(.top, 8)
+            Spacer()
+            TPill(isOn: .constant(false))
+                .disabled(true)
+                .opacity(0.4)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 14)
-        .background(Theme.color.danger.opacity(0.04))
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(speaker.name), speaker offline, last seen recently")
         .accessibilityHint("This speaker is unavailable and cannot be added to the group")
     }
 
-    // MARK: - No speakers empty state
-
-    /// Full empty state — matches Pencil `375nI`. Large speaker icon,
-    /// "No Speakers Found", description, scan button, troubleshooting
-    /// card, and manual setup link.
-    private var noSpeakersState: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Spacer(minLength: 24)
-
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(Theme.color.iconChipFill)
-                        .frame(width: 96, height: 96)
-                    Image(systemName: "hifispeaker.fill")
-                        .font(.system(size: 36, weight: .semibold))
-                        .foregroundStyle(Theme.color.muted)
-                }
-                .accessibilityHidden(true)
-
-                // Title + description
-                Text("No Speakers Found")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Theme.color.title)
-
-                Text("We couldn't find any compatible speakers on your network. Make sure your speakers are powered on and connected to WiFi.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.color.subtitle)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                    .padding(.horizontal, 12)
-
-                // Scan button
-                Button {
-                    Task {
-                        if let sonos = registry.provider(for: .sonos) {
-                            await sonos.refresh()
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Scan Again")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(width: 200, height: 48)
-                    .background(Capsule().fill(Theme.color.primary))
-                }
-                .accessibilityLabel("Scan again for speakers")
-                .accessibilityHint("Searches the network for compatible speakers")
-
-                // Troubleshooting card
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Troubleshooting")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.color.title)
-
-                    troubleshootTip("Check speaker power and WiFi")
-                    troubleshootTip("Ensure app and speakers are on same network")
-                    troubleshootTip("Restart your router if issues persist")
-                }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Theme.color.cardFill)
-                )
-                .padding(.horizontal, 12)
-
-                // Manual link
-                Text("Set up a speaker manually")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.color.primary)
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityHint("Opens manual speaker setup")
-
-                Spacer(minLength: 24)
-            }
-            .padding(.horizontal, 20)
-        }
-    }
-
-    private func troubleshootTip(_ text: String) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(Theme.color.primary.opacity(0.12))
-                .frame(width: 24, height: 24)
-                .accessibilityHidden(true)
-            Text(text)
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.color.subtitle)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - CTA
+    // MARK: - CTA button
 
     private var ctaButton: some View {
         VStack(spacing: 8) {
             if let error = commitError {
                 Text(error)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.red)
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.danger)
                     .multilineTextAlignment(.center)
             }
             Button {
@@ -380,42 +254,43 @@ struct MultiRoomSelectRoomsSheet: View {
                 HStack(spacing: 8) {
                     if isCommitting {
                         ProgressView()
-                            .tint(.white)
+                            .tint(T3.page)
+                            .scaleEffect(0.8)
+                            .accessibilityHidden(true)
                     } else {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 15, weight: .semibold))
+                        T3IconImage(systemName: "play.fill")
+                            .frame(width: 14, height: 14)
+                            .accessibilityHidden(true)
                     }
-                    Text(isCommitting ? "Grouping…" : "Play on \(selectedCount) Room\(selectedCount == 1 ? "" : "s")")
-                        .font(.system(size: 16, weight: .semibold))
+                    Text(isCommitting
+                         ? "GROUPING…"
+                         : "PLAY ON \(selectedCount) ROOM\(selectedCount == 1 ? "" : "S")")
+                        .font(T3.mono(11))
+                        .tracking(2)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(T3.page)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Theme.color.primary)
-                )
+                .background(selectedCount > 0 && !isCommitting ? T3.ink : T3.sub)
             }
+            .buttonStyle(.plain)
             .disabled(selectedCount == 0 || isCommitting)
-            .opacity(selectedCount > 0 && !isCommitting ? 1 : 0.5)
-            .accessibilityLabel(isCommitting ? "Grouping speakers" : "Play on \(selectedCount) room\(selectedCount == 1 ? "" : "s")")
-            .accessibilityHint(selectedCount > 0 ? "Groups the selected rooms and starts playback" : "Select at least one room to start playback")
+            .accessibilityLabel(isCommitting
+                ? "Grouping speakers"
+                : "Play on \(selectedCount) room\(selectedCount == 1 ? "" : "s")")
+            .accessibilityHint(selectedCount > 0
+                ? "Groups the selected rooms and starts playback"
+                : "Select at least one room to start playback")
         }
     }
 
     // MARK: - Group commit
 
-    /// Dispatches join/leave commands to form the desired group.
-    /// Joins are processed first (so the coordinator exists before
-    /// followers try to attach), then leaves. Serialized to avoid
-    /// topology race conditions on the Sonos side.
     private func commitSelection() async {
         isCommitting = true
         commitError = nil
         defer { isCommitting = false }
 
-        // Determine the coordinator — existing group's coordinator,
-        // or the first selected speaker if creating a new group.
         let coordID: AccessoryID
         if let existing = coordinatorID {
             coordID = existing
@@ -425,10 +300,8 @@ struct MultiRoomSelectRoomsSheet: View {
             return
         }
 
-        // Determine which speakers need to join vs leave.
         let currentGroupID = registry.allAccessories
             .first(where: { $0.id == coordID })?.speakerGroup?.groupID
-
         let currentMembers: Set<AccessoryID> = Set(
             speakers.filter { speaker in
                 guard let group = speaker.speakerGroup else { return false }
@@ -436,10 +309,9 @@ struct MultiRoomSelectRoomsSheet: View {
             }.map(\.id)
         )
 
-        let toJoin = selectedIDs.subtracting(currentMembers).subtracting([coordID])
+        let toJoin  = selectedIDs.subtracting(currentMembers).subtracting([coordID])
         let toLeave = currentMembers.subtracting(selectedIDs).subtracting([coordID])
 
-        // Process joins first (serialize to avoid topology races)
         for speakerID in toJoin {
             do {
                 try await registry.execute(.joinSpeakerGroup(target: coordID), on: speakerID)
@@ -447,8 +319,6 @@ struct MultiRoomSelectRoomsSheet: View {
                 commitError = "Failed to add \(speakerName(speakerID)): \(error.localizedDescription)"
             }
         }
-
-        // Then leaves
         for speakerID in toLeave {
             do {
                 try await registry.execute(.leaveSpeakerGroup, on: speakerID)
@@ -457,23 +327,14 @@ struct MultiRoomSelectRoomsSheet: View {
             }
         }
 
-        if commitError == nil {
-            dismiss()
-        }
+        if commitError == nil { dismiss() }
     }
 
     private func speakerName(_ id: AccessoryID) -> String {
         speakers.first(where: { $0.id == id })?.name ?? "speaker"
     }
 
-    // MARK: - Helpers
-
-    /// Best-effort model label. If the speaker comes from Sonos, we
-    /// know the model via the discovery record; otherwise fall back
-    /// to the provider display name.
     private func speakerModelLabel(_ speaker: Accessory) -> String {
-        // The speaker's room name gives a decent secondary label when
-        // we don't have a hardware model string.
         if let room = registry.allRooms.first(where: { $0.id == speaker.id.nativeID }) {
             return room.name
         }
