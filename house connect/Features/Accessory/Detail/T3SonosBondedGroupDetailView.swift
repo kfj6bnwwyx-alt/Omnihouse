@@ -57,7 +57,7 @@ struct T3SonosBondedGroupDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         THeader(
-                            backLabel: "Room",
+                            backLabel: roomName ?? "Room",
                             rightLabel: "SONOS",
                             onBack: { dismiss() }
                         )

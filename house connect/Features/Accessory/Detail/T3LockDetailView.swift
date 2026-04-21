@@ -35,6 +35,13 @@ struct T3LockDetailView: View {
         registry.allAccessories.first { $0.id == accessoryID }
     }
 
+    private var roomName: String {
+        guard let accessory, let roomID = accessory.roomID else { return "Room" }
+        return registry.allRooms
+            .first { $0.id == roomID && $0.provider == accessory.id.provider }?
+            .name ?? "Room"
+    }
+
     var body: some View {
         ZStack {
             T3.page.ignoresSafeArea()
@@ -42,7 +49,7 @@ struct T3LockDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     THeader(
-                        backLabel: "Room",
+                        backLabel: roomName,
                         rightLabel: accessory?.id.provider.displayLabel.uppercased(),
                         onBack: { dismiss() }
                     )

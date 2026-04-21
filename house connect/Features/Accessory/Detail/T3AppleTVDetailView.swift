@@ -70,7 +70,7 @@ struct T3AppleTVDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     THeader(
-                        backLabel: roomName != nil ? "Room" : "Devices",
+                        backLabel: roomName ?? "Devices",
                         rightLabel: statusLabel,
                         showDot: isOn,
                         onBack: { dismiss() }

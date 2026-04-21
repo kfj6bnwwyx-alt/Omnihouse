@@ -93,7 +93,7 @@ struct T3FrameTVDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     THeader(
-                        backLabel: roomName != nil ? "Room" : "Devices",
+                        backLabel: roomName ?? "Devices",
                         rightLabel: isArtMode ? "ART MODE" : (isOn ? "ON" : "OFF"),
                         showDot: isOn,
                         onBack: { dismiss() }
