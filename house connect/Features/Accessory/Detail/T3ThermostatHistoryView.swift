@@ -24,6 +24,9 @@ struct T3ThermostatHistoryView: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(\.dismiss) private var dismiss
 
+    @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
+    private var useFahrenheit: Bool { tempUnit == "fahrenheit" }
+
     /// Rolling window options. `hours` is what the fetch takes;
     /// `label` drives the segmented control caption.
     private enum Window: String, CaseIterable, Identifiable {
@@ -357,14 +360,17 @@ struct T3ThermostatHistoryView: View {
         return results.reversed()
     }
 
-    /// HA stores climate temperatures in Celsius by default on metric
-    /// installs (the app already assumes this elsewhere — see
-    /// T3ThermostatView's currentTemp conversion). Convert to °F for
-    /// display consistency.
-    private func formatTempF(_ celsius: Double) -> String {
-        let f = celsius * 9.0 / 5.0 + 32.0
-        return String(Int(f.rounded()))
+    /// Format a temperature in Celsius to the user's preferred unit.
+    private func formatTemp(_ celsius: Double) -> String {
+        if useFahrenheit {
+            return String(Int((celsius * 9.0 / 5.0 + 32.0).rounded()))
+        } else {
+            return String(Int(celsius.rounded()))
+        }
     }
+
+    // Backward-compat alias so call sites don't need touching.
+    private func formatTempF(_ celsius: Double) -> String { formatTemp(celsius) }
 
     private func iconForState(_ state: String) -> String {
         switch state.lowercased() {
