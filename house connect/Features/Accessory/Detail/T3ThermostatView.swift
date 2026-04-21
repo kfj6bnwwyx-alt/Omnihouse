@@ -28,6 +28,22 @@ struct T3ThermostatView: View {
         registry.allAccessories.first { $0.id == accessoryID }
     }
 
+    private var roomName: String {
+        guard let accessory, let roomID = accessory.roomID else { return "Room" }
+        return registry.allRooms
+            .first { $0.id == roomID && $0.provider == accessory.id.provider }?
+            .name ?? "Room"
+    }
+
+    private var modeHeaderLabel: String {
+        switch selectedMode {
+        case .heat: return "HEATING"
+        case .cool: return "COOLING"
+        case .auto: return "AUTO"
+        case .off:  return "OFF"
+        }
+    }
+
     private var currentTemp: Int {
         guard let c = accessory?.currentTemperature else { return 68 }
         return Int((c * 9.0 / 5.0 + 32.0).rounded())
@@ -50,9 +66,9 @@ struct T3ThermostatView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header
                     THeader(
-                        backLabel: "Living Room",
-                        rightLabel: "Heating",
-                        showDot: true,
+                        backLabel: roomName,
+                        rightLabel: modeHeaderLabel,
+                        showDot: accessory?.isReachable ?? false,
                         onBack: { dismiss() }
                     )
 
@@ -191,6 +207,13 @@ struct T3ThermostatView: View {
                 selectedMode = mode
             }
         }
+        // Re-sync mode if a live HA push changes the accessory while the
+        // view is open. Guard against overwriting an in-flight user tap —
+        // `targetDraft` being non-nil means the user is actively adjusting.
+        .onChange(of: accessory?.hvacMode) { _, newMode in
+            guard let newMode, targetDraft == nil else { return }
+            selectedMode = newMode
+        }
     }
 
     // MARK: - Tick Scale
@@ -294,10 +317,16 @@ struct T3ThermostatView: View {
     // MARK: - Conditions Grid
 
     private var conditionsGrid: some View {
-        HStack(spacing: 18) {
-            conditionCell(label: "Int Hum", value: "42%")
-            conditionCell(label: "Out Temp", value: "51°")
-            conditionCell(label: "Out Hum", value: "73%")
+        // Indoor humidity comes from the accessory's humidity capability
+        // (populated by HA if the thermostat entity exposes it — e.g.
+        // some Ecobee / Honeywell devices). Outdoor values require a
+        // separate weather integration not yet in scope; show "—" so we
+        // don't display stale hardcoded numbers.
+        let indoorHum: String = accessory?.humidityPercent.map { "\($0)%" } ?? "—"
+        return HStack(spacing: 18) {
+            conditionCell(label: "Int Hum", value: indoorHum)
+            conditionCell(label: "Out Temp", value: "—")
+            conditionCell(label: "Out Hum", value: "—")
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 18)

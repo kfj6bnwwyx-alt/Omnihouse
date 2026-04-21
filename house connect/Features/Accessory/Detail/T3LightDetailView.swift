@@ -30,13 +30,41 @@ struct T3LightDetailView: View {
         registry.allAccessories.first { $0.id == accessoryID }
     }
 
+    private var roomName: String {
+        guard let accessory, let roomID = accessory.roomID else { return "Devices" }
+        return registry.allRooms
+            .first { $0.id == roomID && $0.provider == accessory.id.provider }?
+            .name ?? "Room"
+    }
+
+    /// Whether this light supports color temperature adjustment.
+    private var supportsColorTemp: Bool {
+        accessory?.capability(of: .colorTemperature) != nil
+    }
+
+    /// Named color temperature presets with their Kelvin values and
+    /// the closest mired equivalent (used for `.setColorTemperature`).
+    private static let colorTempPresets: [(name: String, kelvin: String, mireds: Int)] = [
+        ("Warm",    "2700K", 370),
+        ("Neutral", "3500K", 286),
+        ("Cool",    "5000K", 200),
+        ("Day",     "6500K", 154),
+    ]
+
+    /// Find the named preset closest to a given mired value.
+    private static func nearestPreset(mireds: Int) -> String {
+        colorTempPresets
+            .min(by: { abs($0.mireds - mireds) < abs($1.mireds - mireds) })?
+            .name ?? "Warm"
+    }
+
     var body: some View {
         ZStack {
             T3.page.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    THeader(backLabel: accessory?.roomID != nil ? "Room" : "Devices", onBack: { dismiss() })
+                    THeader(backLabel: roomName, onBack: { dismiss() })
 
                     // Eyebrow + big number + toggle
                     VStack(alignment: .leading, spacing: 0) {
@@ -142,63 +170,61 @@ struct T3LightDetailView: View {
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.bottom, 20)
 
-                    TRule()
+                    // Color Temperature — only shown when the accessory
+                    // actually supports it. Tapping a preset sends the
+                    // corresponding mired value to the provider.
+                    if supportsColorTemp {
+                        TRule()
 
-                    // Color Temperature
-                    TSectionHead(title: "Temperature")
+                        TSectionHead(title: "Temperature")
 
-                    HStack(spacing: 6) {
-                        ForEach([
-                            ("Warm", "2700K"),
-                            ("Neutral", "3500K"),
-                            ("Cool", "5000K"),
-                            ("Day", "6500K"),
-                        ], id: \.0) { name, kelvin in
-                            Button {
-                                colorTemp = name
-                            } label: {
-                                VStack(spacing: 2) {
-                                    Text(name)
-                                        .font(T3.inter(12, weight: .medium))
-                                    Text(kelvin)
-                                        .font(T3.mono(9))
-                                        .tracking(0.5)
+                        HStack(spacing: 6) {
+                            ForEach(T3LightDetailView.colorTempPresets, id: \.name) { preset in
+                                Button {
+                                    let previousColorTemp = colorTemp
+                                    colorTemp = preset.name
+                                    let mireds = preset.mireds
+                                    Task { @MainActor in
+                                        await T3ActionFeedback.perform(
+                                            action: { try await registry.execute(.setColorTemperature(mireds), on: accessoryID) },
+                                            onFailure: { colorTemp = previousColorTemp },
+                                            toast: { toast = .error("Couldn't set color temperature") },
+                                            errorDescription: "Light color temperature"
+                                        )
+                                    }
+                                } label: {
+                                    VStack(spacing: 2) {
+                                        Text(preset.name)
+                                            .font(T3.inter(12, weight: .medium))
+                                        Text(preset.kelvin)
+                                            .font(T3.mono(9))
+                                            .tracking(0.5)
+                                    }
+                                    .foregroundStyle(colorTemp == preset.name ? T3.page : T3.ink)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: T3.segmentCellRadius)
+                                            .fill(colorTemp == preset.name ? T3.ink : .clear)
+                                    )
                                 }
-                                .foregroundStyle(colorTemp == name ? T3.page : T3.ink)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: T3.segmentCellRadius)
-                                        .fill(colorTemp == name ? T3.ink : .clear)
-                                )
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(preset.name) color temperature, \(preset.kelvin)")
+                                .accessibilityAddTraits(colorTemp == preset.name ? [.isButton, .isSelected] : .isButton)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("\(name) color temperature, \(kelvin)")
-                            .accessibilityAddTraits(colorTemp == name ? [.isButton, .isSelected] : .isButton)
                         }
+                        .padding(3)
+                        .background(
+                            RoundedRectangle(cornerRadius: T3.segmentRadius)
+                                .fill(T3.panel)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: T3.segmentRadius)
+                                        .stroke(T3.rule, lineWidth: 1)
+                                )
+                        )
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.bottom, 20)
                     }
-                    .padding(3)
-                    .background(
-                        RoundedRectangle(cornerRadius: T3.segmentRadius)
-                            .fill(T3.panel)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: T3.segmentRadius)
-                                    .stroke(T3.rule, lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, T3.screenPadding)
-                    .padding(.bottom, 20)
-
-                    TRule()
-
-                    // Stats strip
-                    HStack(spacing: 18) {
-                        statCell(label: "Power", value: "9W")
-                        statCell(label: "Uptime", value: "4h 12m")
-                        statCell(label: "Since", value: "Morning")
-                    }
-                    .padding(.horizontal, T3.screenPadding)
-                    .padding(.vertical, 18)
 
                     Spacer(minLength: 120)
                 }
@@ -207,10 +233,33 @@ struct T3LightDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toast($toast, duration: 4)
         .onAppear {
-            if let acc = accessory {
-                isOn = acc.isOn ?? false
-                brightness = acc.brightness ?? 0.82
+            syncFromAccessory()
+        }
+        // Keep state in sync when HA pushes a live update while the view
+        // is open (e.g., another person controls the light from the app
+        // or a scene fires). Guard against overwriting in-progress drags
+        // via `lastHapticBucket != -1`.
+        .onChange(of: accessory?.isOn) { _, newOn in
+            guard let newOn else { return }
+            isOn = newOn
+        }
+        .onChange(of: accessory?.brightness) { _, newBrightness in
+            guard let newBrightness, lastHapticBucket == -1 else { return }
+            brightness = newBrightness
+        }
+        .onChange(of: accessory?.capability(of: .colorTemperature)) { _, newCap in
+            if case .colorTemperature(let m) = newCap {
+                colorTemp = T3LightDetailView.nearestPreset(mireds: m)
             }
+        }
+    }
+
+    private func syncFromAccessory() {
+        guard let acc = accessory else { return }
+        isOn = acc.isOn ?? false
+        brightness = acc.brightness ?? 0.82
+        if case .colorTemperature(let m) = acc.capability(of: .colorTemperature) {
+            colorTemp = T3LightDetailView.nearestPreset(mireds: m)
         }
     }
 
@@ -310,15 +359,4 @@ struct T3LightDetailView: View {
         }
     }
 
-    private func statCell(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            TLabel(text: label)
-            Text(value)
-                .font(T3.inter(16, weight: .medium))
-                .foregroundStyle(T3.ink)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label), \(value)")
-    }
 }
