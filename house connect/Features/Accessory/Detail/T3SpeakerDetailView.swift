@@ -94,6 +94,9 @@ struct T3SpeakerDetailView: View {
                     // Group with
                     groupSection
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

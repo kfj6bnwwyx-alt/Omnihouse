@@ -226,6 +226,9 @@ struct T3LightDetailView: View {
                         .padding(.bottom, 20)
                     }
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

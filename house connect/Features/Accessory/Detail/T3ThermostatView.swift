@@ -196,6 +196,9 @@ struct T3ThermostatView: View {
 
                     TRule()
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

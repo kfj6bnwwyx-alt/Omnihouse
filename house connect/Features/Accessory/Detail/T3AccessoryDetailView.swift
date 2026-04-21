@@ -84,6 +84,9 @@ struct T3AccessoryDetailView: View {
                         .accessibilityLabel("Command error: \(lastErrorMessage)")
                 }
 
+                TSectionHead(title: "Device")
+                RemoveDeviceSection(accessoryID: accessoryID)
+
                 Spacer(minLength: 120)
             }
         }

@@ -141,6 +141,9 @@ struct T3AppleTVDetailView: View {
                     .buttonStyle(.t3Row)
                     .disabled(!controlsEnabled)
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

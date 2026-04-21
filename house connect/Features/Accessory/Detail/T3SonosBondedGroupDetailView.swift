@@ -112,6 +112,9 @@ struct T3SonosBondedGroupDetailView: View {
 
                         TRule()
 
+                        TSectionHead(title: "Device")
+                        RemoveDeviceSection(accessoryID: accessoryID)
+
                         Spacer(minLength: 120)
                     }
                 }

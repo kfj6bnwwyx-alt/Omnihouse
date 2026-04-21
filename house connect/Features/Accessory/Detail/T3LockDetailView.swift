@@ -152,6 +152,9 @@ struct T3LockDetailView: View {
                         }
                     }
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

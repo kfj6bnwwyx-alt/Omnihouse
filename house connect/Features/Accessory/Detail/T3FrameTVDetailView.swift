@@ -199,6 +199,9 @@ struct T3FrameTVDetailView: View {
                     }
                     .buttonStyle(.plain)
 
+                    TSectionHead(title: "Device")
+                    RemoveDeviceSection(accessoryID: accessoryID)
+
                     Spacer(minLength: 120)
                 }
             }

@@ -113,6 +113,9 @@ struct T3CameraDetailView: View {
                     controlsSection
                     recentClipsSection
                 }
+                TSectionHead(title: "Device")
+                RemoveDeviceSection(accessoryID: accessoryID)
+
                 Spacer(minLength: 120)
             }
         }
