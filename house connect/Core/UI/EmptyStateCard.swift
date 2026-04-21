@@ -4,29 +4,18 @@
 //
 //  Shared presentational views for the "nothing here yet" state.
 //  Matches Pencil nodes `ApNW6` (No Rooms Yet) and `375nI`
-//  (No Speakers Found).
-//
-//  Both screens share the same skeleton: a big circular icon chip,
-//  a bold title, a soft subtitle, a primary action button, and
-//  some variant content below (feature bullets for rooms,
-//  troubleshooting card + secondary link for speakers). Rather
-//  than force the two into a single over-generalized component,
-//  we factor out just the top half (`EmptyStateHero`) and let
-//  each concrete view compose its own bottom half — the two
-//  designs aren't similar enough below the CTA to justify a
-//  template with more toggles.
+//  (No Speakers Found). Converted to T3/Swiss design system:
+//  flat CTA button, T3 tokens, TRule-based troubleshooting rows,
+//  no rounded cards.
 //
 
 import SwiftUI
 
 // MARK: - Hero (shared between both empty states)
 
-/// The top half that `NoRoomsEmptyState` and `NoSpeakersEmptyState`
-/// share: icon chip → title → subtitle → primary CTA.
-///
-/// Designed to be dropped straight into a `VStack`, no `hcCard()`
-/// wrapper — the concrete views compose their own cards around
-/// the variant content below.
+/// Top block shared by both empty states: large icon → title →
+/// subtitle → full-width CTA. Dropped straight into a VStack —
+/// callers compose variant content below.
 private struct EmptyStateHero: View {
     let systemIcon: String
     let title: String
@@ -36,44 +25,41 @@ private struct EmptyStateHero: View {
     let ctaAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Theme.color.iconChipFill)
-                    .frame(width: 88, height: 88)
-                Image(systemName: systemIcon)
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(Theme.color.iconChipGlyph)
-            }
+        VStack(spacing: 20) {
+            // Large icon — T3 style: no background chip, just ink glyph
+            T3IconImage(systemName: systemIcon)
+                .frame(width: 48, height: 48)
+                .foregroundStyle(T3.ink)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Text(title)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Theme.color.title)
+                    .font(T3.inter(28, weight: .medium))
+                    .tracking(-0.8)
+                    .foregroundStyle(T3.ink)
                     .multilineTextAlignment(.center)
                 Text(subtitle)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.color.subtitle)
+                    .font(T3.inter(13, weight: .regular))
+                    .foregroundStyle(T3.sub)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
+                    .lineSpacing(2)
             }
 
+            // Flat full-width CTA button — T3.ink fill, T3.page text
             Button(action: ctaAction) {
                 HStack(spacing: 8) {
                     if let ctaIcon {
-                        Image(systemName: ctaIcon)
-                            .font(.system(size: 15, weight: .semibold))
+                        T3IconImage(systemName: ctaIcon)
+                            .frame(width: 14, height: 14)
+                            .accessibilityHidden(true)
                     }
-                    Text(ctaLabel)
-                        .font(.system(size: 15, weight: .semibold))
+                    Text(ctaLabel.uppercased())
+                        .font(T3.mono(11))
+                        .tracking(2)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(T3.page)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Theme.color.primary)
-                )
+                .frame(height: 52)
+                .background(T3.ink)
             }
             .buttonStyle(.plain)
         }
@@ -82,51 +68,49 @@ private struct EmptyStateHero: View {
 
 // MARK: - No Rooms Yet (Pencil ApNW6)
 
-/// Full-screen empty state for when the provider registry returns
-/// zero rooms. Used by `HomeDashboardView.roomsSection` and
-/// `AllRoomsView.content` when the first-run state hits. The
-/// primary CTA opens the add-room flow; when a provider isn't
-/// even connected yet the caller should pass a CTA that jumps to
-/// Settings instead ("Connect a Home" or similar).
+/// Empty state for when the provider registry returns zero rooms.
 struct NoRoomsEmptyState: View {
     let onAddRoom: () -> Void
 
-    /// Feature bullets rendered below the CTA — three short
-    /// lines describing what rooms unlock. Each has its own SF
-    /// Symbol in a muted purple, matching Pencil `ApNW6`.
     private let features: [(icon: String, text: String)] = [
         ("mappin.and.ellipse", "Organize devices by location"),
-        ("hand.tap.fill", "Control rooms with one tap"),
-        ("sparkles", "Set scenes for each room")
+        ("hand.tap.fill",      "Control rooms with one tap"),
+        ("sparkles",           "Set scenes for each room")
     ]
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 32) {
             EmptyStateHero(
                 systemIcon: "house.fill",
-                title: "No Rooms Yet",
-                subtitle: "Add your first room to start organizing your smart home devices",
-                ctaLabel: "Add a Room",
+                title: "No rooms yet",
+                subtitle: "Add your first room to start organizing your smart home devices.",
+                ctaLabel: "Add a room",
                 ctaIcon: "plus",
                 ctaAction: onAddRoom
             )
 
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(features, id: \.text) { feature in
-                    HStack(spacing: 12) {
-                        Image(systemName: feature.icon)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.color.primary)
-                            .frame(width: 20)
+            // Feature bullets — T3IconImage + TLabel
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(features.enumerated()), id: \.element.text) { i, feature in
+                    HStack(spacing: 14) {
+                        T3IconImage(systemName: feature.icon)
+                            .frame(width: 14, height: 14)
+                            .foregroundStyle(T3.sub)
+                            .accessibilityHidden(true)
                         Text(feature.text)
-                            .font(.system(size: 14))
-                            .foregroundStyle(Theme.color.subtitle)
+                            .font(T3.inter(13, weight: .regular))
+                            .foregroundStyle(T3.sub)
+                        Spacer()
+                    }
+                    .padding(.vertical, 11)
+                    .overlay(alignment: .top) { TRule() }
+                    .overlay(alignment: .bottom) {
+                        if i == features.count - 1 { TRule() }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, Theme.space.screenHorizontal)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 40)
         .frame(maxWidth: .infinity)
     }
@@ -134,65 +118,58 @@ struct NoRoomsEmptyState: View {
 
 // MARK: - No Speakers Found (Pencil 375nI)
 
-/// Full-screen empty state for when the Sonos discovery sweep
-/// returns zero speakers. Currently used by
-/// `SonosRoomPickerSheet` when the anchor is the only speaker on
-/// the network. `onScanAgain` kicks off a fresh discovery;
-/// `onManualSetup` (optional) jumps to a manual setup flow that
-/// doesn't exist yet but will eventually land alongside
-/// `Oa5ev Device Pairing`.
+/// Empty state for when the Sonos discovery sweep returns zero speakers.
 struct NoSpeakersEmptyState: View {
     let onScanAgain: () -> Void
     var onManualSetup: (() -> Void)? = nil
 
-    /// Troubleshooting bullets rendered in a white card below
-    /// the CTA. Purpose is "user-actionable next steps" — we
-    /// don't want to dump a stack trace, just three things a
-    /// non-technical user can actually try.
     private let troubleshooting: [String] = [
-        "Check speaker power and WiFi",
-        "Ensure app and speakers are on same network",
+        "Check speaker power and Wi-Fi",
+        "Ensure app and speakers are on the same network",
         "Restart your router if issues persist"
     ]
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 28) {
             EmptyStateHero(
                 systemIcon: "hifispeaker",
-                title: "No Speakers Found",
-                subtitle: "We couldn't find any compatible speakers on your network. Make sure your speakers are powered on and connected to WiFi.",
-                ctaLabel: "Scan Again",
+                title: "No speakers found",
+                subtitle: "We couldn't find any compatible speakers on your network. Make sure your speakers are powered on and connected.",
+                ctaLabel: "Scan again",
                 ctaIcon: "arrow.clockwise",
                 ctaAction: onScanAgain
             )
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Troubleshooting")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.color.title)
-                ForEach(troubleshooting, id: \.self) { tip in
-                    HStack(alignment: .top, spacing: 10) {
-                        Circle()
-                            .fill(Theme.color.iconChipFill)
-                            .frame(width: 8, height: 8)
-                            .padding(.top, 6)
+            // Troubleshooting rows — TRule hairlines
+            VStack(alignment: .leading, spacing: 0) {
+                TSectionHead(title: "Troubleshooting")
+                ForEach(Array(troubleshooting.enumerated()), id: \.element) { i, tip in
+                    HStack(spacing: 14) {
+                        TDot(size: 5)
+                            .accessibilityHidden(true)
                         Text(tip)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.color.subtitle)
+                            .font(T3.inter(13, weight: .regular))
+                            .foregroundStyle(T3.sub)
+                            .lineLimit(2)
+                        Spacer()
+                    }
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.vertical, 11)
+                    .overlay(alignment: .top) { TRule() }
+                    .overlay(alignment: .bottom) {
+                        if i == troubleshooting.count - 1 { TRule() }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .hcCard()
 
             if let onManualSetup {
                 Button("Set up a speaker manually", action: onManualSetup)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.color.primary)
+                    .font(T3.inter(13, weight: .medium))
+                    .foregroundStyle(T3.accent)
                     .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, Theme.space.screenHorizontal)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 32)
         .frame(maxWidth: .infinity)
     }

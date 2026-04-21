@@ -2,62 +2,61 @@
 //  ProviderDisconnectedBanner.swift
 //  house connect
 //
-//  Amber warning card shown on the Dashboard and Devices tab when a
+//  Amber warning row shown on the Dashboard and Devices tab when a
 //  provider has lost its connection but still has cached devices
-//  showing. Gives the user a clear visual cue that something needs
-//  attention without being as alarming as a red error state.
+//  showing. Converted to T3/Swiss design system — left accent stripe,
+//  TRule hairlines, T3 tokens, no rounded cards.
 //
 
 import SwiftUI
 
-/// Standalone banner for a single disconnected provider. Renders an
-/// amber card with the provider name, device count, and a call to
-/// action pointing to Settings → Connections.
+/// T3-styled alert row for a single disconnected provider.
+/// Left orange stripe + provider name + device count + chevron.
 struct ProviderDisconnectedBanner: View {
     let providerName: String
     let deviceCount: Int
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
-                    .fill(Color.orange.opacity(0.12))
-                    .frame(width: 40, height: 40)
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.orange)
-            }
+        HStack(alignment: .top, spacing: 14) {
+            Rectangle()
+                .fill(T3.accent)
+                .frame(width: 2)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(providerName) disconnected")
-                    .font(Theme.font.cardTitle)
-                    .foregroundStyle(Theme.color.title)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    T3IconImage(systemName: "exclamationmark.triangle.fill")
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(T3.accent)
+                        .accessibilityHidden(true)
+                    Text("\(providerName) disconnected")
+                        .font(T3.inter(14, weight: .medium))
+                        .foregroundStyle(T3.ink)
+                }
                 Text("\(deviceCount) device\(deviceCount == 1 ? "" : "s") showing as offline")
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.sub)
             }
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.muted)
+            T3IconImage(systemName: "chevron.right")
+                .frame(width: 10, height: 10)
+                .foregroundStyle(T3.sub)
+                .accessibilityHidden(true)
         }
-        .padding(Theme.space.cardPadding)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
-                .fill(Color.orange.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
-                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(providerName) disconnected. \(deviceCount) device\(deviceCount == 1 ? "" : "s") offline.")
+        .accessibilityHint("Tap to go to connection settings")
     }
 }
 
-/// Helper view that checks all providers and renders banners for any
-/// that are disconnected but still have cached accessories. Wrap in a
-/// `NavigationLink` at the call site so tapping routes to Connections.
+/// Renders banners for every provider that is disconnected but still
+/// has cached accessories. Wrap the call site in a NavigationLink to
+/// route to Settings → Connections when tapped.
 struct DisconnectedProviderBanners: View {
     @Environment(ProviderRegistry.self) private var registry
 

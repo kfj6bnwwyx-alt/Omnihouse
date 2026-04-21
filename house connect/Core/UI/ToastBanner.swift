@@ -57,8 +57,8 @@ struct Toast: Identifiable, Equatable {
 
     var backgroundColor: Color {
         switch kind {
-        case .success: return Theme.color.success
-        case .error: return Theme.color.danger
+        case .success: return T3.ok
+        case .error: return T3.danger
         }
     }
 
@@ -84,19 +84,15 @@ private struct ToastBannerView: View {
                 .frame(width: 16, height: 16)
                 .foregroundStyle(T3.panel)
             Text(toast.message)
-                .font(.system(size: 14, weight: .semibold))
+                .font(T3.inter(13, weight: .medium))
                 .foregroundStyle(T3.panel)
                 .lineLimit(2)
             Spacer()
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(toast.backgroundColor)
-        )
-        .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 4)
-        .padding(.horizontal, Theme.space.screenHorizontal)
+        .background(toast.backgroundColor)
+        .padding(.horizontal, T3.screenPadding)
     }
 }
 

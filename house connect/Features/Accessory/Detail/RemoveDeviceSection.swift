@@ -29,7 +29,7 @@ struct RemoveDeviceSection: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             Button(role: .destructive) {
                 showConfirmation = true
             } label: {
@@ -37,25 +37,25 @@ struct RemoveDeviceSection: View {
                     if isRemoving {
                         ProgressView()
                             .controlSize(.small)
-                            .tint(.red)
+                            .tint(T3.danger)
+                            .accessibilityHidden(true)
                     }
-                    Text("Remove Device")
-                        .font(.system(size: 15, weight: .semibold))
+                    Text("Remove device")
+                        .font(T3.inter(14, weight: .medium))
                     Spacer()
-                    Image(systemName: "trash")
-                        .font(.system(size: 14))
+                    T3IconImage(systemName: "trash")
+                        .frame(width: 14, height: 14)
+                        .accessibilityHidden(true)
                 }
-                .foregroundStyle(.red)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.radius.card, style: .continuous)
-                        .fill(Color.red.opacity(0.08))
-                )
+                .foregroundStyle(T3.danger)
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 14)
+                .overlay(alignment: .top) { TRule() }
+                .overlay(alignment: .bottom) { TRule() }
             }
             .buttonStyle(.plain)
             .disabled(isRemoving)
-            .accessibilityLabel(isRemoving ? "Removing device" : "Remove Device")
+            .accessibilityLabel(isRemoving ? "Removing device" : "Remove device")
             .accessibilityHint("Permanently unpairs \(accessory?.name ?? "this device"). A confirmation will appear before removal.")
             .confirmationDialog(
                 "Remove \(accessory?.name ?? "this device")?",
@@ -72,8 +72,10 @@ struct RemoveDeviceSection: View {
 
             if let errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.red)
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.danger)
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("Error: \(errorMessage)")
             }
