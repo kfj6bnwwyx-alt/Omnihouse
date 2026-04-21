@@ -127,6 +127,13 @@ struct T3RoomsTabView: View {
             try? await Task.sleep(nanoseconds: 400_000_000)
             didSettle = true
         }
+        .refreshable {
+            await withTaskGroup(of: Void.self) { group in
+                for provider in registry.providers {
+                    group.addTask { @MainActor in await provider.refresh() }
+                }
+            }
+        }
         .sheet(isPresented: $showingCreate) {
             T3CreateRoomSheet()
                 .environment(registry)
