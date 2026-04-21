@@ -278,6 +278,96 @@ enum AccessoryCommand: Hashable, Sendable {
     case setEffect(String)
 }
 
+// MARK: - Value display helpers
+
+extension Capability {
+    /// Human-readable current value for the capability, formatted for
+    /// inline display alongside the row label.  Returns `nil` for list
+    /// capabilities (sourceList, presetModes, effectList, etc.) that are
+    /// too long to show in a single cell.
+    var valueLabel: String? {
+        switch self {
+        case .power(let on):
+            return on ? "On" : "Off"
+        case .brightness(let v):
+            return "\(Int((v * 100).rounded()))%"
+        case .hue(let d):
+            return "\(Int(d.rounded()))°"
+        case .saturation(let v):
+            return "\(Int((v * 100).rounded()))%"
+        case .colorTemperature(let m):
+            // Convert mireds → Kelvin so the value is meaningful to users.
+            let kelvin = m > 0 ? Int((1_000_000.0 / Double(m)).rounded()) : 0
+            return "\(kelvin) K"
+        case .currentTemperature(let c):
+            let f = c * 9.0 / 5.0 + 32.0
+            return String(format: "%.1f°F", f)
+        case .targetTemperature(let c):
+            let f = c * 9.0 / 5.0 + 32.0
+            return String(format: "%.1f°F", f)
+        case .hvacMode(let m):
+            return m.rawValue.capitalized
+        case .contactSensor(let open):
+            return open ? "Open" : "Closed"
+        case .motionSensor(let detected):
+            return detected ? "Motion" : "Clear"
+        case .batteryLevel(let p):
+            return "\(p)%"
+        case .playback(let s):
+            return s.rawValue.capitalized
+        case .volume(let p):
+            return "\(p)%"
+        case .mute(let m):
+            return m ? "Muted" : "Unmuted"
+        case .nowPlaying(let np):
+            // Show track / station name if available; fall back to a
+            // generic "Playing" label so the row is never blank.
+            return np.title ?? np.artist ?? "Playing"
+        case .shuffle(let on):
+            return on ? "On" : "Off"
+        case .repeatMode(let m):
+            return m.rawValue.capitalized
+        case .smokeDetected(let v):
+            return v ? "Detected" : "Clear"
+        case .coDetected(let v):
+            return v ? "Detected" : "Clear"
+        case .humidity(let p):
+            return "\(p)%"
+        case .hvacAction(let a):
+            return a.replacingOccurrences(of: "_", with: " ").capitalized
+        case .presetMode(let p):
+            return p.replacingOccurrences(of: "_", with: " ").capitalized
+        case .presetModes(let list):
+            // List types: show count rather than the full list inline.
+            return list.isEmpty ? nil : "\(list.count) presets"
+        case .climateFanMode(let m):
+            return m.replacingOccurrences(of: "_", with: " ").capitalized
+        case .climateFanModes(let list):
+            return list.isEmpty ? nil : "\(list.count) modes"
+        case .currentSource(let s):
+            return s
+        case .sourceList(let list):
+            return list.isEmpty ? nil : "\(list.count) inputs"
+        case .mediaPosition(let s):
+            let m = Int(s) / 60; let sec = Int(s) % 60
+            return String(format: "%d:%02d", m, sec)
+        case .mediaDuration(let s):
+            let m = Int(s) / 60; let sec = Int(s) % 60
+            return String(format: "%d:%02d", m, sec)
+        case .currentEffect(let e):
+            return e.isEmpty ? nil : e.capitalized
+        case .effectList(let list):
+            return list.isEmpty ? nil : "\(list.count) effects"
+        case .fanSpeed(let p):
+            return "\(p)%"
+        case .fanDirection(let d):
+            return d.replacingOccurrences(of: "_", with: " ").capitalized
+        case .coverPosition(let p):
+            return "\(p)%"
+        }
+    }
+}
+
 // MARK: - Capability Codable
 
 /// Custom Codable for the associated-value enum. Uses a `kind` discriminator

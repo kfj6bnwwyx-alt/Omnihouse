@@ -58,8 +58,12 @@ struct T3AccessoryDetailView: View {
                         title: "Capabilities",
                         count: String(format: "%02d", capabilitiesList.count)
                     )
-                    ForEach(Array(capabilitiesList.enumerated()), id: \.offset) { i, cap in
-                        capabilityRow(label: cap, isLast: i == capabilitiesList.count - 1)
+                    ForEach(Array(capabilitiesList.enumerated()), id: \.offset) { i, item in
+                        capabilityRow(
+                            label: item.label,
+                            value: item.value,
+                            isLast: i == capabilitiesList.count - 1
+                        )
                     }
                 }
 
@@ -140,20 +144,37 @@ struct T3AccessoryDetailView: View {
 
     // MARK: - Capabilities
 
-    private var capabilitiesList: [String] {
+    /// Capability rows as (label, value?) pairs. Power is already shown
+    /// in the State block so we skip it here to avoid redundancy.
+    private var capabilitiesList: [(label: String, value: String?)] {
         guard let accessory else { return [] }
-        return accessory.capabilities.map { $0.displayLabel }
+        return accessory.capabilities
+            .filter { $0.kind != .power }
+            .map { ($0.displayLabel, $0.valueLabel) }
     }
 
-    private func capabilityRow(label: String, isLast: Bool) -> some View {
-        HStack(spacing: 14) {
+    private func capabilityRow(label: String, value: String?, isLast: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
             TLabel(text: label.uppercased())
             Spacer()
+            if let value {
+                Text(value)
+                    .font(T3.mono(12))
+                    .foregroundStyle(T3.ink)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } else {
+                Text("—")
+                    .font(T3.mono(12))
+                    .foregroundStyle(T3.sub)
+            }
         }
         .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 12)
         .overlay(alignment: .top) { TRule() }
         .overlay(alignment: .bottom) { if isLast { TRule() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value ?? "unknown")")
     }
 
     // MARK: - Identifiers
