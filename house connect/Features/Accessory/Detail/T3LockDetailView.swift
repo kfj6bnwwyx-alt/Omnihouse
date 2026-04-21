@@ -26,6 +26,11 @@ struct T3LockDetailView: View {
     @State private var toast: Toast?
     private let holdDuration: TimeInterval = T3.LongPress.light
 
+    // Access log
+    @State private var accessLog: [HomeAssistantProvider.HALockHistoryPoint] = []
+    @State private var isLoadingLog: Bool = false
+    @State private var logError: String?
+
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
     }
@@ -85,41 +90,59 @@ struct T3LockDetailView: View {
                     TRule()
 
                     // Recent access
-                    TSectionHead(title: "Recent access", count: "Today")
+                    TSectionHead(
+                        title: "Recent access",
+                        count: isLoadingLog ? "…" : "\(accessLog.count)"
+                    )
 
-                    ForEach(Array(recentAccess.enumerated()), id: \.offset) { i, entry in
-                        HStack(spacing: 14) {
-                            Text(entry.time)
-                                .font(T3.mono(11))
-                                .foregroundStyle(T3.sub)
-                                .monospacedDigit()
-                                .frame(width: 60, alignment: .leading)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.action)
-                                    .font(T3.inter(14, weight: .medium))
-                                    .foregroundStyle(T3.ink)
-                                Text(entry.who)
-                                    .font(T3.mono(10))
-                                    .foregroundStyle(T3.sub)
-                                    .tracking(0.8)
+                    if isLoadingLog {
+                        // Shimmer skeleton while fetching
+                        ForEach(0..<4, id: \.self) { _ in
+                            HStack(spacing: 14) {
+                                Rectangle()
+                                    .fill(T3.rule)
+                                    .frame(width: 50, height: 11)
+                                    .shimmering()
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Rectangle()
+                                        .fill(T3.rule)
+                                        .frame(width: 80, height: 11)
+                                        .shimmering()
+                                    Rectangle()
+                                        .fill(T3.rule)
+                                        .frame(width: 120, height: 9)
+                                        .shimmering()
+                                }
+                                Spacer()
                             }
-
-                            Spacer()
-
-                            T3IconImage(systemName: entry.locked ? "lock.fill" : "checkmark")
-                                .frame(width: 14, height: 14)
+                            .padding(.horizontal, T3.screenPadding)
+                            .padding(.vertical, 12)
+                            .overlay(alignment: .top) { TRule() }
+                        }
+                    } else if let err = logError {
+                        HStack(spacing: 10) {
+                            T3IconImage(systemName: "exclamationmark.triangle")
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(T3.danger)
+                            Text(err)
+                                .font(T3.inter(12, weight: .regular))
                                 .foregroundStyle(T3.sub)
-                                .accessibilityHidden(true)
+                                .lineLimit(2)
                         }
                         .padding(.horizontal, T3.screenPadding)
                         .padding(.vertical, 12)
                         .overlay(alignment: .top) { TRule() }
-                        .overlay(alignment: .bottom) {
-                            if i == recentAccess.count - 1 { TRule() }
+                    } else if accessLog.isEmpty {
+                        Text("No access events in the last 24 hours")
+                            .font(T3.inter(12, weight: .regular))
+                            .foregroundStyle(T3.sub)
+                            .padding(.horizontal, T3.screenPadding)
+                            .padding(.vertical, 16)
+                            .overlay(alignment: .top) { TRule() }
+                    } else {
+                        ForEach(Array(accessLog.reversed().enumerated()), id: \.offset) { i, point in
+                            lockLogRow(point: point, isLast: i == accessLog.count - 1)
                         }
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(entry.time), \(entry.action) by \(entry.who)")
                     }
 
                     Spacer(minLength: 120)
@@ -130,6 +153,9 @@ struct T3LockDetailView: View {
         .toast($toast, duration: 4)
         .onAppear { syncLockState() }
         .onChange(of: accessory?.isOn) { syncLockState() }
+        .task {
+            await loadLockHistory()
+        }
     }
 
     private func syncLockState() {
@@ -362,12 +388,81 @@ struct T3LockDetailView: View {
         .accessibilityLabel("\(label), \(value)")
     }
 
-    private var recentAccess: [(time: String, action: String, who: String, locked: Bool)] {
-        [
-            ("09:38", "Locked", "ALEX · HOMEKIT", true),
-            ("08:14", "Unlocked", "ALEX · HOMEKIT", false),
-            ("07:00", "Locked", "SCENE: MORNING", true),
-            ("23:04", "Locked", "SCENE: GOODNIGHT", true),
-        ]
+    // MARK: - Lock history
+
+    private func loadLockHistory() async {
+        guard let haProvider = registry.providers
+            .first(where: { $0.id == .homeAssistant }) as? HomeAssistantProvider else {
+            return
+        }
+        let entityID = accessoryID.nativeID
+        isLoadingLog = true
+        logError = nil
+        do {
+            let points = try await haProvider.fetchLockHistory(
+                entityID: entityID,
+                hoursBack: 24
+            )
+            accessLog = points
+        } catch {
+            logError = error.localizedDescription
+        }
+        isLoadingLog = false
+    }
+
+    @ViewBuilder
+    private func lockLogRow(
+        point: HomeAssistantProvider.HALockHistoryPoint,
+        isLast: Bool
+    ) -> some View {
+        let isLocked = point.state == "locked"
+        let isJammed = point.state == "jammed"
+        let action: String = isJammed ? "Jammed" : (isLocked ? "Locked" : "Unlocked")
+        let who: String = {
+            if let cb = point.changedBy, !cb.trimmingCharacters(in: .whitespaces).isEmpty {
+                return cb.uppercased()
+            }
+            return "HOME ASSISTANT"
+        }()
+        let timeStr: String = {
+            let f = DateFormatter()
+            f.dateFormat = "HH:mm"
+            return f.string(from: point.timestamp)
+        }()
+        let iconName: String = isJammed ? "exclamationmark.triangle" : (isLocked ? "lock.fill" : "lock.open.fill")
+        let iconColor: Color = isJammed ? T3.danger : T3.sub
+
+        HStack(spacing: 14) {
+            Text(timeStr)
+                .font(T3.mono(11))
+                .foregroundStyle(T3.sub)
+                .monospacedDigit()
+                .frame(width: 50, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(action)
+                    .font(T3.inter(14, weight: .medium))
+                    .foregroundStyle(isJammed ? T3.danger : T3.ink)
+                Text(who)
+                    .font(T3.mono(10))
+                    .foregroundStyle(T3.sub)
+                    .tracking(0.8)
+            }
+
+            Spacer()
+
+            T3IconImage(systemName: iconName)
+                .frame(width: 14, height: 14)
+                .foregroundStyle(iconColor)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) {
+            if isLast { TRule() }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(timeStr), \(action) by \(who)")
     }
 }

@@ -1075,6 +1075,131 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         return points
     }
 
+    // MARK: - Lock history
+
+    /// One point in a lock entity's history timeline. Built from HA's
+    /// `/api/history/period` REST response — only the state column
+    /// matters for locks ("locked", "unlocked", "jammed"); `changed_by`
+    /// is a bonus attribute populated by some Z-Wave / ZigBee lock
+    /// drivers and by HA automations that write it explicitly.
+    struct HALockHistoryPoint: Identifiable, Sendable {
+        let id = UUID()
+        /// When HA recorded this state row.
+        let timestamp: Date
+        /// "locked", "unlocked", "jammed", or "unavailable".
+        let state: String
+        /// Who or what triggered the change — driver-supplied string
+        /// like "PIN Code 1", "Z-Wave", "HomeKit", "Automation", etc.
+        /// nil when the driver doesn't report it.
+        let changedBy: String?
+    }
+
+    /// Fetch recorder history for a single lock entity over the last
+    /// `hoursBack` hours. Returns points in chronological ascending
+    /// order; filtering out consecutive duplicate states (e.g. repeated
+    /// "locked" heartbeats) is the caller's responsibility.
+    func fetchLockHistory(
+        entityID: String,
+        hoursBack: Int = 24
+    ) async throws -> [HALockHistoryPoint] {
+        guard let rest = restClient,
+              let token = tokenStore.token(for: .homeAssistantToken) else {
+            throw ProviderError.notAuthorized
+        }
+
+        let end = Date()
+        let start = end.addingTimeInterval(TimeInterval(-hoursBack * 3600))
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let startStr = iso.string(from: start)
+        let endStr = iso.string(from: end)
+
+        let encodedStart = startStr.addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed
+        ) ?? startStr
+        let path = "api/history/period/\(encodedStart)"
+        guard var components = URLComponents(
+            url: rest.baseURL.appendingPathComponent(path),
+            resolvingAgainstBaseURL: false
+        ) else {
+            throw ProviderError.notAuthorized
+        }
+        components.queryItems = [
+            URLQueryItem(name: "filter_entity_id", value: entityID),
+            URLQueryItem(name: "end_time",          value: endStr),
+            URLQueryItem(name: "minimal_response",  value: "false"),
+            URLQueryItem(name: "no_attributes",     value: "false")
+        ]
+        guard let url = components.url else {
+            throw ProviderError.notAuthorized
+        }
+
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 15
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw ProviderError.notAuthorized
+        }
+
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [[[String: Any]]],
+              let rows = root.first else {
+            return []
+        }
+
+        let isoParsers: [ISO8601DateFormatter] = {
+            let withFrac = ISO8601DateFormatter()
+            withFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let noFrac = ISO8601DateFormatter()
+            noFrac.formatOptions = [.withInternetDateTime]
+            return [withFrac, noFrac]
+        }()
+
+        func parseDate(_ s: String) -> Date? {
+            for f in isoParsers {
+                if let d = f.date(from: s) { return d }
+            }
+            return nil
+        }
+
+        var points: [HALockHistoryPoint] = []
+        points.reserveCapacity(rows.count)
+
+        for row in rows {
+            guard let stateStr = row["state"] as? String else { continue }
+            // Skip unavailable / unknown rows — they clutter the log.
+            guard stateStr == "locked" || stateStr == "unlocked"
+                    || stateStr == "jammed" else { continue }
+
+            let tsString = (row["last_changed"] as? String)
+                ?? (row["last_updated"] as? String)
+            guard let tsString, let timestamp = parseDate(tsString) else { continue }
+
+            let attrs = row["attributes"] as? [String: Any] ?? [:]
+            let changedBy = attrs["changed_by"] as? String
+
+            points.append(HALockHistoryPoint(
+                timestamp: timestamp,
+                state: stateStr,
+                changedBy: changedBy
+            ))
+        }
+
+        // Remove consecutive rows with the same state — HA sometimes
+        // writes duplicate "locked" rows on boot or reconnect.
+        var deduped: [HALockHistoryPoint] = []
+        for point in points.sorted(by: { $0.timestamp < $1.timestamp }) {
+            if deduped.last?.state != point.state {
+                deduped.append(point)
+            }
+        }
+
+        return deduped
+    }
+
     // MARK: - Diagnostics surface
 
     /// Read-only snapshot of integration health. Derived each access
