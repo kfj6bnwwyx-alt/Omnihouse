@@ -43,7 +43,7 @@ struct T3AboutView: View {
                         sub: "Open-source libraries", url: "https://example.com/oss")
                 linkRow(icon: "mail", title: "Contact support",
                         sub: "Get help or send feedback",
-                        url: "mailto:support@example.com", isLast: true)
+                        url: "mailto:brent.brooks@gmail.com", isLast: true)
 
                 // Foot
                 VStack(spacing: 4) {

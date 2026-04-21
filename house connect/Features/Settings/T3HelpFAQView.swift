@@ -33,7 +33,7 @@ struct T3HelpFAQView: View {
                         .font(T3.inter(13, weight: .regular))
                         .foregroundStyle(T3.sub)
                         .lineSpacing(3)
-                    if let mail = URL(string: "mailto:support@example.com") {
+                    if let mail = URL(string: "mailto:brent.brooks@gmail.com") {
                         Link(destination: mail) {
                             HStack(spacing: 10) {
                                 T3IconImage(systemName: "envelope.fill")
