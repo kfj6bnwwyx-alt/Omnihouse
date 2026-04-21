@@ -24,6 +24,11 @@ struct T3ThermostatView: View {
     @State private var didRepeat: Bool = false
     @State private var toast: Toast?
 
+    /// Mirrors the Appearance setting — all temperature displays follow this unit.
+    @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
+
+    private var useFahrenheit: Bool { tempUnit == "fahrenheit" }
+
     private var accessory: Accessory? {
         registry.allAccessories.first { $0.id == accessoryID }
     }
@@ -44,19 +49,27 @@ struct T3ThermostatView: View {
         }
     }
 
+    private func toDisplay(_ celsius: Double) -> Int {
+        useFahrenheit
+            ? Int((celsius * 9.0 / 5.0 + 32.0).rounded())
+            : Int(celsius.rounded())
+    }
+
     private var currentTemp: Int {
-        guard let c = accessory?.currentTemperature else { return 68 }
-        return Int((c * 9.0 / 5.0 + 32.0).rounded())
+        guard let c = accessory?.currentTemperature else { return useFahrenheit ? 68 : 20 }
+        return toDisplay(c)
     }
 
     private var targetTemp: Int {
         if let draft = targetDraft { return draft }
         guard let accessory,
-              case .targetTemperature(let c) = accessory.capability(of: .targetTemperature) else { return 71 }
-        return Int((c * 9.0 / 5.0 + 32.0).rounded())
+              case .targetTemperature(let c) = accessory.capability(of: .targetTemperature)
+        else { return useFahrenheit ? 71 : 22 }
+        return toDisplay(c)
     }
 
-    private let range = (60, 90)
+    /// Temperature range for the tick scale — Fahrenheit (60–90) or Celsius (15–32).
+    private var range: (Int, Int) { useFahrenheit ? (60, 90) : (15, 32) }
 
     var body: some View {
         ZStack {
@@ -453,7 +466,9 @@ struct T3ThermostatView: View {
         let newTarget = targetTemp + delta
         guard newTarget >= range.0 && newTarget <= range.1 else { return }
         targetDraft = newTarget
-        let celsius = Double(newTarget - 32) * 5.0 / 9.0
+        let celsius = useFahrenheit
+            ? Double(newTarget - 32) * 5.0 / 9.0
+            : Double(newTarget)
         Task { @MainActor in
             await T3ActionFeedback.perform(
                 action: { try await registry.execute(.setTargetTemperature(celsius), on: accessoryID) },

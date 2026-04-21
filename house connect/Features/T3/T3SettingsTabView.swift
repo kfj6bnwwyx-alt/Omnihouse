@@ -31,7 +31,7 @@ struct T3SettingsTabView: View {
                 settingsRow(icon: "wifi", title: "Connections", sub: "\(registry.providers.count) providers", destination: .providers)
 
                 // Home
-                TSectionHead(title: "Home", count: "05")
+                TSectionHead(title: "Home", count: "06")
                 settingsRow(icon: "square.grid.2x2", title: "Rooms", sub: "\(registry.allRooms.count) rooms", destination: .rooms)
                 settingsRow(icon: "sparkles", title: "Scenes", sub: "Cross-ecosystem presets", destination: .scenes)
                 settingsRow(icon: "gearshape.2", title: "Automations", sub: "Home Assistant automations", destination: .automations)

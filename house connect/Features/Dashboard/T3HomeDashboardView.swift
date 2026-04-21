@@ -37,6 +37,9 @@ struct T3HomeDashboardView: View {
     /// Edited via `T3QuickActionsEditSheet` (pencil icon on the section head).
     @AppStorage("dashboard.quickActionSceneIDs") private var quickActionSceneIDsRaw: String = ""
 
+    /// Mirrors the Appearance setting so insideTemp renders in the right unit.
+    @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
+
     private var rooms: [Room] {
         let allRooms = registry.allRooms
         // Deduplicate by name (same pattern as HomeDashboardView)
@@ -57,11 +60,16 @@ struct T3HomeDashboardView: View {
     }
 
     /// Read indoor temperature from the first thermostat or climate sensor.
+    /// Respects the user's `appearance.tempUnit` preference (Celsius / Fahrenheit).
     private var insideTemp: String {
         if let thermo = registry.allAccessories.first(where: { $0.category == .thermostat }),
            let celsius = thermo.currentTemperature {
-            let fahrenheit = Int((celsius * 9.0 / 5.0 + 32.0).rounded())
-            return "\(fahrenheit)°"
+            if tempUnit == "fahrenheit" {
+                let f = Int((celsius * 9.0 / 5.0 + 32.0).rounded())
+                return "\(f)°"
+            } else {
+                return "\(Int(celsius.rounded()))°"
+            }
         }
         return "—"
     }
