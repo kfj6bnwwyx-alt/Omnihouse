@@ -217,27 +217,23 @@ struct T3FrameTVDetailView: View {
     // MARK: - Hero panel
 
     private var heroPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(heroTitle)
-                        .font(T3.inter(18, weight: .bold))
-                        .foregroundStyle(T3.ink)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                    Text(heroSubtitle)
-                        .font(T3.inter(14, weight: .regular))
-                        .foregroundStyle(T3.sub)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                Spacer()
-                T3IconImage(systemName: heroIcon)
-                    .frame(width: 28, height: 28)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(heroTitle)
+                    .font(T3.inter(18, weight: .bold))
                     .foregroundStyle(T3.ink)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                Text(heroSubtitle)
+                    .font(T3.inter(14, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-
-            TLabel(text: "NEXT CHANGE · 10 MIN")
+            Spacer()
+            T3IconImage(systemName: heroIcon)
+                .frame(width: 28, height: 28)
+                .foregroundStyle(T3.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
@@ -251,16 +247,17 @@ struct T3FrameTVDetailView: View {
 
     private var heroTitle: String {
         if let np = accessory?.nowPlaying, let title = np.title { return title }
-        if isArtMode { return "Starry Night Over the Rhône" }
-        if isOn { return accessory?.currentSource ?? "Now Playing" }
-        return "Art Mode Idle"
+        if isArtMode { return "Art Mode" }
+        if isOn { return accessory?.currentSource ?? "—" }
+        return "Standby"
     }
 
     private var heroSubtitle: String {
         if let np = accessory?.nowPlaying, let artist = np.artist { return artist }
-        if isArtMode { return "Vincent van Gogh · 1888" }
-        if isOn { return "Live input" }
-        return "Ambient artwork paused"
+        if let np = accessory?.nowPlaying, let album = np.album { return album }
+        if isArtMode { return "Samsung Art Store" }
+        if isOn { return "No media" }
+        return "Tap a button to wake"
     }
 
     private var heroIcon: String {

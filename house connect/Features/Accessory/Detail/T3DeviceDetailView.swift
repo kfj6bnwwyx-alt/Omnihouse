@@ -3,8 +3,9 @@
 //  house connect
 //
 //  T3 device detail router — dispatches to the right T3 detail
-//  screen based on device category. Falls back to old views for
-//  categories that don't have a T3 version yet.
+//  screen based on device category. All categories are fully
+//  migrated to T3; the generic T3AccessoryDetailView handles
+//  sensor, switch, outlet, fan, blinds, and other catch-all types.
 //
 
 import SwiftUI
