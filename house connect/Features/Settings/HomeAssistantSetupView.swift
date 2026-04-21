@@ -55,6 +55,12 @@ struct HomeAssistantSetupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                THeader(
+                    backLabel: "Connection",
+                    rightLabel: "SETUP",
+                    onBack: { dismiss() }
+                )
+
                 TTitle(title: "Home Assistant.", subtitle: "URL · token · Tailscale fallback")
 
                 modeSection
@@ -72,6 +78,7 @@ struct HomeAssistantSetupView: View {
             }
         }
         .background(T3.page.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             discovery.startScan()
             let store = KeychainTokenStore()
@@ -167,7 +174,7 @@ struct HomeAssistantSetupView: View {
                 }
             } else if let instance = discovery.instances.first {
                 HStack(alignment: .top, spacing: 10) {
-                    TDot(size: 8, color: Color(red: 0.29, green: 0.56, blue: 0.36))
+                    TDot(size: 8, color: T3.ok)
                         .padding(.top, 6)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(instance.name)
@@ -321,7 +328,7 @@ struct HomeAssistantSetupView: View {
                         if isTesting {
                             ProgressView().tint(T3.ink).scaleEffect(0.8)
                         } else {
-                            T3IconImage(systemName: "bolt.horizontal")
+                            T3IconImage(systemName: "bolt")
                                 .frame(width: 12, height: 12)
                                 .foregroundStyle(T3.ink)
                         }
@@ -557,11 +564,10 @@ struct HomeAssistantSetupView: View {
     private func errorBlock(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Rectangle()
-                .fill(Color(red: 0.77, green: 0.25, blue: 0.20))
+                .fill(T3.danger)
                 .frame(width: 2)
             VStack(alignment: .leading, spacing: 4) {
-                TLabel(text: "CONNECTION FAILED",
-                       color: Color(red: 0.77, green: 0.25, blue: 0.20))
+                TLabel(text: "CONNECTION FAILED", color: T3.danger)
                 Text(message)
                     .font(T3.inter(13, weight: .regular))
                     .foregroundStyle(T3.ink)
