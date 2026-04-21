@@ -2,10 +2,10 @@
 //  NetworkSettingsView.swift
 //  house connect
 //
-//  Pencil `q5dco` — Network & Hub configuration screen. Currently all
-//  static/placeholder values since there is no real hub hardware yet.
-//  When hub integration lands, swap the hard-coded strings for live
-//  data from the hub's API.
+//  Pencil `q5dco` — Network & Hub configuration screen. All values are
+//  placeholder/static — no real hub hardware yet. Converted to T3/Swiss
+//  design system: TRule hairlines, T3 tokens, TPill toggles, no rounded
+//  cards.
 //
 
 import SwiftUI
@@ -17,202 +17,178 @@ struct NetworkSettingsView: View {
 
     @State private var threadEnabled = true
     @State private var zigbeeEnabled = true
-    @State private var zwaveEnabled = false
-    @State private var wifiEnabled = true
+    @State private var zwaveEnabled  = false
+    @State private var wifiEnabled   = true
     @State private var autoDiscovery = true
-    @State private var networkName = "HomeConnect-5G"
+    @State private var networkName   = "HomeConnect-5G"
 
     var body: some View {
         ZStack {
-            Theme.color.pageBackground.ignoresSafeArea()
+            T3.page.ignoresSafeArea()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
-                    hubConfigurationSection
-                    protocolTogglesSection
-                    autoDiscoverySection
-                    networkNameSection
-                    resetButton
-                    Spacer(minLength: 24)
+                VStack(alignment: .leading, spacing: 0) {
+                    THeader(backLabel: "Device Network", onBack: { dismiss() })
+
+                    TTitle(title: "Network settings.", subtitle: nil)
+
+                    // Hub configuration
+                    TSectionHead(title: "Hub configuration")
+                    configRow(label: "Hub Name",  value: "House Connect Hub Pro")
+                    configRow(label: "Hub Model", value: "HC-Pro 3000")
+                    firmwareRow
+
+                    // Protocol toggles
+                    TSectionHead(title: "Protocols", count: "04")
+                    protocolToggleRow(name: "Thread",  isOn: $threadEnabled)
+                    protocolToggleRow(name: "Zigbee",  isOn: $zigbeeEnabled)
+                    protocolToggleRow(name: "Z-Wave",  isOn: $zwaveEnabled)
+                    protocolToggleRow(name: "Wi-Fi",   isOn: $wifiEnabled, isLast: true)
+
+                    // Auto-discovery
+                    TSectionHead(title: "Discovery")
+                    autoDiscoveryRow
+
+                    // Network name
+                    TSectionHead(title: "Network name")
+                    networkNameRow
+
+                    // Reset
+                    Button {
+                        // Placeholder — no-op until hub hardware.
+                    } label: {
+                        HStack {
+                            Text("Reset network")
+                                .font(T3.inter(14, weight: .medium))
+                                .foregroundStyle(T3.danger)
+                            Spacer()
+                            T3IconImage(systemName: "exclamationmark.triangle")
+                                .frame(width: 14, height: 14)
+                                .foregroundStyle(T3.danger)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.vertical, 14)
+                        .overlay(alignment: .top) { TRule() }
+                        .overlay(alignment: .bottom) { TRule() }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 24)
+                    .accessibilityLabel("Reset network")
+                    .accessibilityHint("Resets all network settings to factory defaults")
+
+                    Spacer(minLength: 120)
                 }
-                .padding(.horizontal, Theme.space.screenHorizontal)
-                .padding(.top, 8)
             }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    // MARK: - Header
+    // MARK: - Hub config rows
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Theme.color.title)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        RoundedRectangle(cornerRadius: Theme.radius.chip,
-                                         style: .continuous)
-                            .fill(Theme.color.cardFill)
-                            .shadow(color: .black.opacity(0.05),
-                                    radius: 6, x: 0, y: 2)
-                    )
-            }
-            .accessibilityLabel("Back")
-
-            Text("Network Settings")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(Theme.color.title)
-
-            Spacer()
-        }
-    }
-
-    // MARK: - Hub Configuration
-
-    private var hubConfigurationSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Hub Configuration")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-
-            VStack(spacing: 0) {
-                hubRow(label: "Hub Name", value: "House Connect Hub Pro")
-                Divider().foregroundStyle(Theme.color.divider)
-                hubRow(label: "Hub Model", value: "HC-Pro 3000")
-                Divider().foregroundStyle(Theme.color.divider)
-                firmwareRow
-            }
-            .hcCard()
-        }
-    }
-
-    private func hubRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.color.subtitle)
-            Spacer()
+    private func configRow(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            TLabel(text: label.uppercased())
+                .frame(maxWidth: .infinity, alignment: .leading)
             Text(value)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
+                .font(T3.mono(12))
+                .foregroundStyle(T3.ink)
         }
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 10)
+        .overlay(alignment: .top) { TRule() }
     }
 
     private var firmwareRow: some View {
-        HStack {
-            Text("Firmware Version")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.color.subtitle)
-            Spacer()
+        HStack(alignment: .firstTextBaseline) {
+            TLabel(text: "Firmware".uppercased())
+                .frame(maxWidth: .infinity, alignment: .leading)
             Text("v4.2.1")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-            Text("Update")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.color.primary))
+                .font(T3.mono(12))
+                .foregroundStyle(T3.ink)
+            Button {} label: {
+                Text("UPDATE")
+                    .font(T3.mono(9))
+                    .tracking(1.2)
+                    .foregroundStyle(T3.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .overlay(Rectangle().stroke(T3.accent, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 8)
+            .accessibilityLabel("Update firmware")
         }
+        .padding(.horizontal, T3.screenPadding)
         .padding(.vertical, 10)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
     }
 
-    // MARK: - Protocol Toggles
+    // MARK: - Protocol toggle rows
 
-    private var protocolTogglesSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Protocol Toggles")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-
-            VStack(spacing: 0) {
-                protocolToggle(name: "Thread", isOn: $threadEnabled)
-                Divider().foregroundStyle(Theme.color.divider)
-                protocolToggle(name: "Zigbee", isOn: $zigbeeEnabled)
-                Divider().foregroundStyle(Theme.color.divider)
-                protocolToggle(name: "Z-Wave", isOn: $zwaveEnabled)
-                Divider().foregroundStyle(Theme.color.divider)
-                protocolToggle(name: "Wi-Fi", isOn: $wifiEnabled)
-            }
-            .hcCard()
-        }
-    }
-
-    private func protocolToggle(name: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            Text(name)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(Theme.color.title)
-        }
-        .tint(Theme.color.primary)
-        .padding(.vertical, 6)
-    }
-
-    // MARK: - Auto-Discovery
-
-    private var autoDiscoverySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Auto-Discovery")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(isOn: $autoDiscovery) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Auto-Discovery")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Theme.color.title)
-                        Text("Automatically find new devices")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.color.subtitle)
-                    }
-                }
-                .tint(Theme.color.primary)
-            }
-            .hcCard()
-        }
-    }
-
-    // MARK: - Network Name
-
-    private var networkNameSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Network Name")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-
-            HStack(spacing: 10) {
-                TextField("Network name", text: $networkName)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Theme.color.title)
-                Image(systemName: "pencil")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Theme.color.muted)
-            }
-            .hcCard()
-        }
-    }
-
-    // MARK: - Reset
-
-    private var resetButton: some View {
+    private func protocolToggleRow(
+        name: String,
+        isOn: Binding<Bool>,
+        isLast: Bool = false
+    ) -> some View {
         HStack {
+            Text(name)
+                .font(T3.inter(14, weight: .medium))
+                .foregroundStyle(T3.ink)
             Spacer()
-            Button {
-                // Placeholder — no-op until hub hardware.
-            } label: {
-                Text("Reset Network")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.color.danger)
+            TPill(isOn: isOn)
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name) \(isOn.wrappedValue ? "enabled" : "disabled")")
+        .accessibilityHint("Toggle to \(isOn.wrappedValue ? "disable" : "enable")")
+    }
+
+    // MARK: - Auto-discovery row
+
+    private var autoDiscoveryRow: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Auto-Discovery")
+                    .font(T3.inter(14, weight: .medium))
+                    .foregroundStyle(T3.ink)
+                Text("Automatically find new devices on your network")
+                    .font(T3.inter(12, weight: .regular))
+                    .foregroundStyle(T3.sub)
+                    .lineLimit(2)
             }
             Spacer()
+            TPill(isOn: $autoDiscovery)
+                .padding(.top, 2)
         }
-        .padding(.top, 8)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Auto-Discovery \(autoDiscovery ? "enabled" : "disabled")")
+        .accessibilityHint("Toggle to \(autoDiscovery ? "disable" : "enable") automatic device discovery")
+    }
+
+    // MARK: - Network name row
+
+    private var networkNameRow: some View {
+        HStack(spacing: 10) {
+            TextField("Network name", text: $networkName)
+                .font(T3.inter(14, weight: .medium))
+                .foregroundStyle(T3.ink)
+            T3IconImage(systemName: "pencil")
+                .frame(width: 12, height: 12)
+                .foregroundStyle(T3.sub)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
     }
 }

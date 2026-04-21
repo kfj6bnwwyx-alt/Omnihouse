@@ -2,10 +2,9 @@
 //  NetworkListView.swift
 //  house connect
 //
-//  Pencil `Z4SXt` — Enhanced "List" mode for the Device Network screen.
-//  Searchable device list grouped by Connected / Offline with protocol
-//  badges. Designed as a standalone view that takes `[Accessory]` input
-//  so `T3DeviceNetworkTopologyView` can embed it in its List segment.
+//  Pencil `Z4SXt` — Device list for the Device Network screen.
+//  Converted to T3/Swiss design system: TRule hairlines, T3 tokens,
+//  no rounded cards, protocol badges as rectangular border tags.
 //
 
 import SwiftUI
@@ -13,6 +12,8 @@ import SwiftUI
 struct NetworkListView: View {
     let accessories: [Accessory]
 
+    @Environment(\.dismiss) private var dismiss
+    @Environment(ProviderRegistry.self) private var registry
     @State private var searchText = ""
 
     // MARK: - Computed
@@ -29,217 +30,176 @@ struct NetworkListView: View {
     }
 
     private var connected: [Accessory] { filtered.filter(\.isReachable) }
-    private var offline: [Accessory] { filtered.filter { !$0.isReachable } }
+    private var offline:   [Accessory] { filtered.filter { !$0.isReachable } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            searchBar
+        ZStack {
+            T3.page.ignoresSafeArea()
 
-            if !connected.isEmpty {
-                sectionHeader(
-                    dotColor: Color(red: 0.33, green: 0.77, blue: 0.49),
-                    title: "Connected",
-                    count: connected.count
-                )
-                VStack(spacing: 0) {
-                    ForEach(Array(connected.enumerated()), id: \.element.id) { idx, accessory in
-                        if idx > 0 {
-                            Divider()
-                                .foregroundStyle(Theme.color.divider)
-                                .padding(.leading, 52)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    THeader(backLabel: "Device Network", onBack: { dismiss() })
+
+                    TTitle(
+                        title: "Device list.",
+                        subtitle: "\(accessories.count) DEVICE\(accessories.count == 1 ? "" : "S")"
+                    )
+
+                    // Search row
+                    searchRow
+
+                    // Connected
+                    if !connected.isEmpty {
+                        TSectionHead(title: "Connected", count: "\(connected.count)")
+                        ForEach(Array(connected.enumerated()), id: \.element.id) { i, acc in
+                            deviceRow(acc, isLast: i == connected.count - 1)
                         }
-                        deviceRow(accessory)
                     }
-                }
-                .hcCard()
-            }
 
-            if !offline.isEmpty {
-                sectionHeader(
-                    dotColor: Theme.color.danger,
-                    title: "Offline",
-                    count: offline.count
-                )
-                VStack(spacing: 0) {
-                    ForEach(Array(offline.enumerated()), id: \.element.id) { idx, accessory in
-                        if idx > 0 {
-                            Divider()
-                                .foregroundStyle(Theme.color.divider)
-                                .padding(.leading, 52)
+                    // Offline
+                    if !offline.isEmpty {
+                        TSectionHead(title: "Offline", count: "\(offline.count)")
+                        ForEach(Array(offline.enumerated()), id: \.element.id) { i, acc in
+                            deviceRow(acc, muted: true, isLast: i == offline.count - 1)
                         }
-                        deviceRow(accessory, muted: true)
                     }
-                }
-                .hcCard()
-            }
 
-            if connected.isEmpty && offline.isEmpty {
-                Text("No devices match your search.")
-                    .font(Theme.font.cardSubtitle)
-                    .foregroundStyle(Theme.color.subtitle)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 32)
-                    .accessibilityAddTraits(.isStaticText)
+                    // Empty state
+                    if connected.isEmpty && offline.isEmpty {
+                        Text("No devices match your search.")
+                            .font(T3.inter(13, weight: .regular))
+                            .foregroundStyle(T3.sub)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.horizontal, T3.screenPadding)
+                            .padding(.vertical, 32)
+                            .accessibilityAddTraits(.isStaticText)
+                    }
+
+                    Spacer(minLength: 120)
+                }
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    // MARK: - Search bar
+    // MARK: - Search row
 
-    private var searchBar: some View {
+    private var searchRow: some View {
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.color.muted)
-            TextField("Search devices...", text: $searchText)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.color.title)
+            T3IconImage(systemName: "magnifyingglass")
+                .frame(width: 14, height: 14)
+                .foregroundStyle(T3.sub)
+                .accessibilityHidden(true)
+
+            TextField("Search devices…", text: $searchText)
+                .font(T3.inter(13, weight: .regular))
+                .foregroundStyle(T3.ink)
+
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Theme.color.muted)
+                    T3IconImage(systemName: "xmark.circle.fill")
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(T3.sub)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
-            Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.color.muted)
-                .accessibilityLabel("Filter")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radius.chip, style: .continuous)
-                .fill(Theme.color.iconChipFill)
-        )
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { TRule() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Search devices")
     }
 
-    // MARK: - Section header
-
-    private func sectionHeader(dotColor: Color, title: String, count: Int) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 8, height: 8)
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.color.title)
-            Text("(\(count))")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Theme.color.muted)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title), \(count) devices")
-        .accessibilityAddTraits(.isHeader)
-    }
-
     // MARK: - Device row
 
-    private func deviceRow(_ accessory: Accessory, muted: Bool = false) -> some View {
-        HStack(spacing: 12) {
-            // Category icon in accent circle chip
-            ZStack {
-                Circle()
-                    .fill(muted ? Theme.color.iconChipFill : Theme.color.primary.opacity(0.12))
-                    .frame(width: 36, height: 36)
-                Image(systemName: iconName(for: accessory.category))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(muted ? Theme.color.muted : Theme.color.primary)
-            }
+    private func deviceRow(
+        _ accessory: Accessory,
+        muted: Bool = false,
+        isLast: Bool = false
+    ) -> some View {
+        HStack(spacing: 14) {
+            T3IconImage(systemName: iconName(for: accessory.category))
+                .frame(width: 16, height: 16)
+                .foregroundStyle(muted ? T3.sub : T3.ink)
+                .frame(width: 28)
 
-            // Name + room
             VStack(alignment: .leading, spacing: 2) {
                 Text(accessory.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(muted ? Theme.color.muted : Theme.color.title)
+                    .font(T3.inter(14, weight: .medium))
+                    .foregroundStyle(muted ? T3.sub : T3.ink)
                     .lineLimit(1)
-                Text(roomName(for: accessory))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.color.muted)
-                    .lineLimit(1)
+                    .truncationMode(.tail)
+                TLabel(text: roomName(for: accessory).uppercased())
             }
 
             Spacer()
 
-            // Protocol badge
-            protocolBadge(for: accessory, muted: muted)
+            // Protocol badge — flat rectangular border tag
+            Text(protocolLabel(for: accessory))
+                .font(T3.mono(10))
+                .tracking(1.2)
+                .foregroundStyle(muted ? T3.sub : T3.ink)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .overlay(Rectangle().stroke(muted ? T3.rule : T3.sub, lineWidth: 1))
+                .accessibilityHidden(true)
 
-            // Chevron
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.color.muted)
+            T3IconImage(systemName: "chevron.right")
+                .frame(width: 10, height: 10)
+                .foregroundStyle(T3.sub)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { TRule() }
+        .overlay(alignment: .bottom) { if isLast { TRule() } }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(accessory.name), \(roomName(for: accessory)), \(protocolLabel(for: accessory)), \(muted ? "Offline" : "Connected")")
-        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(
+            "\(accessory.name), \(roomName(for: accessory)), \(protocolLabel(for: accessory)), \(muted ? "Offline" : "Connected")"
+        )
         .accessibilityHint("View device details")
-    }
-
-    // MARK: - Protocol badge
-
-    private func protocolBadge(for accessory: Accessory, muted: Bool) -> some View {
-        let label = protocolLabel(for: accessory)
-        let badgeColor = muted ? Theme.color.muted : protocolColor(for: accessory)
-        return Text(label)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(badgeColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule().fill(badgeColor.opacity(0.12))
-            )
-            .accessibilityHidden(true)
     }
 
     // MARK: - Helpers
 
     private func roomName(for accessory: Accessory) -> String {
-        accessory.roomID ?? "Unassigned"
+        guard let roomID = accessory.roomID else { return "Unassigned" }
+        return registry.allRooms
+            .first { $0.id == roomID && $0.provider == accessory.id.provider }?
+            .name ?? "Unassigned"
     }
 
     private func protocolLabel(for accessory: Accessory) -> String {
         switch accessory.id.provider {
-        case .homeKit: "HomeKit"
-        case .smartThings: "Wi-Fi"
-        case .sonos: "Wi-Fi"
-        case .nest: "Thread"
-        case .homeAssistant: "Home Assistant"
-        }
-    }
-
-    private func protocolColor(for accessory: Accessory) -> Color {
-        switch accessory.id.provider {
-        case .homeKit: Color(red: 0.42, green: 0.36, blue: 0.91) // purple
-        case .smartThings: Color(red: 0.33, green: 0.77, blue: 0.49) // green
-        case .sonos: Color(red: 0.33, green: 0.77, blue: 0.49) // green
-        case .nest: Color(red: 0.55, green: 0.36, blue: 0.91) // purple
-        case .homeAssistant: Color(red: 0.18, green: 0.73, blue: 0.83) // cyan
+        case .homeKit:       "HomeKit"
+        case .smartThings:   "Wi-Fi"
+        case .sonos:         "Wi-Fi"
+        case .nest:          "Thread"
+        case .homeAssistant: "HA"
         }
     }
 
     private func iconName(for cat: Accessory.Category) -> String {
         switch cat {
-        case .light: "lightbulb.fill"
-        case .switch: "switch.2"
-        case .outlet: "poweroutlet.type.b.fill"
+        case .light:      "lightbulb.fill"
+        case .switch:     "switch.2"
+        case .outlet:     "poweroutlet.type.b.fill"
         case .thermostat: "thermometer.medium"
-        case .lock: "lock.fill"
-        case .sensor: "sensor.fill"
-        case .camera: "video.fill"
-        case .fan: "fan.fill"
-        case .blinds: "blinds.horizontal.closed"
-        case .speaker: "hifispeaker.fill"
+        case .lock:       "lock.fill"
+        case .sensor:     "sensor.fill"
+        case .camera:     "video.fill"
+        case .fan:        "fan.fill"
+        case .blinds:     "blinds.horizontal.closed"
+        case .speaker:    "hifispeaker.fill"
         case .television: "tv.fill"
-        case .appleTV: "tv.fill"
+        case .appleTV:    "tv.fill"
         case .smokeAlarm: "smoke.fill"
-        case .other: "questionmark.app.fill"
+        case .other:      "questionmark.app.fill"
         }
     }
 }

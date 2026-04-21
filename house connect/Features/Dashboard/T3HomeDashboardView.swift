@@ -21,6 +21,7 @@ struct T3HomeDashboardView: View {
     @Environment(WeatherService.self) private var weather
     @Environment(AppEventStore.self) private var eventStore
     @Environment(T3TabNavigator.self) private var navigator
+    @Environment(EnergyService.self) private var energy
 
     @State private var selectedSceneIndex: Int = 0
     @State private var runningSceneID: UUID?
@@ -94,9 +95,15 @@ struct T3HomeDashboardView: View {
         }
         .background(T3.page.ignoresSafeArea())
         .tint(T3.accent)
+        .task {
+            if energy.lastUpdated == nil {
+                await energy.refresh()
+            }
+        }
         .refreshable {
             weather.fetchIfNeeded()
             await withTaskGroup(of: Void.self) { group in
+                group.addTask { await energy.refresh() }
                 for provider in registry.providers {
                     group.addTask { @MainActor in await provider.refresh() }
                 }
@@ -204,7 +211,15 @@ struct T3HomeDashboardView: View {
             } else {
                 weatherCell(label: "Outside", value: weather.headline.components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "—", sub: weather.headline.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces) ?? "")
                 weatherCell(label: "Inside", value: insideTemp, sub: insideHumidity)
-                weatherCell(label: "Energy", value: "—", sub: "Not available", unit: nil)
+                NavigationLink(value: HomeDestination.energy) {
+                    weatherCell(
+                        label: "Energy",
+                        value: energy.todayKwh.map { String(format: "%.1f", $0) } ?? "—",
+                        sub: energy.todayKwh != nil ? "kWh today" : "Tap to view",
+                        unit: nil
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, T3.screenPadding)
