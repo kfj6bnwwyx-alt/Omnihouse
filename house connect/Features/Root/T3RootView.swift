@@ -57,6 +57,9 @@ struct T3RootView: View {
                     case .helpFAQ: T3HelpFAQView()
                     case .notifications: T3NotificationPreferencesView()
                     case .appearance: T3AppearanceView()
+                    case .manageDeviceLinks: T3ManageDeviceLinksView()
+                    case .energySettings: T3EnergySettingsView()
+                    case .haDiagnostics: T3HADiagnosticsView()
                     }
                 }
             }

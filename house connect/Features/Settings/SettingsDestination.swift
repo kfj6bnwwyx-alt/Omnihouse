@@ -23,4 +23,7 @@ enum SettingsDestination: Hashable {
     case helpFAQ
     case notifications
     case appearance
+    case manageDeviceLinks
+    case energySettings
+    case haDiagnostics
 }
