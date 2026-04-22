@@ -18,6 +18,7 @@ struct T3RoomDetailView: View {
     let providerID: ProviderID
 
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(RoomLinkStore.self) private var roomLinkStore
     @Environment(\.dismiss) private var dismiss
 
     // Rename state
@@ -35,9 +36,21 @@ struct T3RoomDetailView: View {
         registry.allRooms.first { $0.id == roomID && $0.provider == providerID }
     }
 
+    /// Every (provider, roomID) pair that rolls up into this view:
+    /// the primary the user tapped plus every secondary linked to it.
+    /// Unlinked rooms return just themselves.
+    private var contributingKeys: [RoomKey] {
+        let primary = RoomKey(provider: providerID, roomID: roomID)
+        return [primary] + roomLinkStore.secondaries(for: primary)
+    }
+
     private var devices: [Accessory] {
-        registry.allAccessories
-            .filter { $0.roomID == roomID && $0.id.provider == providerID }
+        let keys = Set(contributingKeys)
+        return registry.allAccessories
+            .filter { acc in
+                guard let rid = acc.roomID else { return false }
+                return keys.contains(RoomKey(provider: acc.id.provider, roomID: rid))
+            }
             .sorted { $0.name < $1.name }
     }
 

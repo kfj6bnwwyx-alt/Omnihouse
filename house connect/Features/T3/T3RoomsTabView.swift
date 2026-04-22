@@ -9,6 +9,7 @@ import SwiftUI
 
 struct T3RoomsTabView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(RoomLinkStore.self) private var roomLinkStore
     @State private var showingCreate = false
     /// Short post-appearance gate so the empty state doesn't flash
     /// during the first render, before provider rooms stream in.
@@ -17,9 +18,13 @@ struct T3RoomsTabView: View {
     /// genuinely are zero rooms, long enough to avoid the flash.
     @State private var didSettle = false
 
-    private var rooms: [Room] {
-        var seen = Set<String>()
-        return registry.allRooms.filter { seen.insert($0.name.lowercased()).inserted }
+    private var rooms: [MergedRoom] {
+        RoomMerging.merge(rooms: registry.allRooms, links: roomLinkStore.links)
+    }
+
+    private func accessoryInRoom(_ a: Accessory, merged: MergedRoom) -> Bool {
+        guard let rid = a.roomID else { return false }
+        return merged.allKeys.contains(RoomKey(provider: a.id.provider, roomID: rid))
     }
 
     var body: some View {
@@ -45,10 +50,10 @@ struct T3RoomsTabView: View {
                 let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
                 LazyVGrid(columns: columns, spacing: 0) {
                     ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
-                        let deviceCount = registry.allAccessories.filter { $0.roomID == room.id }.count
-                        let activeCount = registry.allAccessories.filter { $0.roomID == room.id && $0.isOn == true }.count
+                        let deviceCount = registry.allAccessories.filter { accessoryInRoom($0, merged: room) }.count
+                        let activeCount = registry.allAccessories.filter { accessoryInRoom($0, merged: room) && $0.isOn == true }.count
 
-                        NavigationLink(value: room) {
+                        NavigationLink(value: room.primary) {
                             VStack(alignment: .leading, spacing: 0) {
                                 HStack {
                                     T3IconImage(systemName: roomIcon(room.name))

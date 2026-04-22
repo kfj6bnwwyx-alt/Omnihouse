@@ -22,6 +22,7 @@ struct T3HomeDashboardView: View {
     @Environment(AppEventStore.self) private var eventStore
     @Environment(T3TabNavigator.self) private var navigator
     @Environment(EnergyService.self) private var energy
+    @Environment(RoomLinkStore.self) private var roomLinkStore
 
     @State private var selectedSceneIndex: Int = 0
     @State private var runningSceneID: UUID?
@@ -40,11 +41,14 @@ struct T3HomeDashboardView: View {
     /// Mirrors the Appearance setting so insideTemp renders in the right unit.
     @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
 
-    private var rooms: [Room] {
-        let allRooms = registry.allRooms
-        // Deduplicate by name (same pattern as HomeDashboardView)
-        var seen = Set<String>()
-        return allRooms.filter { seen.insert($0.name.lowercased()).inserted }
+    private var rooms: [MergedRoom] {
+        RoomMerging.merge(rooms: registry.allRooms, links: roomLinkStore.links)
+    }
+
+    /// True when accessory `a` belongs to any room in merged bucket `m`.
+    private func accessoryInRoom(_ a: Accessory, merged: MergedRoom) -> Bool {
+        guard let rid = a.roomID else { return false }
+        return merged.allKeys.contains(RoomKey(provider: a.id.provider, roomID: rid))
     }
 
     private var activeCount: Int {
@@ -476,10 +480,10 @@ struct T3HomeDashboardView: View {
             let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
             LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
-                    let deviceCount = registry.allAccessories.filter { $0.roomID == room.id }.count
-                    let activeDevices = registry.allAccessories.filter { $0.roomID == room.id && $0.isOn == true }.count
+                    let deviceCount = registry.allAccessories.filter { accessoryInRoom($0, merged: room) }.count
+                    let activeDevices = registry.allAccessories.filter { accessoryInRoom($0, merged: room) && $0.isOn == true }.count
 
-                    NavigationLink(value: room) {
+                    NavigationLink(value: room.primary) {
                         VStack(alignment: .leading, spacing: 0) {
                             // Top: glyph + index
                             HStack {

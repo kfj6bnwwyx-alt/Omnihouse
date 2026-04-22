@@ -43,6 +43,12 @@ struct house_connectApp: App {
     /// T3DevicesTabView (Merged mode), and detail views can all read it.
     @State private var deviceLinkStore = DeviceLinkStore()
 
+    /// Persisted user-created room links. Lets the user fold two
+    /// rooms across providers (e.g. HomeKit "Family Room" + HA
+    /// "family_room") into one merged tile on the Home dashboard
+    /// and Rooms tab.
+    @State private var roomLinkStore = RoomLinkStore()
+
     /// Lifecycle owner for the smoke-alarm Live Activity. iOS-only —
     /// `ActivityKit` isn't available on macOS, and the app also builds
     /// for macOS, so we only instantiate the controller under iOS.
@@ -141,6 +147,7 @@ struct house_connectApp: App {
                 .environment(smokeAlarmEventStore)
                 .environment(mergedDeviceLookup)
                 .environment(deviceLinkStore)
+                .environment(roomLinkStore)
                 .environment(energyService)
                 #if os(iOS)
                 .environment(smokeAlertController)
