@@ -22,7 +22,6 @@ struct T3HomeDashboardView: View {
     @Environment(AppEventStore.self) private var eventStore
     @Environment(T3TabNavigator.self) private var navigator
     @Environment(EnergyService.self) private var energy
-    @Environment(RoomLinkStore.self) private var roomLinkStore
 
     @State private var selectedSceneIndex: Int = 0
     @State private var runningSceneID: UUID?
@@ -41,15 +40,6 @@ struct T3HomeDashboardView: View {
     /// Mirrors the Appearance setting so insideTemp renders in the right unit.
     @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
 
-    private var rooms: [MergedRoom] {
-        RoomMerging.merge(rooms: registry.allRooms, links: roomLinkStore.links)
-    }
-
-    /// True when accessory `a` belongs to any room in merged bucket `m`.
-    private func accessoryInRoom(_ a: Accessory, merged: MergedRoom) -> Bool {
-        guard let rid = a.roomID else { return false }
-        return merged.allKeys.contains(RoomKey(provider: a.id.provider, roomID: rid))
-    }
 
     private var activeCount: Int {
         registry.allAccessories.filter { $0.isOn == true }.count
@@ -99,7 +89,13 @@ struct T3HomeDashboardView: View {
                 TRule()
                 scenesSection
                 TRule()
-                roomsList
+                // "What's on right now" — replaced the Rooms grid
+                // (which duplicated the Rooms tab). Each sub-section
+                // hides itself when empty, so the dashboard collapses
+                // to Greeting/Weather/QuickActions/Scenes/Explore on
+                // a quiet day.
+                T3HomeActiveDevicesSection()
+                    .environment(registry)
                 TRule()
                 exploreSection
                 Spacer(minLength: 120)
@@ -468,85 +464,6 @@ struct T3HomeDashboardView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Run \(scene.name) scene")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-    }
-
-    // MARK: - Rooms (2-column grid)
-
-    private var roomsList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            TSectionHead(title: "Rooms", count: String(format: "%02d", rooms.count))
-
-            // 2-column grid — rooms as spatial zones, not a flat list
-            let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
-            LazyVGrid(columns: columns, spacing: 0) {
-                ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
-                    let deviceCount = registry.allAccessories.filter { accessoryInRoom($0, merged: room) }.count
-                    let activeDevices = registry.allAccessories.filter { accessoryInRoom($0, merged: room) && $0.isOn == true }.count
-
-                    NavigationLink(value: room.primary) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Top: glyph + index
-                            HStack {
-                                T3IconImage(systemName: roomIcon(room.name))
-                                    .frame(width: 22, height: 22)
-                                    .foregroundStyle(T3.ink)
-                                    .accessibilityHidden(true)
-                                Spacer()
-                                TLabel(text: String(format: "%02d", i + 1))
-                                    .accessibilityHidden(true)
-                            }
-
-                            Spacer()
-
-                            // Bottom: name + active status
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(room.name)
-                                    .font(T3.inter(18, weight: .medium))
-                                    .tracking(-0.4)
-                                    .foregroundStyle(T3.ink)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-
-                                HStack(spacing: 6) {
-                                    if activeDevices > 0 { TDot(size: 6) }
-                                    Text("\(activeDevices)/\(deviceCount) on")
-                                        .font(T3.mono(10))
-                                        .foregroundStyle(T3.sub)
-                                        .tracking(0.6)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
-                        .frame(minHeight: 140)
-                        .overlay(alignment: .bottom) {
-                            TRule()
-                        }
-                        .overlay(alignment: .trailing) {
-                            if i % 2 == 0 {
-                                Rectangle().fill(T3.rule).frame(width: 1)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(room.name), \(activeDevices) of \(deviceCount) devices on")
-                    .accessibilityAddTraits(.isButton)
-                }
-            }
-        }
-    }
-
-    private func roomIcon(_ name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("living") || lower.contains("family") || lower.contains("den") { return "sofa.fill" }
-        if lower.contains("kitchen") { return "fork.knife" }
-        if lower.contains("bed") { return "bed.double.fill" }
-        if lower.contains("entry") || lower.contains("door") || lower.contains("hall") { return "door.left.hand.open" }
-        if lower.contains("bath") { return "shower.fill" }
-        if lower.contains("office") || lower.contains("study") { return "desktopcomputer" }
-        if lower.contains("garage") { return "car.fill" }
-        return "square.grid.2x2"
     }
 
     // MARK: - Explore (Energy + Activity)
