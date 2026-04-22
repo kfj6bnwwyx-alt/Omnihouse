@@ -1,0 +1,83 @@
+name: CI
+
+# Runs on every push to main and on PRs. Keeps the feedback loop
+# tight — a regression that slips past local checks shows up here
+# within a few minutes instead of the next time someone reads the
+# "Actions" tab.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  # Cancel older runs on the same branch — only the latest commit's
+  # result matters, and it saves macOS minutes.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build + Test
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Select Xcode 17 if available
+        # Defensive — macos-15 ships with Xcode 17 already, but pin
+        # to the right developer dir in case multiple are installed.
+        run: sudo xcode-select -s /Applications/Xcode_17.0.app/Contents/Developer || true
+
+      - name: Resolve Swift packages
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "house connect.xcodeproj" \
+            -scheme "house connect" \
+            -resolvePackageDependencies
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "house connect.xcodeproj" \
+            -scheme "house connect" \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests
+        # Tests run against a concrete simulator runtime. Pick
+        # whichever iOS 26 the runner has — don't pin an exact
+        # version since Apple bumps these on the hosted image.
+        run: |
+          set -euo pipefail
+          SIM_ID=$(xcrun simctl list devices available | \
+            awk '/-- iOS 26/{v=1; next} /--/{v=0} v && /iPhone/{match($0, /\(([-0-9A-F]{36})\)/, a); print a[1]; exit}')
+          if [ -z "$SIM_ID" ]; then
+            echo "::error::No iOS 26 simulator available on runner"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using simulator: $SIM_ID"
+          xcodebuild \
+            -project "house connect.xcodeproj" \
+            -scheme "house connect" \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            test \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath /tmp/TestResult.xcresult
+
+      - name: Upload test result bundle on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-result
+          path: /tmp/TestResult.xcresult
