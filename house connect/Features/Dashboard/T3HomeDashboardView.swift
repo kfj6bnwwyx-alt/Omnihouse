@@ -437,35 +437,30 @@ struct T3HomeDashboardView: View {
     }
 
     // MARK: - Active rooms (what's on + quick off)
-    //
-    // Home is "what's on right now"; the Rooms tab is the full spatial
-    // view. This section only lists rooms with active devices, sorted by
-    // active count, with a trailing "Off" action per row to match Home's
-    // "know what's on, turn it off" job. Empty state = everything off.
-    // "See all →" jumps to the Rooms tab for the complete list.
 
     private struct ActiveRoom: Identifiable {
         let room: Room
         let activeDevices: [Accessory]
-        var id: String { "\(room.provider.rawValue)|\(room.id)" }
+        var id: Room { room }
         var activeCount: Int { activeDevices.count }
     }
 
-    private var activeRooms: [ActiveRoom] {
-        let accessories = registry.allAccessories
+    private func computeActiveRooms() -> [ActiveRoom] {
+        let onByRoom = Dictionary(grouping: registry.allAccessories.filter { $0.isOn == true },
+                                  by: \.roomID)
         return rooms.compactMap { room in
-            let on = accessories.filter { $0.roomID == room.id && $0.isOn == true }
-            guard !on.isEmpty else { return nil }
+            guard let on = onByRoom[room.id], !on.isEmpty else { return nil }
             return ActiveRoom(room: room, activeDevices: on)
         }
         .sorted { $0.activeCount > $1.activeCount }
     }
 
     private var roomsList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            activeRoomsHeader
+        let active = computeActiveRooms()
+        return VStack(alignment: .leading, spacing: 0) {
+            activeRoomsHeader(count: active.count)
 
-            if activeRooms.isEmpty {
+            if active.isEmpty {
                 HStack {
                     Text("Everything's off.")
                         .font(T3.inter(14, weight: .regular))
@@ -475,9 +470,9 @@ struct T3HomeDashboardView: View {
                 .padding(.horizontal, T3.screenPadding)
                 .padding(.vertical, 18)
             } else {
-                ForEach(Array(activeRooms.enumerated()), id: \.element.id) { i, entry in
+                ForEach(Array(active.enumerated()), id: \.element.id) { i, entry in
                     activeRoomRow(entry)
-                    if i < activeRooms.count - 1 { TRule() }
+                    if i < active.count - 1 { TRule() }
                 }
             }
         }
@@ -516,7 +511,6 @@ struct T3HomeDashboardView: View {
             .buttonStyle(.t3Row)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(entry.room.name), \(entry.activeCount) devices on")
-            .accessibilityAddTraits(.isButton)
 
             Button { turnOffRoom(entry) } label: {
                 Text("Off")
@@ -536,47 +530,37 @@ struct T3HomeDashboardView: View {
         .padding(.vertical, 12)
     }
 
-    /// Fires setPower(false) for every currently-on device in the room
-    /// in parallel, tolerating per-device failures so one unreachable
-    /// device doesn't cancel the rest. Toast reflects the aggregate.
     private func turnOffRoom(_ entry: ActiveRoom) {
-        let devices = entry.activeDevices
+        // Reuse SceneRunner so the fan-out, per-device error collection,
+        // and partial-success bookkeeping match scene execution exactly.
         let roomName = entry.room.name
+        let actions = entry.activeDevices.map {
+            SceneAction(accessoryID: $0.id, command: .setPower(false))
+        }
+        let pseudoScene = HCScene(name: "Off in \(roomName)",
+                                  iconSystemName: "power",
+                                  actions: actions)
         Task {
-            let failures: Int = await withTaskGroup(of: Bool.self) { group in
-                for device in devices {
-                    group.addTask { @MainActor in
-                        do {
-                            try await registry.execute(.setPower(false), on: device.id)
-                            return true
-                        } catch {
-                            return false
-                        }
-                    }
-                }
-                var failed = 0
-                for await success in group where !success { failed += 1 }
-                return failed
-            }
-
-            if failures == 0 {
+            let result = await SceneRunner(registry: registry).run(pseudoScene)
+            if Task.isCancelled { return }
+            if result.isFullSuccess {
                 toast = .success("Off in \(roomName)")
-            } else if failures == devices.count {
+            } else if result.isCompleteFailure {
                 toast = .error("Couldn't turn off \(roomName)")
             } else {
-                toast = .error("\(roomName): \(devices.count - failures)/\(devices.count) off")
+                toast = .error("\(roomName): \(result.succeeded)/\(result.total) off")
             }
         }
     }
 
-    private var activeRoomsHeader: some View {
+    private func activeRoomsHeader(count: Int) -> some View {
         HStack {
             Text("Active rooms")
                 .font(T3.inter(15, weight: .medium))
                 .foregroundStyle(T3.ink)
             Spacer()
-            if !activeRooms.isEmpty {
-                TLabel(text: String(format: "%02d", activeRooms.count))
+            if count > 0 {
+                TLabel(text: String(format: "%02d", count))
             }
             Button {
                 navigator.select(.rooms)

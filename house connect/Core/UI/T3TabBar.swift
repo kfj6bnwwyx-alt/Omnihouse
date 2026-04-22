@@ -22,15 +22,10 @@ struct T3TabBar: View {
         HStack(spacing: 0) {
             ForEach(T3Tab.allCases, id: \.self) { tab in
                 Button {
-                    // `select` also clears the stack path, so different-
-                    // tab taps land on the new tab's root and same-tab
-                    // taps pop to root (matches system TabView behavior).
                     #if canImport(UIKit)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     #endif
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                        navigator.select(tab)
-                    }
+                    navigator.select(tab)
                 } label: {
                     VStack(spacing: 3) {
                         ZStack(alignment: .topTrailing) {

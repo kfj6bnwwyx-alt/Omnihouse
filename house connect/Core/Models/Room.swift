@@ -14,11 +14,7 @@ struct Room: Identifiable, Hashable, Sendable, Codable {
 }
 
 extension Room {
-    /// SF Symbol for the room, inferred from the name. Used by both
-    /// T3HomeDashboardView's Active rooms list and T3RoomsTabView's
-    /// full grid so the two views agree. Order matches the historical
-    /// mapping in T3HomeDashboardView (the more-complete of the two
-    /// private helpers this replaces).
+    /// SF Symbol inferred from the room name.
     var glyph: String {
         let lower = name.lowercased()
         if lower.contains("living") || lower.contains("family") || lower.contains("den") { return "sofa.fill" }
