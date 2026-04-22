@@ -28,12 +28,12 @@ struct RoomKey: Codable, Hashable, Sendable {
     let provider: ProviderID
     let roomID: String
 
-    init(provider: ProviderID, roomID: String) {
+    nonisolated init(provider: ProviderID, roomID: String) {
         self.provider = provider
         self.roomID = roomID
     }
 
-    init(_ room: Room) {
+    nonisolated init(_ room: Room) {
         self.provider = room.provider
         self.roomID = room.id
     }

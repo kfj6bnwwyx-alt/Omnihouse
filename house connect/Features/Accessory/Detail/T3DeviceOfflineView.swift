@@ -201,7 +201,7 @@ struct T3DeviceOfflineView: View {
         lastRetryAt = Date()
         Task {
             if let provider = registry.provider(for: accessoryID.provider) {
-                try? await provider.refresh()
+                await provider.refresh()
             }
             try? await Task.sleep(for: .milliseconds(600))
             await MainActor.run { isRetrying = false }

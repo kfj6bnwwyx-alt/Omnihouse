@@ -946,7 +946,7 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// Energy dashboard typically exposes this as a cumulative kWh
     /// sensor. Users can override this in Settings → Energy; the
     /// chosen value is persisted under `@AppStorage("energy.entityID")`.
-    nonisolated(unsafe) static let defaultEnergyStatisticID: String = "sensor.energy_home_total"
+    nonisolated static let defaultEnergyStatisticID: String = "sensor.energy_home_total"
 
     /// One candidate sensor that could drive the Energy dashboard.
     /// Returned by `fetchEnergySensorCandidates()`.

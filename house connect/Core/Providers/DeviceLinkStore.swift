@@ -76,7 +76,7 @@ final class DeviceLinkStore {
     /// natural `DeviceMerging.matchKey`. Returns `nil` when the accessory
     /// has no manual link.
     func overrideMatchKey(for accessory: Accessory) -> String? {
-        if let link = links.first(where: { $0.primaryID == accessory.id }) {
+        if links.contains(where: { $0.primaryID == accessory.id }) {
             // This IS the primary — return its own key (no change needed for primary).
             return DeviceMerging.matchKey(for: accessory)
         }

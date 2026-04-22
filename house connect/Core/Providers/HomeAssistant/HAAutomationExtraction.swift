@@ -21,7 +21,7 @@ enum HAAutomationExtraction {
     /// triggers, conditions, or actions. Traverses the whole JSON
     /// blob recursively picking up any "entity_id" key (string or
     /// array of strings).
-    static func referencedEntityIDs(in config: HAAutomationConfig) -> Set<String> {
+    nonisolated static func referencedEntityIDs(in config: HAAutomationConfig) -> Set<String> {
         var ids: Set<String> = []
         collect(value: .array(config.trigger ?? []), into: &ids)
         collect(value: .array(config.condition ?? []), into: &ids)
@@ -31,7 +31,7 @@ enum HAAutomationExtraction {
 
     /// Human-readable summary of the first trigger, or nil if none.
     /// Examples: "WHEN sun sets", "WHEN motion.hall", "WHEN 18:00".
-    static func triggerSummary(for config: HAAutomationConfig) -> String? {
+    nonisolated static func triggerSummary(for config: HAAutomationConfig) -> String? {
         guard let first = config.trigger?.first?.dictValue else { return nil }
         let platform = first["platform"]?.stringValue ?? first["trigger"]?.stringValue
         switch platform {
@@ -71,7 +71,7 @@ enum HAAutomationExtraction {
 
     /// Human-readable summary of the first action, or nil if none.
     /// Examples: "TURN ON light.kitchen", "CALL scene.movie_night".
-    static func actionSummary(for config: HAAutomationConfig) -> String? {
+    nonisolated static func actionSummary(for config: HAAutomationConfig) -> String? {
         guard let first = config.action?.first?.dictValue else { return nil }
         // Service call — most common action type.
         if let service = first["service"]?.stringValue
@@ -99,7 +99,7 @@ enum HAAutomationExtraction {
     /// Recursively walks `value` and appends any entity_id strings
     /// found under the conventional "entity_id" key (value can be a
     /// string or an array of strings in HA configs).
-    private static func collect(value: AnyCodableValue, into ids: inout Set<String>) {
+    private nonisolated static func collect(value: AnyCodableValue, into ids: inout Set<String>) {
         switch value {
         case .dictionary(let dict):
             if let direct = dict["entity_id"] {
@@ -119,7 +119,7 @@ enum HAAutomationExtraction {
         }
     }
 
-    private static func firstEntityID(in dict: [String: AnyCodableValue]) -> String? {
+    private nonisolated static func firstEntityID(in dict: [String: AnyCodableValue]) -> String? {
         if case .string(let s) = dict["entity_id"] { return s }
         if case .array(let arr) = dict["entity_id"] {
             for item in arr { if case .string(let s) = item { return s } }
@@ -130,7 +130,7 @@ enum HAAutomationExtraction {
     /// Map common HA service names to plain-verb labels. Anything
     /// unrecognised falls back to "CALL <service>" so the user still
     /// sees what's happening.
-    private static func prettyServiceVerb(_ service: String) -> String {
+    private nonisolated static func prettyServiceVerb(_ service: String) -> String {
         // Services are "domain.service" e.g. "light.turn_on".
         let parts = service.split(separator: ".", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return "CALL \(service.uppercased())" }

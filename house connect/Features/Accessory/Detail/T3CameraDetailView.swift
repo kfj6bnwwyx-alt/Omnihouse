@@ -283,7 +283,7 @@ struct T3CameraDetailView: View {
         lastRetryAt = Date()
         Task { @MainActor in
             if let provider = registry.provider(for: accessoryID.provider) {
-                try? await provider.refresh()
+                await provider.refresh()
             }
             try? await Task.sleep(for: .milliseconds(600))
             isRetrying = false

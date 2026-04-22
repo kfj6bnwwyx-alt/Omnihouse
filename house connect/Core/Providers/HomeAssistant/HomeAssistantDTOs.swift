@@ -486,12 +486,12 @@ enum AnyCodableValue: Codable, Sendable, Hashable {
     case dictionary([String: AnyCodableValue])
     case null
 
-    var stringValue: String? {
+    nonisolated var stringValue: String? {
         if case .string(let s) = self { return s }
         return nil
     }
 
-    var intValue: Int? {
+    nonisolated var intValue: Int? {
         switch self {
         case .int(let i): return i
         case .double(let d): return Int(d)
@@ -499,7 +499,7 @@ enum AnyCodableValue: Codable, Sendable, Hashable {
         }
     }
 
-    var doubleValue: Double? {
+    nonisolated var doubleValue: Double? {
         switch self {
         case .double(let d): return d
         case .int(let i): return Double(i)
@@ -507,17 +507,17 @@ enum AnyCodableValue: Codable, Sendable, Hashable {
         }
     }
 
-    var boolValue: Bool? {
+    nonisolated var boolValue: Bool? {
         if case .bool(let b) = self { return b }
         return nil
     }
 
-    var arrayValue: [AnyCodableValue]? {
+    nonisolated var arrayValue: [AnyCodableValue]? {
         if case .array(let a) = self { return a }
         return nil
     }
 
-    var dictValue: [String: AnyCodableValue]? {
+    nonisolated var dictValue: [String: AnyCodableValue]? {
         if case .dictionary(let d) = self { return d }
         return nil
     }
