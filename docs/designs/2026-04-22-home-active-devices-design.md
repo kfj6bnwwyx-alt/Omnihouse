@@ -4,6 +4,21 @@
 **Author:** collaborative design w/ Brent
 **Related:** plan `the-app-still-isn-t-soft-oasis.md` #14 (new item)
 
+## Product context
+
+From `Omni-house/PRD.md`:
+
+> "House Connect is a single iOS control surface for the devices that live
+> across HomeKit, SmartThings, Sonos, Samsung Frame TV, and Google Nest."
+
+The PRD's deferred-roadmap section (Phase 3 widgets) already calls out
+*"room-level 'active devices' count"* as a planned widget. This spec
+pulls that intent into the main Home dashboard — answering "what's on in
+the house right now?" at a glance — and retires the duplicate rooms grid
+that's currently there. `PHASES.md:347` establishes the vocabulary we'll
+reuse: **"active = `isOn == true`"**, with sensors/cameras contributing
+to denominators but not numerators.
+
 ## Problem
 
 The Home tab and the Rooms tab both render a 2-column Rooms grid. The overlap
@@ -17,7 +32,9 @@ detail screens today.
 
 Replace the Rooms grid on Home with an **"active devices" area** that
 surfaces devices currently doing something — with inline quick control —
-while leaving the Rooms tab untouched.
+while leaving the Rooms tab untouched. Aligns with the product pitch of a
+"single control surface": Home becomes the glance view, Rooms tab stays the
+browse view.
 
 ## Scope
 
