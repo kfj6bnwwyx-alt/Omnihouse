@@ -316,7 +316,9 @@ struct T3HomeDashboardView: View {
                 .foregroundStyle(T3.ink)
             Spacer()
             Button {
+                #if canImport(UIKit) && os(iOS)
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
                 isEditingQuickActions = true
             } label: {
                 T3IconImage(systemName: "pencil")
@@ -547,9 +549,11 @@ struct T3HomeDashboardView: View {
 
     private var exploreSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TSectionHead(title: "Explore", count: "02")
+            TSectionHead(title: "Explore", count: "01")
 
-            exploreRow(icon: "bolt.fill", title: "Energy", sub: "DAILY KWH · BREAKDOWN", destination: .energy)
+            // Energy has its own tappable tile in the weather strip
+            // (Outside / Inside / Energy). Keeping it here too was a
+            // duplicate entry point to the same destination.
             exploreRow(icon: "clock.arrow.circlepath", title: "Activity", sub: "TODAY'S EVENT TIMELINE", destination: .activity, isLast: true)
         }
     }
