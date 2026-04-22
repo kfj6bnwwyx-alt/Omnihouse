@@ -19,7 +19,24 @@ import Observation
 
 @Observable
 final class T3TabNavigator {
-    var selection: T3Tab = .home
+    /// Tab selection with a side effect: any time the user switches
+    /// tabs we drop the shared NavigationStack path. Without this,
+    /// detail views pushed on one tab stay retained when the user
+    /// jumps to another tab — their `@State`, observers, and
+    /// spawned `Task`s keep running in the background, and coming
+    /// back to the original tab lands on the old deep screen
+    /// instead of the tab root. That retention was a major
+    /// contributor to the "slows down after 4–5 screens" freeze.
+    var selection: T3Tab = .home {
+        didSet {
+            guard selection != oldValue else { return }
+            // Collapse the path so the new tab root renders fresh.
+            // Programmatic `goToSettings(_:)` below temporarily
+            // violates this (it flips the tab THEN appends) — the
+            // didSet runs first, which is exactly what we want.
+            path = NavigationPath()
+        }
+    }
     /// Type-erased path driving the single NavigationStack in
     /// T3RootView. Type-erased because the stack handles multiple
     /// destination types (AccessoryID, Room, SettingsDestination, …).
@@ -30,8 +47,7 @@ final class T3TabNavigator {
     /// destination onto the shared stack. Clears any prior path so the
     /// user lands on the pushed screen rather than deep-nested.
     func goToSettings(_ dest: SettingsDestination) {
-        selection = .settings
-        path = NavigationPath()
+        selection = .settings   // didSet clears the path
         path.append(dest)
     }
 }

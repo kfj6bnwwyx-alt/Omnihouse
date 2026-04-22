@@ -77,6 +77,19 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     @ObservationIgnored private var restClient: HomeAssistantRESTClient?
     @ObservationIgnored private var pingTask: Task<Void, Never>?
     @ObservationIgnored private var pendingRebuildTask: Task<Void, Never>?
+
+    /// Entity IDs whose accessories need updating on the next
+    /// coalesced flush. Accumulates between batches so a flurry of
+    /// single-entity state changes collapses into one `accessories`
+    /// mutation instead of N observation triggers. See
+    /// `didReceiveStateChange`.
+    @ObservationIgnored private var pendingEntityUpdates: Set<String> = []
+    @ObservationIgnored private var pendingEntityFlushTask: Task<Void, Never>?
+    /// How long we wait before flushing queued entity updates. 50ms
+    /// is well under the threshold of perceptible latency for toggle
+    /// feedback, and lets a hundred rapid updates coalesce into one
+    /// observation cycle.
+    @ObservationIgnored private let entityFlushDebounce: Duration = .milliseconds(50)
     /// Wave HH — local-vs-remote URL resolver + cache. Created on first
     /// `start()`, reused for reconnects so the NWPathMonitor keeps running.
     @ObservationIgnored private var endpointResolver: HAEndpointResolver?
@@ -417,7 +430,33 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
         Task { @MainActor in
             self.entityStates[entityID] = newState
             self.lastStateUpdateAt = Date()
-            self.rebuildAccessory(for: entityID)
+            self.enqueueEntityRebuild(entityID)
+        }
+    }
+
+    /// Coalesces rapid WebSocket state updates into a single observation
+    /// tick. A busy HA install can emit dozens of `state_changed` events
+    /// per second; calling `rebuildAccessory` per event used to trigger
+    /// a SwiftUI re-render for every one, compounding across every
+    /// pushed detail view on the NavigationStack. Flushing on a 50ms
+    /// debounce drops that to ~20 cycles/sec max without the user
+    /// noticing.
+    private func enqueueEntityRebuild(_ entityID: String) {
+        pendingEntityUpdates.insert(entityID)
+        pendingEntityFlushTask?.cancel()
+        pendingEntityFlushTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.entityFlushDebounce ?? .milliseconds(50))
+            guard !Task.isCancelled, let self else { return }
+            await self.flushPendingEntityRebuilds()
+        }
+    }
+
+    private func flushPendingEntityRebuilds() {
+        let pending = pendingEntityUpdates
+        pendingEntityUpdates.removeAll(keepingCapacity: true)
+        guard !pending.isEmpty else { return }
+        for entityID in pending {
+            rebuildAccessory(for: entityID)
         }
     }
 

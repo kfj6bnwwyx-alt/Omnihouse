@@ -72,8 +72,17 @@ struct T3ManageDeviceLinksView: View {
                     TSectionHead(title: "Potential matches",
                                  count: String(format: "%02d", candidates.count))
 
-                    ForEach(Array(candidates.enumerated()), id: \.offset) { i, pair in
-                        candidateRow(pair, isLast: i == candidates.count - 1)
+                    // Pair-derived stable ID. Using offset as the
+                    // ForEach id caused Scenario A: after linking one
+                    // pair, the list filtered, offsets shifted, and
+                    // SwiftUI reused Button instances against new pair
+                    // data — subsequent taps landed on the wrong pair.
+                    // A single accessory can appear in multiple
+                    // candidate pairs (same primary, different
+                    // secondaries), so we combine both IDs.
+                    let identified = candidates.map { IdentifiedCandidate(a: $0.0, b: $0.1) }
+                    ForEach(Array(identified.enumerated()), id: \.element.id) { i, item in
+                        candidateRow((item.a, item.b), isLast: i == identified.count - 1)
                     }
                 }
 
@@ -482,6 +491,21 @@ struct T3LinkDevicePickerSheet: View {
         case .smokeAlarm: "smoke.fill"
         case .other:    "questionmark.app"
         }
+    }
+}
+
+// MARK: - Identified candidate pair
+
+/// Wrapper giving each candidate pair a stable, ForEach-safe id.
+/// The old `id: \.offset` let SwiftUI reuse Button instances against
+/// new pair data after the list filtered — scenario A.
+private struct IdentifiedCandidate: Identifiable, Hashable {
+    let a: Accessory
+    let b: Accessory
+    var id: String {
+        // Both AccessoryIDs namespaced, so joining their native IDs
+        // with a separator can't collide with either side alone.
+        "\(a.id.provider.rawValue):\(a.id.nativeID)|\(b.id.provider.rawValue):\(b.id.nativeID)"
     }
 }
 
