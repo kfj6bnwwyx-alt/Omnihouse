@@ -13,19 +13,28 @@ import UIKit
 #endif
 
 struct T3TabBar: View {
-    @Binding var selection: T3Tab
+    @Environment(T3TabNavigator.self) private var navigator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var selection: T3Tab { navigator.selection }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(T3Tab.allCases, id: \.self) { tab in
                 Button {
-                    guard selection != tab else { return }
+                    // Same-tab tap: pop to root on the current tab so the
+                    // user always has a one-tap way back to the tab root
+                    // (matches system TabView behavior). Different-tab
+                    // tap: clear the shared stack path first, otherwise a
+                    // pushed destination (e.g. a Room detail) would stay
+                    // on top after the root swaps and the tab-bar
+                    // indicator would disagree with the visible screen.
                     #if canImport(UIKit)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     #endif
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                        selection = tab
+                        navigator.path = NavigationPath()
+                        navigator.selection = tab
                     }
                 } label: {
                     VStack(spacing: 3) {

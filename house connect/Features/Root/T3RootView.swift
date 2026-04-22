@@ -63,7 +63,7 @@ struct T3RootView: View {
             .toolbar(.hidden, for: .tabBar)
 
             // Floating T3 tab bar
-            T3TabBar(selection: $navigator.selection)
+            T3TabBar()
         }
         .environment(navigator)
         // Global HA disconnection banner — shows on every tab whenever
