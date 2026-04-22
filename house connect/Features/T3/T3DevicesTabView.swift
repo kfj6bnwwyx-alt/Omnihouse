@@ -10,11 +10,16 @@ import SwiftUI
 struct T3DevicesTabView: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(T3TabNavigator.self) private var navigator
+    @Environment(DeviceLinkStore.self) private var linkStore
 
     @State private var filter: String = "All"
     @State private var searchQuery: String = ""
     @FocusState private var searchFocused: Bool
     @State private var showAddDeviceSheet: Bool = false
+    /// When true, cross-provider duplicates are collapsed using
+    /// DeviceMerging + DeviceLinkStore. Persisted so the user's
+    /// preference survives tab switches.
+    @AppStorage("devices.mergedMode") private var mergedMode: Bool = false
     /// Short settle gate so the empty state doesn't flash during the
     /// first render before provider accessories stream in. See the
     /// matching comment in T3RoomsTabView.
@@ -45,8 +50,36 @@ struct T3DevicesTabView: View {
 
     private var totalCount: Int { registry.allAccessories.count }
 
+    /// Preference order for merged-device representative selection.
+    private let preferenceOrder: [ProviderID] = [
+        .homeKit, .homeAssistant, .smartThings, .sonos, .nest
+    ]
+
+    /// In Merged mode, the deduped list. The representative (primary)
+    /// accessory for each merged bucket is used for display and routing.
+    private var mergedAccessories: [Accessory] {
+        let resolver: (Accessory) -> String? = { [registry] acc in
+            registry.allRooms.first(where: { $0.id == acc.roomID })?.name
+        }
+        let merged = DeviceMerging.merge(
+            accessories: registry.allAccessories,
+            preferenceOrder: preferenceOrder,
+            roomNameResolver: resolver,
+            forcedLinks: linkStore.links
+        )
+        // Return the representative Accessory for each merged device.
+        return merged.compactMap { mergedDevice in
+            registry.allAccessories.first(where: { $0.id == mergedDevice.preferredID })
+        }
+    }
+
     private var devices: [Accessory] {
-        let all = registry.allAccessories.sorted { $0.name < $1.name }
+        let all: [Accessory]
+        if mergedMode {
+            all = mergedAccessories.sorted { $0.name < $1.name }
+        } else {
+            all = registry.allAccessories.sorted { $0.name < $1.name }
+        }
 
         // Category filter
         let categoryFiltered: [Accessory]
@@ -82,43 +115,82 @@ struct T3DevicesTabView: View {
                     .padding(.horizontal, T3.screenPadding)
                     .padding(.bottom, 12)
 
-                // Filter chips
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(filters, id: \.self) { f in
-                            Button {
-                                filter = (filter == f && f != "All") ? "All" : f
-                            } label: {
-                                Text(f)
-                                    .font(T3.inter(13, weight: .medium))
-                                    .foregroundStyle(filter == f ? T3.page : T3.ink)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(filter == f ? T3.ink : .clear)
-                                            .overlay(
-                                                Capsule().stroke(filter == f ? .clear : T3.rule, lineWidth: 1)
-                                            )
-                                    )
+                // Filter chips + merged toggle
+                HStack(alignment: .center, spacing: 0) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(filters, id: \.self) { f in
+                                Button {
+                                    filter = (filter == f && f != "All") ? "All" : f
+                                } label: {
+                                    Text(f)
+                                        .font(T3.inter(13, weight: .medium))
+                                        .foregroundStyle(filter == f ? T3.page : T3.ink)
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(filter == f ? T3.ink : .clear)
+                                                .overlay(
+                                                    Capsule().stroke(filter == f ? .clear : T3.rule, lineWidth: 1)
+                                                )
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(f) category filter")
+                                .accessibilityAddTraits(filter == f ? .isSelected : [])
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("\(f) category filter")
-                            .accessibilityAddTraits(filter == f ? .isSelected : [])
                         }
+                        .padding(.leading, T3.screenPadding)
+                        .padding(.bottom, 10)
                     }
-                    .padding(.horizontal, T3.screenPadding)
+
+                    // Merged mode toggle — collapses cross-provider duplicates
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) { mergedMode.toggle() }
+                    } label: {
+                        HStack(spacing: 5) {
+                            T3IconImage(systemName: mergedMode ? "link" : "link.badge.plus")
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(mergedMode ? T3.page : T3.sub)
+                            Text("Merged")
+                                .font(T3.inter(12, weight: .medium))
+                                .foregroundStyle(mergedMode ? T3.page : T3.sub)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(mergedMode ? T3.ink : Color.clear)
+                        .overlay(
+                            Capsule().stroke(mergedMode ? Color.clear : T3.rule, lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Merged mode \(mergedMode ? "on" : "off")")
+                    .accessibilityAddTraits(mergedMode ? .isSelected : [])
+                    .padding(.trailing, T3.screenPadding)
                     .padding(.bottom, 10)
                 }
 
                 // Result count badge — only show when we have devices at all
                 if totalCount > 0 {
-                    Text("\(devices.count) of \(totalCount) devices")
-                        .font(T3.mono(10))
-                        .foregroundStyle(T3.sub)
-                        .padding(.horizontal, T3.screenPadding)
-                        .padding(.bottom, 12)
-                        .accessibilityLabel("Showing \(devices.count) of \(totalCount) devices")
+                    let displayCount = devices.count
+                    HStack(spacing: 6) {
+                        Text("\(displayCount)\(mergedMode ? " merged" : "") of \(totalCount) devices")
+                            .font(T3.mono(10))
+                            .foregroundStyle(T3.sub)
+                        if mergedMode && !linkStore.links.isEmpty {
+                            Text("·")
+                                .font(T3.mono(10))
+                                .foregroundStyle(T3.sub)
+                            Text("\(linkStore.links.count) manual link\(linkStore.links.count == 1 ? "" : "s")")
+                                .font(T3.mono(10))
+                                .foregroundStyle(T3.accent)
+                        }
+                    }
+                    .padding(.horizontal, T3.screenPadding)
+                    .padding(.bottom, 12)
+                    .accessibilityLabel("Showing \(displayCount) of \(totalCount) devices")
                 }
 
                 // Empty states — order matters.

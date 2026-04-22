@@ -1,0 +1,180 @@
+audit:
+  project: "House Connect (iOS SwiftUI)"
+  date: "2026-04-21"
+  scope: "T3* views only; legacy views excluded unless reachable from T3 nav chain"
+
+entry_points:
+  # Home tab
+  - id: home-masthead-bell
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 135
+    type: NavigationLink
+    label: "Bell (unread count)"
+    destination: HomeDestination.notifications → T3NotificationsView
+    flags: []
+
+  - id: home-weather-energy
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 222
+    type: NavigationLink
+    label: "Energy cell (kWh today)"
+    destination: HomeDestination.energy → T3EnergyView
+    flags: []
+
+  - id: home-quickactions-edit
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 313
+    type: sheet
+    label: "Pencil icon on Quick Actions"
+    destination: T3QuickActionsEditSheet
+    flags: []
+
+  - id: home-quickactions-placeholder
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 385
+    type: navigator.goToSettings(.scenes)
+    label: "Create a scene to pin it here"
+    destination: T3ScenesListView
+    flags: []
+
+  - id: home-scenes-chip
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 430
+    type: action
+    label: "Scene chip"
+    destination: "runScene() — toast on success/partial"
+    flags: []
+
+  - id: home-room-card
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 475
+    type: NavigationLink(value: Room)
+    destination: T3RoomDetailView
+    flags: []
+
+  - id: home-explore-energy
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 547
+    type: NavigationLink
+    destination: HomeDestination.energy → T3EnergyView
+    flags: [duplicate_entry]
+    note: "Same destination as home-weather-energy; two paths, same screen."
+
+  - id: home-explore-activity
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 548
+    type: NavigationLink
+    destination: HomeDestination.activity → T3ActivityView
+    flags: []
+
+  # Rooms tab
+  - id: rooms-grid-card
+    file: Features/T3/T3RoomsTabView.swift
+    line: 51
+    type: NavigationLink(value: Room)
+    destination: T3RoomDetailView
+    flags: []
+
+  - id: rooms-empty-create
+    file: Features/T3/T3RoomsTabView.swift
+    line: 40
+    type: sheet
+    destination: T3CreateRoomSheet
+    flags: []
+
+  - id: rooms-new
+    file: Features/T3/T3RoomsTabView.swift
+    line: 99
+    type: sheet
+    destination: T3CreateRoomSheet
+    flags: []
+
+  # Devices tab
+  - id: devices-filter-chip
+    file: Features/T3/T3DevicesTabView.swift
+    line: 123
+    type: local state
+    flags: []
+
+  - id: devices-merged-toggle
+    file: Features/T3/T3DevicesTabView.swift
+    line: 150
+    type: local state
+    flags: []
+
+  - id: devices-row
+    file: Features/T3/T3DevicesTabView.swift
+    line: 231
+    type: NavigationLink(value: AccessoryID)
+    destination: T3DeviceDetailView → routed per category
+    flags: []
+
+  - id: devices-add
+    file: Features/T3/T3DevicesTabView.swift
+    line: 241
+    type: sheet
+    destination: T3AddDeviceSheet (educational) → goToSettings(.providers)
+    flags: [intermediate_step]
+
+  - id: devices-empty-open-settings
+    file: Features/T3/T3DevicesTabView.swift
+    line: 204
+    type: navigator.goToSettings(.providers)
+    destination: T3ProvidersView
+    flags: []
+
+  # Settings tab destinations (all via SettingsDestination enum)
+  - id: settings-profile
+    line: 28
+    destination: T3ProfileView
+  - id: settings-connections
+    line: 32
+    destination: T3ProvidersView
+  - id: settings-rooms
+    line: 36
+    destination: T3RoomsTabView
+    flags: [duplicate_screen_as_tab]
+    note: "Push of the tab-root view onto shared NavigationStack — see layer3 issue-003."
+  - id: settings-scenes
+    line: 37
+    destination: T3ScenesListView
+  - id: settings-automations
+    line: 38
+    destination: T3AutomationsView
+  - id: settings-audioZones
+    line: 39
+    destination: T3AudioZonesMapView
+  - id: settings-linkedDevices
+    line: 40
+    destination: T3ManageDeviceLinksView
+    flags: [known_bug_scenario_A_acknowledged]
+  - id: settings-energySettings
+    line: 54
+    destination: T3EnergySettingsView
+    note: "Inline NavigationLink — not in SettingsDestination enum."
+  - id: settings-haDiagnostics
+    line: 62
+    destination: T3HADiagnosticsView
+    note: "Inline NavigationLink — not in SettingsDestination enum."
+  - id: settings-networkTopology
+    line: 71
+    destination: T3DeviceNetworkTopologyView
+  - id: settings-appearance
+    line: 75
+    destination: T3AppearanceView
+  - id: settings-notifications
+    line: 76
+    destination: T3NotificationPreferencesView
+  - id: settings-helpFAQ
+    line: 80
+    destination: T3HelpFAQView
+  - id: settings-about
+    line: 81
+    destination: T3AboutView
+
+summary:
+  total_entry_points: 28
+  tab_roots: 4
+  settings_destinations: 13
+  sheets: 5
+  dashboard_cards_links: 8

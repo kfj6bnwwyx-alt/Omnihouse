@@ -40,10 +40,23 @@ final class ProviderRegistry {
         providers.first { $0.id == id }
     }
 
+    /// Kicks off every registered provider concurrently and returns as soon
+    /// as all startup tasks have been *launched* — it does NOT wait for any
+    /// provider to finish connecting. This keeps the splash gate fast: the
+    /// 1.2 s minimum floor in RootContainerView fires before any slow
+    /// provider (HomeAssistant WebSocket, SmartThings cloud auth, etc.) has
+    /// time to block the transition. Each provider's own `start()` manages
+    /// its connection lifecycle independently; views observe `authorizationState`
+    /// and `isConnected` to reflect ongoing status.
     func startAll() async {
         for provider in providers {
-            await provider.start()
+            let p = provider
+            Task { @MainActor in await p.start() }
         }
+        // Yield once so each launched task gets a chance to schedule its
+        // first suspension (e.g. hit the first `await` inside `start()`).
+        // Without this the caller returns before any task has run at all.
+        await Task.yield()
     }
 
     /// Re-polls every registered provider. Fired on foreground resume

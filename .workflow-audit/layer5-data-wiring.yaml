@@ -1,0 +1,60 @@
+data_wiring:
+  audit_date: "2026-04-21"
+
+  mock_data_patterns:
+    - file: Features/T3/T3EnergyView.swift
+      line: 24
+      pattern: "Hardcoded hourly curve used as fallback when EnergyService fails"
+      severity: high
+      note: "Rendered at 20% opacity when nil, but numeric shape is still fake. No provider-error state."
+
+    - file: Features/Root/T3SplashView.swift
+      line: 94
+      pattern: "asyncAfter staggered reveal — cosmetic only, not data"
+      severity: none
+
+    - file: Features/Accessory/Detail/T3LockDetailView.swift
+      line: 305,336
+      pattern: "asyncAfter for animation timing, not data"
+      severity: none
+
+    - file: Features/T3/T3ScenesListView.swift
+      line: 436,441
+      pattern: "asyncAfter for DONE-state animation cleanup"
+      severity: none
+
+  unwired_or_missing_integrations:
+    - feature: "Smoke alarm detail"
+      expected_consumer: T3SmokeAlarmDetailView
+      status: "view struct does not exist; 4+ files reference it by name"
+      available_data:
+        - SmokeAlarmEventStore history
+        - SmokeAlertController.isSimulating (active alert state)
+        - Capability.smokeDetected / co detected / batteryLow
+      currently_rendered_by: T3AccessoryDetailView (generic — does not surface any of the above)
+      severity: critical
+
+    - feature: "T3HomeDashboardView room dedupe"
+      file: Features/Dashboard/T3HomeDashboardView.swift
+      line: 43
+      issue: "Lowercased-name dedupe hides split rooms ('Family Room' / 'Family Room (2)') but doesn't merge them"
+      severity: low (known; room-merging planned)
+
+  error_handling_gaps:
+    - file: Features/T3/T3AutomationsView.swift
+      line: 71,87
+      issue: "try? swallows errors; success toast fires unconditionally"
+      severity: medium
+
+  platform_parity:
+    - file: Features/Dashboard/T3HomeDashboardView.swift
+      line: 314,354
+      issue: "UIImpactFeedbackGenerator without canImport(UIKit) guard (other T3 files do guard)"
+      severity: low
+
+  data_flow_strengths:
+    - "Devices tab correctly consumes registry + DeviceLinkStore for merged mode"
+    - "Energy dashboard exposes real EnergyService.todayKwh on Home weather strip and detail"
+    - "Scenes execute via SceneRunner with per-action success counts"
+    - "AppEventStore drives Activity + Notifications + bell dot — single source of truth"
+    - "T3RootView has a global HAConnectionBanner overlay for provider outages"

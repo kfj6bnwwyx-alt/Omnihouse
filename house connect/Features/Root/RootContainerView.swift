@@ -94,58 +94,51 @@ struct RootContainerView: View {
 
     // MARK: - Startup
 
-    /// Kicks off the startup task and the minimum-floor timer, then
-    /// races them against the 30s ceiling. Whichever finishes first
-    /// determines the outcome:
-    ///   * startup + floor both done → flip `isReady`
-    ///   * ceiling fires first → flip `showStartupError`
-    ///
-    /// Extracted from `.task` so Retry can re-invoke it.
+    /// Runs `startAll()` alongside the 1.2s minimum-floor timer, then
+    /// flips `isReady`. A separate detached watchdog flips
+    /// `showStartupError` if `isReady` hasn't moved after 30s. The two
+    /// branches are independent Tasks — no shared scope that could
+    /// deadlock on uncooperative cancellation. Extracted from `.task`
+    /// so Retry can re-invoke it.
     private func runStartup() {
         // Cancel any prior attempt (e.g. on Retry).
         startupTask?.cancel()
         showStartupError = false
 
+        // Warmup branch: because `registry.startAll()` launches each
+        // provider in a detached Task and returns after one yield, the
+        // only real await here is the 1.2s floor. We no longer wrap the
+        // warmup in a `withTaskGroup` race against the timeout — that
+        // shape deadlocked when a provider's `start()` ignored
+        // cancellation, since the task group can't exit until every
+        // child returns.
+        // Fire startAll fire-and-forget — it already launches each
+        // provider in its own detached Task, so we gain nothing by
+        // awaiting it and lose a main-actor hop. Then simply wait
+        // out the floor and flip. This guarantees the splash exits
+        // in ~1.2s regardless of provider health.
+        Task { await registry.startAll() }
+
         let task = Task { @MainActor in
-            // Race two children: (startAll + floor) vs. the timeout.
-            // We can't use `Task.select` (doesn't exist); use a
-            // TaskGroup-of-one-winner pattern via withTaskGroup.
-            let timedOut: Bool = await withTaskGroup(of: Bool.self) { group in
-                group.addTask {
-                    // Startup branch: run startAll concurrently with the
-                    // floor timer so a slow registry doesn't push past
-                    // the floor (floor is a minimum, not a sum).
-                    async let warmup: Void = registry.startAll()
-                    async let floor: Void = { try? await Task.sleep(for: splashFloor) }()
-                    _ = await (warmup, floor)
-                    return false // did not time out
-                }
-                group.addTask {
-                    try? await Task.sleep(for: startupTimeout)
-                    return true // timed out
-                }
-                // First child to finish wins; cancel the loser.
-                let first = await group.next() ?? false
-                group.cancelAll()
-                return first
-            }
-
-            // Task may have been cancelled while we were awaiting (e.g.
-            // a retry kicked in). Bail without mutating state so the
-            // new attempt is the sole owner.
+            try? await Task.sleep(for: splashFloor)
             guard !Task.isCancelled else { return }
-
-            if timedOut {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                    showStartupError = true
-                }
-            } else {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
-                    isReady = true
-                }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+                isReady = true
             }
         }
         startupTask = task
+
+        // Independent watchdog: if `isReady` hasn't flipped after
+        // `startupTimeout`, surface the error panel. Detached so it
+        // can't be held hostage by the warmup task.
+        let currentTask = task
+        Task { @MainActor in
+            try? await Task.sleep(for: startupTimeout)
+            guard !currentTask.isCancelled, !isReady else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                showStartupError = true
+            }
+        }
     }
 
     /// Retry button in the error state. Re-runs the startup race from

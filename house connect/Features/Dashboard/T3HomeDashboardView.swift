@@ -104,6 +104,11 @@ struct T3HomeDashboardView: View {
         .background(T3.page.ignoresSafeArea())
         .tint(T3.accent)
         .task {
+            // Kick weather on first appear — `fetchIfNeeded()` is also
+            // wired to pull-to-refresh, but without this call the
+            // service stays in `isLoading = true` forever and the
+            // Outside/Inside/Energy strip never leaves skeleton state.
+            weather.fetchIfNeeded()
             if energy.lastUpdated == nil {
                 await energy.refresh()
             }

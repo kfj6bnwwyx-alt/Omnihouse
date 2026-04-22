@@ -33,6 +33,44 @@ struct T3EnergyView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     THeader(backLabel: "Home", onBack: { dismiss() })
 
+                    // Error banner — surfaces when EnergyService fell back
+                    // to mock data. Without this the hourly curve silently
+                    // renders fabricated numbers indistinguishable from a
+                    // quiet real day.
+                    if let err = energy.lastError {
+                        HStack(alignment: .top, spacing: 10) {
+                            Rectangle()
+                                .fill(T3.danger)
+                                .frame(width: 8, height: 8)
+                                .padding(.top, 5)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Data unavailable")
+                                    .font(T3.inter(13, weight: .medium))
+                                    .foregroundStyle(T3.ink)
+                                Text(err)
+                                    .font(T3.inter(12, weight: .regular))
+                                    .foregroundStyle(T3.sub)
+                                    .lineLimit(3)
+                            }
+                            Spacer()
+                            Button {
+                                Task { await energy.refresh() }
+                            } label: {
+                                Text("RETRY")
+                                    .font(T3.mono(10))
+                                    .tracking(1.4)
+                                    .foregroundStyle(T3.ink)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .overlay(Rectangle().stroke(T3.rule, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, T3.screenPadding)
+                        .padding(.vertical, 12)
+                        .overlay(alignment: .bottom) { TRule() }
+                    }
+
                     // Big number
                     VStack(alignment: .leading, spacing: 0) {
                         TLabel(text: "Total today")

@@ -116,15 +116,33 @@ enum DeviceMerging {
     ///     accessory has no room (e.g. an unrouted Sonos speaker). The
     ///     view supplies a closure backed by the registry; tests can
     ///     pass `{ _ in nil }` or a hand-built lookup.
+    ///   - forcedLinks: Optional list of (primary, secondary) pairs. The
+    ///     secondary's natural matchKey is overridden so it lands in the
+    ///     same bucket as the primary, even when their names differ.
+    ///     Caller passes `DeviceLinkStore.links`; tests can pass `[]`.
     static func merge(
         accessories: [Accessory],
         preferenceOrder: [ProviderID],
-        roomNameResolver: (Accessory) -> String?
+        roomNameResolver: (Accessory) -> String?,
+        forcedLinks: [ManualDeviceLink] = []
     ) -> [MergedDevice] {
+        // Build a secondary → primary-key override map from the forced links.
+        // Both sides already use their natural matchKey for the primary; the
+        // secondary gets remapped to the primary's key so they share a bucket.
+        var keyOverrides: [AccessoryID: String] = [:]
+        for link in forcedLinks {
+            // The primary's key is computed from whichever accessory has that ID.
+            if let primary = accessories.first(where: { $0.id == link.primaryID }) {
+                keyOverrides[link.secondaryID] = matchKey(for: primary)
+            } else {
+                // Primary not in the current accessory list — skip.
+            }
+        }
+
         // Bucket pass — one key → [Accessory].
         var buckets: [String: [Accessory]] = [:]
         for accessory in accessories {
-            let key = matchKey(for: accessory)
+            let key = keyOverrides[accessory.id] ?? matchKey(for: accessory)
             buckets[key, default: []].append(accessory)
         }
 

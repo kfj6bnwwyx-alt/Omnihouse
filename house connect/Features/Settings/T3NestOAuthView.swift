@@ -306,7 +306,12 @@ final class T3WebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentati
             // and surface a normal error through its completion handler
             // rather than crashing the app.
             guard let scene = scenes.first else {
-                return UIWindow()
+                // This path is unreachable — start() pre-checks for a connected
+                // UIWindowScene before invoking the session. If we somehow land
+                // here, crash loudly in debug and fail silently in release rather
+                // than returning a deprecated bare UIWindow().
+                assertionFailure("presentationAnchor(for:) called with no UIWindowScene")
+                fatalError("No UIWindowScene available for ASWebAuthenticationSession")
             }
             return UIWindow(windowScene: scene)
         }

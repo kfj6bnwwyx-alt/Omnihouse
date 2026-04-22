@@ -1,0 +1,127 @@
+issues:
+  - id: issue-001
+    category: dead_end
+    severity: critical
+    title: "Smoke alarm category falls through to generic T3AccessoryDetailView"
+    file: Features/Accessory/Detail/T3DeviceDetailView.swift
+    line: 77
+    evidence: |
+      `case .smokeAlarm, .sensor, .switch, .outlet, .fan, .blinds, .other:
+          T3AccessoryDetailView(accessoryID: accessoryID)`
+      No struct T3SmokeAlarmDetailView exists (grep confirmed), yet
+      SmokeAlertController.swift:184, SmokeAlarmEventStore.swift:7,
+      DemoNestProvider.swift:106, and Capability.swift:96 all reference
+      it as if it existed. The Nest smoke-alarm → alert pipeline has
+      no "Simulate Alert" UI, no history card.
+    impact: Live Activities test path and alarm history UX are orphaned.
+    recommendation: "Build T3SmokeAlarmDetailView (already listed as Phase-2 pending)."
+
+  - id: issue-002
+    category: mock_data
+    severity: high
+    title: "Energy view silently falls back to hardcoded curve on failure"
+    file: Features/T3/T3EnergyView.swift
+    line: 24
+    evidence: |
+      `EnergyService` "fetches real HA recorder/statistics_during_period
+      data when a provider is connected; falls back to deterministic
+      mock data on failure" — per header doc, line 10.
+      Hourly fallback array lines 24-26. The chart renders at 20% opacity
+      in the nil case, but the fallback curve is still numeric and a
+      user cannot distinguish "HA disconnected" from "low usage day".
+    recommendation: "Surface a provider-error state row; don't display fallback numbers on a failed fetch."
+
+  - id: issue-003
+    category: inconsistent_pattern
+    severity: medium
+    title: "Settings → Rooms pushes the tab root (T3RoomsTabView) onto the shared NavigationStack"
+    file: Features/T3/T3SettingsTabView.swift
+    line: 36
+    evidence: |
+      `settingsRow(... destination: .rooms)` routes through
+      T3RootView.swift:51 `case .rooms: T3RoomsTabView()`. The same
+      view that is the Rooms tab root gets pushed as a settings
+      destination — no THeader, no back button, relies on the system
+      nav bar (which other T3 settings destinations hide). User ends
+      up at a screen identical to tapping the Rooms tab, with
+      awkward chrome.
+    recommendation: "Either remove this settings row (it duplicates the tab) or create a dedicated T3RoomsSettingsView for bulk edit/merge."
+
+  - id: issue-004
+    category: missing_feedback
+    severity: medium
+    title: "Automation trigger/toggle swallows errors, always shows success toast"
+    file: Features/T3/T3AutomationsView.swift
+    line: 71
+    evidence: |
+      `try? await haProvider?.triggerAutomation(...)` then
+      `toast = .success("\(auto_.name) triggered")` unconditionally.
+      Same pattern on the enable toggle (line 87). If HA is down or
+      rejects the call, the user sees a green success while nothing
+      happened.
+    recommendation: "Use do/catch; `.error(...)` on failure; re-pill on toggle revert."
+
+  - id: issue-005
+    category: incomplete_navigation
+    severity: low
+    title: "Duplicate entry points for Energy from Home"
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 222,547
+    evidence: "Weather strip Energy cell AND Explore row both link to HomeDestination.energy. Not wrong, but the Explore row reads as a new destination when it isn't."
+    recommendation: "Optional: distinguish labels (weather strip = 'today' snapshot, Explore = 'history')."
+
+  - id: issue-006
+    category: orphaned_feature
+    severity: medium
+    title: "T3CameraUnsupportedHelpView / T3NestOAuthView only referenced locally"
+    files:
+      - Features/Accessory/Detail/T3CameraUnsupportedHelpView.swift
+      - Features/Settings/T3NestOAuthView.swift
+    evidence: "Each is instantiated from exactly one caller (T3CameraDetailView, T3ProviderDetailView). Check both call sites are still reachable after provider refactor."
+    severity_note: "Low risk — flagging for verification only."
+
+  - id: issue-007
+    category: unwired_data
+    severity: low
+    title: "Home dashboard dedupes rooms by lowercased name; hides cross-provider family room split"
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 43-48
+    evidence: |
+      `return allRooms.filter { seen.insert($0.name.lowercased()).inserted }`
+      Works for identical names but "Family Room" vs "Family Room (2)"
+      both appear (known: room merging not yet built — called out as
+      an orphaned feature per the project brief).
+    recommendation: "Tracked as planned feature; note here for cross-reference."
+
+  - id: issue-008
+    category: scenario_A_ack
+    severity: info
+    title: "Device-linking scenario A"
+    file: Features/Settings/T3ManageDeviceLinksView.swift
+    note: "Acknowledged by brief; not re-flagged."
+
+  - id: issue-009
+    category: inconsistent_pattern
+    severity: low
+    title: "Settings rows use SettingsDestination enum for most items, but Energy Settings & HA Diagnostics use inline NavigationLink"
+    file: Features/T3/T3SettingsTabView.swift
+    line: 54,62
+    evidence: "Explicit comment on line 50-53 notes the enum is 'off-limits for this change'. Drift risk — two patterns co-exist."
+    recommendation: "Extend enum with .energySettings and .haDiagnostics cases in a follow-up."
+
+  - id: issue-010
+    category: platform_parity
+    severity: low
+    title: "Haptic feedback uses UIImpactFeedbackGenerator without #if canImport(UIKit) guard"
+    file: Features/Dashboard/T3HomeDashboardView.swift
+    line: 314,354
+    evidence: "Other files guard haptics in #if canImport(UIKit) (e.g. T3ScenesListView line 421). Not all do. iOS-only ship is fine today, but any future mac Catalyst/macOS target will break."
+    recommendation: "Standardize on the guarded pattern."
+
+summary:
+  critical: 1
+  high: 1
+  medium: 3
+  low: 4
+  info: 1
+  total: 10

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct T3SettingsTabView: View {
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(DeviceLinkStore.self)  private var linkStore
     @AppStorage("profile.firstName") private var firstName: String = ""
 
     private var profileSub: String {
@@ -31,11 +32,20 @@ struct T3SettingsTabView: View {
                 settingsRow(icon: "wifi", title: "Connections", sub: "\(registry.providers.count) providers", destination: .providers)
 
                 // Home
-                TSectionHead(title: "Home", count: "06")
+                TSectionHead(title: "Home", count: "07")
                 settingsRow(icon: "square.grid.2x2", title: "Rooms", sub: "\(registry.allRooms.count) rooms", destination: .rooms)
                 settingsRow(icon: "sparkles", title: "Scenes", sub: "Cross-ecosystem presets", destination: .scenes)
                 settingsRow(icon: "gearshape.2", title: "Automations", sub: "Home Assistant automations", destination: .automations)
                 settingsRow(icon: "music.note", title: "Audio Zones", sub: "Multi-room audio", destination: .audioZones)
+                NavigationLink {
+                    T3ManageDeviceLinksView()
+                        .environment(registry)
+                        .environment(linkStore)
+                } label: {
+                    rowContent(icon: "link", title: "Linked Devices",
+                               sub: "Merge same device across providers")
+                }
+                .buttonStyle(.t3Row)
                 // Energy — inline destination rather than a
                 // SettingsDestination case because the enum + root
                 // switch live in Root views (off-limits for this

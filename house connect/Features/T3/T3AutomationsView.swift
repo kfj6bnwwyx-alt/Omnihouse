@@ -69,8 +69,16 @@ struct T3AutomationsView: View {
                                 // Trigger button
                                 Button {
                                     Task {
-                                        try? await haProvider?.triggerAutomation(entityID: auto_.entityID)
-                                        toast = .success("\(auto_.name) triggered")
+                                        // Surface real failures — `try?` + unconditional
+                                        // success toast meant every HA-down trigger
+                                        // showed a green confirmation that nothing
+                                        // happened.
+                                        do {
+                                            try await haProvider?.triggerAutomation(entityID: auto_.entityID)
+                                            toast = .success("\(auto_.name) triggered")
+                                        } catch {
+                                            toast = .error("Couldn't trigger \(auto_.name)")
+                                        }
                                     }
                                 } label: {
                                     T3IconImage(systemName: "play.fill")
@@ -84,9 +92,13 @@ struct T3AutomationsView: View {
                                     get: { auto_.isEnabled },
                                     set: { enabled in
                                         Task {
-                                            try? await haProvider?.setAutomationEnabled(
-                                                entityID: auto_.entityID, enabled: enabled
-                                            )
+                                            do {
+                                                try await haProvider?.setAutomationEnabled(
+                                                    entityID: auto_.entityID, enabled: enabled
+                                                )
+                                            } catch {
+                                                toast = .error("Couldn't \(enabled ? "enable" : "disable") \(auto_.name)")
+                                            }
                                         }
                                     }
                                 ))

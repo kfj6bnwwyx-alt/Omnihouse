@@ -45,6 +45,13 @@ final class EnergyService {
     /// Timestamp of the last successful refresh.
     var lastUpdated: Date?
 
+    /// Non-nil when the most recent refresh fell back to mock data
+    /// (HA unreachable, bad entity ID, decode failure). Cleared on
+    /// the next successful HA fetch. Views can read this to surface
+    /// "Data unavailable" instead of presenting the mock curve as
+    /// if it were live.
+    var lastError: String?
+
     /// Optional handle to the provider registry so `refresh()` can
     /// locate the Home Assistant provider and request recorder
     /// statistics. Nil = fall back to mock data immediately (used by
@@ -96,12 +103,15 @@ final class EnergyService {
         if let ha = registry?.provider(for: .homeAssistant) as? HomeAssistantProvider {
             do {
                 try await refreshFromHomeAssistant(ha)
+                lastError = nil
                 return
             } catch {
                 energyLog.warning("HA energy fetch failed, falling back to mock: \(error.localizedDescription, privacy: .public)")
+                lastError = error.localizedDescription
             }
         } else {
             energyLog.info("No HA provider registered — using mock energy data")
+            lastError = "Home Assistant not connected"
         }
         applyMockData()
     }

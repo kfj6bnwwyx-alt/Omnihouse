@@ -65,13 +65,16 @@ struct T3RootView: View {
             // Floating T3 tab bar
             T3TabBar(selection: $navigator.selection)
         }
-        .environment(navigator)
         // Global HA disconnection banner — shows on every tab whenever
         // Home Assistant's WebSocket is down. Sits below the status bar
         // and above the tab content. See Core/UI/HAConnectionBanner.swift.
         .overlay(alignment: .top) {
             HAConnectionBanner()
         }
+        // Inject navigator AFTER the overlay so both the primary ZStack
+        // content AND the banner see it. With the env injected inside
+        // the overlay, HAConnectionBanner crashes looking for it.
+        .environment(navigator)
         // Note: provider startup is now owned by `RootContainerView`,
         // which gates the splash transition on startAll completion.
         // Do not call `registry.startAll()` here — it would re-start

@@ -37,6 +37,12 @@ struct house_connectApp: App {
     /// by AllDevicesView; consumed by detail views for smart routing.
     @State private var mergedDeviceLookup = MergedDeviceLookup()
 
+    /// Persisted user-created device links. Lets the user manually pair a
+    /// HomeKit accessory with the same physical device exposed by HA under
+    /// a different name. Injected into the environment so T3ManageDeviceLinksView,
+    /// T3DevicesTabView (Merged mode), and detail views can all read it.
+    @State private var deviceLinkStore = DeviceLinkStore()
+
     /// Lifecycle owner for the smoke-alarm Live Activity. iOS-only —
     /// `ActivityKit` isn't available on macOS, and the app also builds
     /// for macOS, so we only instantiate the controller under iOS.
@@ -134,6 +140,7 @@ struct house_connectApp: App {
                 .environment(weatherService)
                 .environment(smokeAlarmEventStore)
                 .environment(mergedDeviceLookup)
+                .environment(deviceLinkStore)
                 .environment(energyService)
                 #if os(iOS)
                 .environment(smokeAlertController)
