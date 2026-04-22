@@ -48,7 +48,7 @@ struct T3RootView: View {
                     switch dest {
                     case .profile: T3ProfileView()
                     case .providers: T3ProvidersView()
-                    case .rooms: T3RoomsTabView()
+                    case .rooms: T3RoomsSettingsView()
                     case .scenes: T3ScenesListView()
                     case .automations: T3AutomationsView()
                     case .audioZones: T3AudioZonesMapView()
