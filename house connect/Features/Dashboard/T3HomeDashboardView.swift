@@ -487,7 +487,7 @@ struct T3HomeDashboardView: View {
         HStack(spacing: 14) {
             NavigationLink(value: entry.room) {
                 HStack(spacing: 14) {
-                    T3IconImage(systemName: roomIcon(entry.room.name))
+                    T3IconImage(systemName: entry.room.glyph)
                         .frame(width: 20, height: 20)
                         .foregroundStyle(T3.ink)
                         .frame(width: 28)
@@ -599,18 +599,6 @@ struct T3HomeDashboardView: View {
         .padding(.horizontal, T3.screenPadding)
         .padding(.top, T3.sectionTopPad)
         .padding(.bottom, T3.sectionBottomPad)
-    }
-
-    private func roomIcon(_ name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("living") || lower.contains("family") || lower.contains("den") { return "sofa.fill" }
-        if lower.contains("kitchen") { return "fork.knife" }
-        if lower.contains("bed") { return "bed.double.fill" }
-        if lower.contains("entry") || lower.contains("door") || lower.contains("hall") { return "door.left.hand.open" }
-        if lower.contains("bath") { return "shower.fill" }
-        if lower.contains("office") || lower.contains("study") { return "desktopcomputer" }
-        if lower.contains("garage") { return "car.fill" }
-        return "square.grid.2x2"
     }
 
     // MARK: - Explore (Energy + Activity)

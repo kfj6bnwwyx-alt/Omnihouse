@@ -51,7 +51,7 @@ struct T3RoomsTabView: View {
                         NavigationLink(value: room) {
                             VStack(alignment: .leading, spacing: 0) {
                                 HStack {
-                                    T3IconImage(systemName: roomIcon(room.name))
+                                    T3IconImage(systemName: room.glyph)
                                         .frame(width: 22, height: 22)
                                         .foregroundStyle(T3.ink)
                                         .accessibilityHidden(true)
@@ -133,12 +133,4 @@ struct T3RoomsTabView: View {
         }
     }
 
-    private func roomIcon(_ name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("living") || lower.contains("family") || lower.contains("den") { return "sofa.fill" }
-        if lower.contains("kitchen") { return "fork.knife" }
-        if lower.contains("bed") { return "bed.double.fill" }
-        if lower.contains("entry") || lower.contains("door") { return "door.left.hand.open" }
-        return "square.grid.2x2.fill"
-    }
 }

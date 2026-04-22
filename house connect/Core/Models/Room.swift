@@ -12,3 +12,22 @@ struct Room: Identifiable, Hashable, Sendable, Codable {
     var homeID: String
     var provider: ProviderID
 }
+
+extension Room {
+    /// SF Symbol for the room, inferred from the name. Used by both
+    /// T3HomeDashboardView's Active rooms list and T3RoomsTabView's
+    /// full grid so the two views agree. Order matches the historical
+    /// mapping in T3HomeDashboardView (the more-complete of the two
+    /// private helpers this replaces).
+    var glyph: String {
+        let lower = name.lowercased()
+        if lower.contains("living") || lower.contains("family") || lower.contains("den") { return "sofa.fill" }
+        if lower.contains("kitchen") { return "fork.knife" }
+        if lower.contains("bed") { return "bed.double.fill" }
+        if lower.contains("entry") || lower.contains("door") || lower.contains("hall") { return "door.left.hand.open" }
+        if lower.contains("bath") { return "shower.fill" }
+        if lower.contains("office") || lower.contains("study") { return "desktopcomputer" }
+        if lower.contains("garage") { return "car.fill" }
+        return "square.grid.2x2"
+    }
+}

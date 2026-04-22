@@ -12,10 +12,6 @@
 //  counts right-aligned. No cards, no gradients, no nested surfaces.
 //
 
-// TODO: Route this view from T3SettingsTabView.
-// Add a row "Home Assistant Diagnostics" linking to NavigationLink(destination: T3HADiagnosticsView()).
-// Not done in this wave to avoid conflicts with parallel Settings edits.
-
 import Combine
 import SwiftUI
 import UIKit

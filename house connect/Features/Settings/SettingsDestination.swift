@@ -18,6 +18,8 @@ enum SettingsDestination: Hashable {
     case scenes
     case automations
     case audioZones
+    case energy
+    case haDiagnostics
     case networkTopology
     case about
     case helpFAQ
