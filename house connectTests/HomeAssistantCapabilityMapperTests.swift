@@ -188,9 +188,10 @@ final class HomeAssistantCapabilityMapperTests: XCTestCase {
     private func makeEntity(
         domain: String,
         state: String = "on",
-        attrs: HAAttributes? = nil
+        attrs: HAAttributes? = nil,
+        rawAttributes: [String: Any]? = nil
     ) -> HAEntityState {
-        var attrDict: [String: Any] = [:]
+        var attrDict: [String: Any] = rawAttributes ?? [:]
         if let a = attrs {
             // Extract known fields for re-encoding
             if let b = a.brightness { attrDict["brightness"] = b }
@@ -208,6 +209,87 @@ final class HomeAssistantCapabilityMapperTests: XCTestCase {
         ]
         let data = try! JSONSerialization.data(withJSONObject: json)
         return try! JSONDecoder().decode(HAEntityState.self, from: data)
+    }
+
+    // MARK: - Climate service call mapping
+    //
+    // Regression guards for the Nest-thermostat-unresponsive bug:
+    // HA Nest thermostats advertise `heat_cool`, not `auto`, as
+    // their combined mode, and they reject `temperature` in range
+    // modes — they need `target_temp_high`/`target_temp_low`.
+
+    func testServiceCall_setHVACAuto_prefersHeatCool() {
+        let entity = makeEntity(
+            domain: "climate",
+            state: "heat",
+            rawAttributes: ["hvac_modes": ["off", "heat", "cool", "heat_cool"]]
+        )
+        let call = HomeAssistantCapabilityMapper.serviceCall(for: .setHVACMode(.auto), entity: entity)
+        XCTAssertEqual(call.domain, "climate")
+        XCTAssertEqual(call.service, "set_hvac_mode")
+        XCTAssertEqual(call.data["hvac_mode"]?.stringValue, "heat_cool")
+    }
+
+    func testServiceCall_setHVACAuto_fallsBackToAutoWhenNoHeatCool() {
+        let entity = makeEntity(
+            domain: "climate",
+            state: "heat",
+            rawAttributes: ["hvac_modes": ["off", "heat", "cool", "auto"]]
+        )
+        let call = HomeAssistantCapabilityMapper.serviceCall(for: .setHVACMode(.auto), entity: entity)
+        XCTAssertEqual(call.data["hvac_mode"]?.stringValue, "auto")
+    }
+
+    func testServiceCall_setHVACHeat_mapsDirectly() {
+        let entity = makeEntity(domain: "climate", state: "off",
+                                rawAttributes: ["hvac_modes": ["off", "heat", "cool"]])
+        let call = HomeAssistantCapabilityMapper.serviceCall(for: .setHVACMode(.heat), entity: entity)
+        XCTAssertEqual(call.data["hvac_mode"]?.stringValue, "heat")
+    }
+
+    func testServiceCall_setTargetTemperature_singleModeSendsTemperature() {
+        let entity = makeEntity(domain: "climate", state: "heat")
+        let call = HomeAssistantCapabilityMapper.serviceCall(
+            for: .setTargetTemperature(21.0), entity: entity
+        )
+        XCTAssertEqual(call.service, "set_temperature")
+        XCTAssertEqual(call.data["temperature"]?.doubleValue, 21.0)
+        XCTAssertNil(call.data["target_temp_high"])
+        XCTAssertNil(call.data["target_temp_low"])
+    }
+
+    func testServiceCall_setTargetTemperature_heatCoolPreservesSpread() {
+        // Thermostat in heat_cool mode with a 4° deadband (20–24).
+        // Adjusting to 22 should center the deadband on 22 → [20, 24].
+        let entity = makeEntity(
+            domain: "climate",
+            state: "heat_cool",
+            rawAttributes: [
+                "hvac_modes": ["off", "heat", "cool", "heat_cool"],
+                "target_temp_high": 24.0,
+                "target_temp_low": 20.0
+            ]
+        )
+        let call = HomeAssistantCapabilityMapper.serviceCall(
+            for: .setTargetTemperature(22.0), entity: entity
+        )
+        XCTAssertNil(call.data["temperature"])
+        XCTAssertEqual(call.data["target_temp_high"]?.doubleValue, 24.0)
+        XCTAssertEqual(call.data["target_temp_low"]?.doubleValue, 20.0)
+    }
+
+    func testServiceCall_setTargetTemperature_heatCoolFallsBackToTwoDegreeSpread() {
+        // heat_cool but no high/low advertised — fallback spread = 2°C.
+        let entity = makeEntity(
+            domain: "climate",
+            state: "heat_cool",
+            rawAttributes: ["hvac_modes": ["off", "heat", "cool", "heat_cool"]]
+        )
+        let call = HomeAssistantCapabilityMapper.serviceCall(
+            for: .setTargetTemperature(22.0), entity: entity
+        )
+        XCTAssertEqual(call.data["target_temp_high"]?.doubleValue, 23.0)
+        XCTAssertEqual(call.data["target_temp_low"]?.doubleValue, 21.0)
     }
 }
 

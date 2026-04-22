@@ -115,14 +115,61 @@ enum HomeAssistantCapabilityMapper {
             return ("light", "turn_on", ["color_temp_kelvin": .int(kelvin)])
 
         case .setTargetTemperature(let celsius):
+            // In heat_cool / auto mode HA's climate.set_temperature
+            // service requires `target_temp_high` + `target_temp_low`,
+            // NOT `temperature`. Sending `temperature` in that mode
+            // is silently rejected — one of the two reasons Nest
+            // thermostats felt unresponsive.
+            //
+            // When the thermostat is in a range mode we preserve the
+            // user's existing deadband (H − L) around the new target.
+            // If either bound is missing we fall back to a 2°C spread
+            // so the new range is still valid.
+            let currentMode = entity.state
+            let isRangeMode = (currentMode == "heat_cool" || currentMode == "auto")
+            if isRangeMode {
+                let high = entity.attributes.targetTempHigh
+                let low = entity.attributes.targetTempLow
+                let spread: Double = {
+                    if let high, let low, high > low { return high - low }
+                    return 2.0
+                }()
+                let newHigh = celsius + spread / 2
+                let newLow = celsius - spread / 2
+                return ("climate", "set_temperature", [
+                    "target_temp_high": .double(newHigh),
+                    "target_temp_low": .double(newLow)
+                ])
+            }
             return ("climate", "set_temperature", ["temperature": .double(celsius)])
 
         case .setHVACMode(let mode):
-            let haMode: String = switch mode {
-            case .off: "off"
-            case .heat: "heat"
-            case .cool: "cool"
-            case .auto: "auto"
+            // `.auto` maps to whichever "combined heat+cool" mode the
+            // thermostat actually advertises. Google Nest via HA uses
+            // `heat_cool`; many Ecobee/Honeywell units also prefer
+            // `heat_cool`; a few others expose `auto`. Picking the
+            // wrong one makes the call a no-op (HA rejects unknown
+            // mode values without a visible error).
+            let supported = Set(entity.attributes.hvacModes ?? [])
+            let haMode: String
+            switch mode {
+            case .off: haMode = "off"
+            case .heat: haMode = "heat"
+            case .cool: haMode = "cool"
+            case .auto:
+                if supported.contains("heat_cool") {
+                    haMode = "heat_cool"
+                } else if supported.contains("auto") {
+                    haMode = "auto"
+                } else if supported.contains("heat") && supported.contains("cool") {
+                    // Some integrations report heat+cool but no combined
+                    // mode — fall back to `heat_cool` so the call still
+                    // reaches HA (where it'll either work or surface a
+                    // clearer error than silent rejection).
+                    haMode = "heat_cool"
+                } else {
+                    haMode = "auto"
+                }
             }
             return ("climate", "set_hvac_mode", ["hvac_mode": .string(haMode)])
 
