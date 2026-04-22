@@ -22,19 +22,14 @@ struct T3TabBar: View {
         HStack(spacing: 0) {
             ForEach(T3Tab.allCases, id: \.self) { tab in
                 Button {
-                    // Same-tab tap: pop to root on the current tab so the
-                    // user always has a one-tap way back to the tab root
-                    // (matches system TabView behavior). Different-tab
-                    // tap: clear the shared stack path first, otherwise a
-                    // pushed destination (e.g. a Room detail) would stay
-                    // on top after the root swaps and the tab-bar
-                    // indicator would disagree with the visible screen.
+                    // `select` also clears the stack path, so different-
+                    // tab taps land on the new tab's root and same-tab
+                    // taps pop to root (matches system TabView behavior).
                     #if canImport(UIKit)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     #endif
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                        navigator.path = NavigationPath()
-                        navigator.selection = tab
+                        navigator.select(tab)
                     }
                 } label: {
                     VStack(spacing: 3) {

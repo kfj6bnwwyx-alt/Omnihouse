@@ -436,71 +436,169 @@ struct T3HomeDashboardView: View {
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
-    // MARK: - Rooms (2-column grid)
+    // MARK: - Active rooms (what's on + quick off)
+    //
+    // Home is "what's on right now"; the Rooms tab is the full spatial
+    // view. This section only lists rooms with active devices, sorted by
+    // active count, with a trailing "Off" action per row to match Home's
+    // "know what's on, turn it off" job. Empty state = everything off.
+    // "See all →" jumps to the Rooms tab for the complete list.
+
+    private struct ActiveRoom: Identifiable {
+        let room: Room
+        let activeDevices: [Accessory]
+        var id: String { "\(room.provider.rawValue)|\(room.id)" }
+        var activeCount: Int { activeDevices.count }
+    }
+
+    private var activeRooms: [ActiveRoom] {
+        let accessories = registry.allAccessories
+        return rooms.compactMap { room in
+            let on = accessories.filter { $0.roomID == room.id && $0.isOn == true }
+            guard !on.isEmpty else { return nil }
+            return ActiveRoom(room: room, activeDevices: on)
+        }
+        .sorted { $0.activeCount > $1.activeCount }
+    }
 
     private var roomsList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TSectionHead(title: "Rooms", count: String(format: "%02d", rooms.count))
+            activeRoomsHeader
 
-            // 2-column grid — rooms as spatial zones, not a flat list
-            let columns = [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)]
-            LazyVGrid(columns: columns, spacing: 0) {
-                ForEach(Array(rooms.enumerated()), id: \.element.id) { i, room in
-                    let deviceCount = registry.allAccessories.filter { $0.roomID == room.id }.count
-                    let activeDevices = registry.allAccessories.filter { $0.roomID == room.id && $0.isOn == true }.count
-
-                    NavigationLink(value: room) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Top: glyph + index
-                            HStack {
-                                T3IconImage(systemName: roomIcon(room.name))
-                                    .frame(width: 22, height: 22)
-                                    .foregroundStyle(T3.ink)
-                                    .accessibilityHidden(true)
-                                Spacer()
-                                TLabel(text: String(format: "%02d", i + 1))
-                                    .accessibilityHidden(true)
-                            }
-
-                            Spacer()
-
-                            // Bottom: name + active status
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(room.name)
-                                    .font(T3.inter(18, weight: .medium))
-                                    .tracking(-0.4)
-                                    .foregroundStyle(T3.ink)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-
-                                HStack(spacing: 6) {
-                                    if activeDevices > 0 { TDot(size: 6) }
-                                    Text("\(activeDevices)/\(deviceCount) on")
-                                        .font(T3.mono(10))
-                                        .foregroundStyle(T3.sub)
-                                        .tracking(0.6)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
-                        .frame(minHeight: 140)
-                        .overlay(alignment: .bottom) {
-                            TRule()
-                        }
-                        .overlay(alignment: .trailing) {
-                            if i % 2 == 0 {
-                                Rectangle().fill(T3.rule).frame(width: 1)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(room.name), \(activeDevices) of \(deviceCount) devices on")
-                    .accessibilityAddTraits(.isButton)
+            if activeRooms.isEmpty {
+                HStack {
+                    Text("Everything's off.")
+                        .font(T3.inter(14, weight: .regular))
+                        .foregroundStyle(T3.sub)
+                    Spacer()
+                }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 18)
+            } else {
+                ForEach(Array(activeRooms.enumerated()), id: \.element.id) { i, entry in
+                    activeRoomRow(entry)
+                    if i < activeRooms.count - 1 { TRule() }
                 }
             }
         }
+    }
+
+    private func activeRoomRow(_ entry: ActiveRoom) -> some View {
+        HStack(spacing: 14) {
+            NavigationLink(value: entry.room) {
+                HStack(spacing: 14) {
+                    T3IconImage(systemName: roomIcon(entry.room.name))
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(T3.ink)
+                        .frame(width: 28)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(entry.room.name)
+                            .font(T3.inter(15, weight: .medium))
+                            .foregroundStyle(T3.ink)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+
+                        HStack(spacing: 6) {
+                            TDot(size: 6).accessibilityHidden(true)
+                            Text("\(entry.activeCount) on")
+                                .font(T3.mono(10))
+                                .foregroundStyle(T3.sub)
+                                .tracking(0.6)
+                        }
+                    }
+
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.t3Row)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(entry.room.name), \(entry.activeCount) devices on")
+            .accessibilityAddTraits(.isButton)
+
+            Button { turnOffRoom(entry) } label: {
+                Text("Off")
+                    .font(T3.inter(12, weight: .semibold))
+                    .tracking(0.4)
+                    .foregroundStyle(T3.ink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule().stroke(T3.rule, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Turn off all devices in \(entry.room.name)")
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 12)
+    }
+
+    /// Fires setPower(false) for every currently-on device in the room
+    /// in parallel, tolerating per-device failures so one unreachable
+    /// device doesn't cancel the rest. Toast reflects the aggregate.
+    private func turnOffRoom(_ entry: ActiveRoom) {
+        let devices = entry.activeDevices
+        let roomName = entry.room.name
+        Task {
+            let failures: Int = await withTaskGroup(of: Bool.self) { group in
+                for device in devices {
+                    group.addTask { @MainActor in
+                        do {
+                            try await registry.execute(.setPower(false), on: device.id)
+                            return true
+                        } catch {
+                            return false
+                        }
+                    }
+                }
+                var failed = 0
+                for await success in group where !success { failed += 1 }
+                return failed
+            }
+
+            if failures == 0 {
+                toast = .success("Off in \(roomName)")
+            } else if failures == devices.count {
+                toast = .error("Couldn't turn off \(roomName)")
+            } else {
+                toast = .error("\(roomName): \(devices.count - failures)/\(devices.count) off")
+            }
+        }
+    }
+
+    private var activeRoomsHeader: some View {
+        HStack {
+            Text("Active rooms")
+                .font(T3.inter(15, weight: .medium))
+                .foregroundStyle(T3.ink)
+            Spacer()
+            if !activeRooms.isEmpty {
+                TLabel(text: String(format: "%02d", activeRooms.count))
+            }
+            Button {
+                navigator.select(.rooms)
+            } label: {
+                HStack(spacing: 4) {
+                    Text("See all")
+                        .font(T3.inter(12, weight: .medium))
+                        .foregroundStyle(T3.sub)
+                    T3IconImage(systemName: "arrow.right")
+                        .frame(width: 10, height: 10)
+                        .foregroundStyle(T3.sub)
+                }
+                .padding(.leading, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("See all rooms")
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.top, T3.sectionTopPad)
+        .padding(.bottom, T3.sectionBottomPad)
     }
 
     private func roomIcon(_ name: String) -> String {

@@ -26,6 +26,17 @@ final class T3TabNavigator {
     /// Shared across tabs today.
     var path: NavigationPath = NavigationPath()
 
+    /// Switch tabs from anywhere (tab bar, in-view "See all" links, etc.)
+    /// and drop any pushed destinations so the new tab shows its root.
+    /// Use this instead of setting `selection` directly — otherwise the
+    /// shared stack path (below) would carry a Room or SettingsDestination
+    /// across tabs and the visible screen would disagree with the tab
+    /// bar indicator.
+    func select(_ tab: T3Tab) {
+        path = NavigationPath()
+        selection = tab
+    }
+
     /// Convenience: switch to the Settings tab and push a settings
     /// destination onto the shared stack. Clears any prior path so the
     /// user lands on the pushed screen rather than deep-nested.
