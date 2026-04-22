@@ -209,6 +209,8 @@ struct T3ThermostatView: View {
 
                     TRule()
 
+                    T3DeviceAutomationsSection(accessoryID: accessoryID)
+
                     TSectionHead(title: "Device")
                     RemoveDeviceSection(accessoryID: accessoryID)
 

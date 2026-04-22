@@ -429,13 +429,47 @@ struct HAScene: Identifiable, Sendable {
 
 /// An HA automation entity. State is "on" (enabled) or "off" (disabled).
 /// Can be triggered manually, toggled on/off, or viewed for last-triggered time.
+///
+/// `referencedEntityIDs`, `triggerSummary`, and `actionSummary` are
+/// populated from the automation's config (fetched separately via
+/// `HomeAssistantRESTClient.fetchAutomationConfig`). When the config
+/// fetch fails (admin-only endpoint, token permissions) the enriched
+/// fields stay nil/empty — the regular list still renders.
 struct HAAutomation: Identifiable, Sendable {
     let entityID: String
     let name: String
     let isEnabled: Bool
+    /// ISO8601 timestamp from HA's `last_triggered` attribute. Raw so
+    /// the view can parse with `ISO8601DateFormatter` and render via
+    /// `RelativeDateTimeFormatter`.
     let lastTriggered: String?
+    /// HA's internal YAML-derived `id` for this automation, pulled from
+    /// attributes. Required for `fetchAutomationConfig`. Can be nil
+    /// for automations defined via UI that haven't been assigned one.
+    let configID: String?
+    /// Every `entity_id` referenced anywhere in the automation's
+    /// triggers, conditions, or actions. Used by detail views to
+    /// surface only automations touching the current device.
+    var referencedEntityIDs: Set<String>
+    /// One-line human summary of the first trigger (e.g. "WHEN sun sets").
+    var triggerSummary: String?
+    /// One-line human summary of the first action (e.g. "TURN ON light.kitchen").
+    var actionSummary: String?
 
     var id: String { entityID }
+}
+
+/// Raw config returned from `/api/config/automation/config/{id}`.
+/// Heterogeneous shape — triggers/conditions/actions are each arrays
+/// of dicts with a `platform`/`service`/etc. key. We keep them as
+/// `[AnyCodableValue]` so extraction logic stays in Swift rather
+/// than trying to model every HA integration's schema.
+struct HAAutomationConfig: Decodable, Sendable {
+    let id: String?
+    let alias: String?
+    let trigger: [AnyCodableValue]?
+    let condition: [AnyCodableValue]?
+    let action: [AnyCodableValue]?
 }
 
 // MARK: - AnyCodableValue (heterogeneous JSON helper)
@@ -475,6 +509,16 @@ enum AnyCodableValue: Codable, Sendable, Hashable {
 
     var boolValue: Bool? {
         if case .bool(let b) = self { return b }
+        return nil
+    }
+
+    var arrayValue: [AnyCodableValue]? {
+        if case .array(let a) = self { return a }
+        return nil
+    }
+
+    var dictValue: [String: AnyCodableValue]? {
+        if case .dictionary(let d) = self { return d }
         return nil
     }
 

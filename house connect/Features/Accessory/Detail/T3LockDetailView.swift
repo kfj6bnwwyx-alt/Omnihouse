@@ -158,6 +158,8 @@ struct T3LockDetailView: View {
                         }
                     }
 
+                    T3DeviceAutomationsSection(accessoryID: accessoryID)
+
                     TSectionHead(title: "Device")
                     RemoveDeviceSection(accessoryID: accessoryID)
 

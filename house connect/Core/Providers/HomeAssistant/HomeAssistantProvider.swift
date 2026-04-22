@@ -469,6 +469,12 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
 
         lastRefreshed = Date()
         isRefreshing = false
+
+        // Fire the automation-config enrichment in the background.
+        // It needs an admin token; on failure it's a no-op. Keeps the
+        // detail-view "Automations" section empty rather than blocking
+        // refresh.
+        Task { [weak self] in await self?.enrichAutomations() }
     }
 
     private func rebuildRooms() {
@@ -756,18 +762,88 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     }
 
     private func rebuildAutomations() {
-        automations = entityStates.values
+        let rebuilt = entityStates.values
             .filter { $0.domain == "automation" }
-            .map { entity in
-                HAAutomation(
+            .map { entity -> HAAutomation in
+                let configID = entity.attributes.raw?["id"]?.stringValue
+                // Carry forward any previously-fetched enrichment so
+                // the view doesn't flicker back to an un-enriched row
+                // on every state update.
+                let prior = automations.first { $0.entityID == entity.entityID }
+                return HAAutomation(
                     entityID: entity.entityID,
                     name: entity.attributes.friendlyName ?? entity.objectID
                         .replacingOccurrences(of: "_", with: " ").capitalized,
                     isEnabled: entity.state == "on",
-                    lastTriggered: entity.attributes.raw?["last_triggered"]?.stringValue
+                    lastTriggered: entity.attributes.raw?["last_triggered"]?.stringValue,
+                    configID: configID,
+                    referencedEntityIDs: prior?.referencedEntityIDs ?? [],
+                    triggerSummary: prior?.triggerSummary,
+                    actionSummary: prior?.actionSummary
                 )
             }
             .sorted { $0.name < $1.name }
+        automations = rebuilt
+    }
+
+    /// Fetches every automation's config in parallel and merges the
+    /// enrichment (referenced entity_ids + trigger/action summaries)
+    /// into `automations`. Runs once per successful `start()` (after
+    /// rebuildAutomations) and again after any explicit `refresh()`.
+    /// Fails silently per-automation so a single 401/404 doesn't kill
+    /// the whole pass.
+    func enrichAutomations() async {
+        guard let rest = restClient, !automations.isEmpty else { return }
+
+        let configIDs: [(String, String)] = automations.compactMap { a in
+            guard let cid = a.configID else { return nil }
+            return (a.entityID, cid)
+        }
+        guard !configIDs.isEmpty else { return }
+
+        let enriched: [(String, HAAutomationConfig)] = await withTaskGroup(
+            of: (String, HAAutomationConfig)?.self
+        ) { group in
+            for (entityID, cid) in configIDs {
+                group.addTask {
+                    guard let cfg = try? await rest.fetchAutomationConfig(configID: cid)
+                    else { return nil }
+                    return (entityID, cfg)
+                }
+            }
+            var out: [(String, HAAutomationConfig)] = []
+            for await pair in group {
+                if let pair { out.append(pair) }
+            }
+            return out
+        }
+
+        var index: [String: (Set<String>, String?, String?)] = [:]
+        for (entityID, cfg) in enriched {
+            index[entityID] = (
+                HAAutomationExtraction.referencedEntityIDs(in: cfg),
+                HAAutomationExtraction.triggerSummary(for: cfg),
+                HAAutomationExtraction.actionSummary(for: cfg)
+            )
+        }
+
+        automations = automations.map { a in
+            guard let (ids, trig, act) = index[a.entityID] else { return a }
+            var updated = a
+            updated.referencedEntityIDs = ids
+            updated.triggerSummary = trig
+            updated.actionSummary = act
+            return updated
+        }
+    }
+
+    /// All automations whose config references the given accessory.
+    /// Returns `[]` when no enrichment has run yet. Detail views
+    /// gate their "Automations" section on this being non-empty.
+    func automations(for accessoryID: AccessoryID) -> [HAAutomation] {
+        guard accessoryID.provider == .homeAssistant else { return [] }
+        let nativeID = accessoryID.nativeID
+        return automations.filter { $0.referencedEntityIDs.contains(nativeID) }
     }
 
     /// Trigger an automation manually via the REST API.

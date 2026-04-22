@@ -106,6 +106,15 @@ final class HomeAssistantRESTClient: Sendable {
         try await callService(domain: "automation", service: "trigger", entityID: entityID)
     }
 
+    /// Fetch a single automation's full config (triggers, conditions,
+    /// actions) from HA. `configID` is the YAML-assigned numeric id
+    /// exposed on the automation's `attributes.id`. Requires an admin
+    /// token — non-admin tokens get 401, which the caller should treat
+    /// as "enrichment skipped, fall back to basic list".
+    func fetchAutomationConfig(configID: String) async throws -> HAAutomationConfig {
+        try await get("/api/config/automation/config/\(configID)")
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
