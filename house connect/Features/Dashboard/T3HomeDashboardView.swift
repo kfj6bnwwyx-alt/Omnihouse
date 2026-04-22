@@ -91,11 +91,15 @@ struct T3HomeDashboardView: View {
                 TRule()
                 // "What's on right now" — replaced the Rooms grid
                 // (which duplicated the Rooms tab). Each sub-section
-                // hides itself when empty, so the dashboard collapses
-                // to Greeting/Weather/QuickActions/Scenes/Explore on
-                // a quiet day.
-                T3HomeActiveDevicesSection()
-                    .environment(registry)
+                // hides itself when empty; when ALL three are empty
+                // we show a single quiet caption instead so the gap
+                // between Scenes and Explore doesn't feel abrupt.
+                if allActiveEmpty {
+                    quietCaption
+                } else {
+                    T3HomeActiveDevicesSection()
+                        .environment(registry)
+                }
                 TRule()
                 exploreSection
                 Spacer(minLength: 120)
@@ -464,6 +468,31 @@ struct T3HomeDashboardView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Run \(scene.name) scene")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: - Quiet state (no devices currently on)
+
+    /// True when none of the three active-device sections have
+    /// anything to show. Driven off `ActiveDevicesFilter` so it
+    /// stays in sync with what `T3HomeActiveDevicesSection` renders.
+    private var allActiveEmpty: Bool {
+        let all = registry.allAccessories
+        return ActiveDevicesFilter.lightsOn(all).isEmpty
+            && ActiveDevicesFilter.nowPlaying(all).isEmpty
+            && ActiveDevicesFilter.climateActive(all).isEmpty
+    }
+
+    private var quietCaption: some View {
+        HStack {
+            Spacer()
+            Text("All quiet in the house.")
+                .font(T3.inter(13, weight: .regular))
+                .foregroundStyle(T3.sub)
+                .italic()
+            Spacer()
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 24)
     }
 
     // MARK: - Explore (Energy + Activity)

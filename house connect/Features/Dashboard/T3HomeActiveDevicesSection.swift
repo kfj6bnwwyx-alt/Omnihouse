@@ -23,9 +23,27 @@ import SwiftUI
 
 struct T3HomeActiveDevicesSection: View {
     @Environment(ProviderRegistry.self) private var registry
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("appearance.tempUnit") private var tempUnit: String = "celsius"
 
     @State private var toast: Toast?
+
+    /// Animation used whenever the list membership changes (row
+    /// appears or disappears). Short and decisive — a gentle fade
+    /// for reduce-motion users, combined fade+slide-from-top when
+    /// motion is OK. Durations match `T3RowButtonStyle`'s easing
+    /// vocabulary so the press-state and reveal feel related.
+    private var rowAnimation: Animation? {
+        reduceMotion ? .none : .easeOut(duration: 0.22)
+    }
+
+    private var rowTransition: AnyTransition {
+        reduceMotion ? .opacity :
+            .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .top)),
+                removal: .opacity
+            )
+    }
 
     // MARK: - Filters
     //
@@ -48,32 +66,48 @@ struct T3HomeActiveDevicesSection: View {
 
     // MARK: - Body
 
+    /// True when all three active-device sections are empty. The
+    /// parent view can render a quiet caption (or not) based on
+    /// this; the section itself stays silent.
+    var allEmpty: Bool {
+        lightsOn.isEmpty && nowPlaying.isEmpty && climateActive.isEmpty
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if !lightsOn.isEmpty {
                 section(title: "Lights on", count: lightsOn.count) {
-                    ForEach(Array(lightsOn.enumerated()), id: \.element.id) { i, acc in
-                        lightRow(acc, isLast: i == lightsOn.count - 1)
+                    ForEach(lightsOn, id: \.id) { acc in
+                        lightRow(acc, isLast: acc.id == lightsOn.last?.id)
+                            .transition(rowTransition)
                     }
                 }
+                .transition(rowTransition)
             }
 
             if !nowPlaying.isEmpty {
                 section(title: "Playing", count: nowPlaying.count) {
-                    ForEach(Array(nowPlaying.enumerated()), id: \.element.id) { i, acc in
-                        playingRow(acc, isLast: i == nowPlaying.count - 1)
+                    ForEach(nowPlaying, id: \.id) { acc in
+                        playingRow(acc, isLast: acc.id == nowPlaying.last?.id)
+                            .transition(rowTransition)
                     }
                 }
+                .transition(rowTransition)
             }
 
             if !climateActive.isEmpty {
                 section(title: "Climate", count: climateActive.count) {
-                    ForEach(Array(climateActive.enumerated()), id: \.element.id) { i, acc in
-                        climateRow(acc, isLast: i == climateActive.count - 1)
+                    ForEach(climateActive, id: \.id) { acc in
+                        climateRow(acc, isLast: acc.id == climateActive.last?.id)
+                            .transition(rowTransition)
                     }
                 }
+                .transition(rowTransition)
             }
         }
+        .animation(rowAnimation, value: lightsOn.map(\.id))
+        .animation(rowAnimation, value: nowPlaying.map(\.id))
+        .animation(rowAnimation, value: climateActive.map(\.id))
         .toast($toast)
     }
 
@@ -157,7 +191,9 @@ struct T3HomeActiveDevicesSection: View {
         isLast: Bool
     ) -> some View {
         HStack(spacing: 14) {
-            // Nav-link portion (icon + text) opens device detail
+            // Nav-link portion (icon + text + chevron) opens device
+            // detail. `.t3Row` button style supplies the press-state
+            // highlight so users can feel the tap target.
             NavigationLink(value: acc.id) {
                 HStack(spacing: 14) {
                     T3IconImage(systemName: icon)
@@ -176,14 +212,19 @@ struct T3HomeActiveDevicesSection: View {
                             .lineLimit(1)
                     }
                     Spacer()
+                    T3IconImage(systemName: "chevron.right")
+                        .frame(width: 10, height: 10)
+                        .foregroundStyle(T3.sub)
                 }
+                .padding(.horizontal, T3.screenPadding)
+                .padding(.vertical, 12)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.t3Row)
 
-            // Toggle is outside the NavigationLink so tapping it
-            // doesn't navigate. Same optimistic-rollback pattern used
-            // in detail views.
+            // Toggle sits outside the NavigationLink so tapping it
+            // doesn't navigate. Same optimistic-rollback pattern as
+            // the detail views.
             TPill(isOn: Binding(
                 get: { acc.isOn ?? false },
                 set: { newValue in
@@ -198,9 +239,8 @@ struct T3HomeActiveDevicesSection: View {
                     }
                 }
             ))
+            .padding(.trailing, T3.screenPadding)
         }
-        .padding(.horizontal, T3.screenPadding)
-        .padding(.vertical, 12)
         .overlay(alignment: .top) { TRule() }
         .overlay(alignment: .bottom) { if isLast { TRule() } }
     }

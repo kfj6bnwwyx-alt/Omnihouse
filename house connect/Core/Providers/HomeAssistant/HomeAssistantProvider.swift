@@ -90,6 +90,14 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     /// feedback, and lets a hundred rapid updates coalesce into one
     /// observation cycle.
     @ObservationIgnored private let entityFlushDebounce: Duration = .milliseconds(50)
+
+    /// Consecutive failed reconnect attempts. Reset to 0 on the
+    /// next successful websocket handshake. Drives the exponential
+    /// backoff in `didDisconnect` so a persistently-unreachable HA
+    /// doesn't hammer reconnects every 5s (the old fixed interval
+    /// — visible as Sonos/HA churn + TCP resets in Console logs).
+    @ObservationIgnored private var reconnectAttempts: Int = 0
+    @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     /// Wave HH — local-vs-remote URL resolver + cache. Created on first
     /// `start()`, reused for reconnects so the NWPathMonitor keeps running.
     @ObservationIgnored private var endpointResolver: HAEndpointResolver?
@@ -396,6 +404,10 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
             self.connectedAt = Date()
             self.authorizationState = .authorized
             self.lastError = nil
+            // Successful handshake — clear the reconnect backoff
+            // counter so the next disconnect starts fresh at a 1s
+            // delay instead of compounding across sessions.
+            self.reconnectAttempts = 0
             self.startPingTimer()
         }
     }
@@ -409,18 +421,32 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
                 self.lastError = error.localizedDescription
                 if (error as NSError).code == 401 {
                     self.authorizationState = .denied
+                    // Auth errors won't fix themselves on retry — stop
+                    // backing off and let the user re-auth from
+                    // Settings. Cancel any queued reconnect so we don't
+                    // spam the server with bad creds.
+                    self.reconnectTask?.cancel()
+                    return
                 } else {
                     self.authorizationState = .unavailable(reason: error.localizedDescription)
                 }
             }
 
-            // Auto-reconnect after 5 seconds if we have credentials
-            if self.tokenStore.hasToken(for: .homeAssistantToken) {
-                Task {
-                    try? await Task.sleep(for: .seconds(5))
-                    if !self.isConnected {
-                        await self.start()
-                    }
+            // Auto-reconnect with exponential backoff if we have
+            // credentials. Delays: 1, 2, 4, 8, 16, 32, 60 (cap at 60s).
+            // Previous fixed 5s interval caused visible churn under
+            // extended outages. Counter resets to 0 on the next
+            // successful handshake (see `didReceiveAuthOK`).
+            guard self.tokenStore.hasToken(for: .homeAssistantToken) else { return }
+            let attempt = self.reconnectAttempts
+            self.reconnectAttempts = min(attempt + 1, 6) // cap shift at 2^6 = 64 → clamped to 60
+            let delaySeconds = min(60, 1 << attempt) // 1, 2, 4, 8, 16, 32, 60
+            self.reconnectTask?.cancel()
+            self.reconnectTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(delaySeconds))
+                guard !Task.isCancelled, let self else { return }
+                if !self.isConnected {
+                    await self.start()
                 }
             }
         }

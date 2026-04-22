@@ -64,6 +64,12 @@ final class HomeAssistantWebSocketClient: Sendable {
     }
 
     /// Call a HA service (e.g. domain: "light", service: "turn_on").
+    /// Waits for HA's result envelope — throws `HAServiceError` when
+    /// the call returns `success: false` (invalid mode, unknown
+    /// entity, missing field). This is what gives commands like
+    /// `climate.set_hvac_mode(hvac_mode: auto)` a visible failure
+    /// path instead of silently disappearing. An 8s timeout caps the
+    /// wait so a server stall can't hang the caller forever.
     func callService(
         domain: String,
         service: String,
@@ -79,7 +85,37 @@ final class HomeAssistantWebSocketClient: Sendable {
             serviceData: data.isEmpty ? nil : data,
             target: HAServiceTarget(entityID: [entityID])
         )
-        try await send(command)
+
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            Task {
+                // Register BEFORE send so a server that replies
+                // instantly still finds a waiting continuation.
+                await state.registerServiceCallContinuation(id: msgID, continuation: cont)
+
+                // Timeout watchdog — if the server never replies we
+                // resume with a timeout error so the caller doesn't
+                // hang. `consumeServiceCallContinuation` is idempotent
+                // (removeValue), so whichever side wins is fine.
+                Task { [msgID] in
+                    try? await Task.sleep(for: .seconds(8))
+                    if let stale = await state.consumeServiceCallContinuation(id: msgID) {
+                        stale.resume(throwing: HAServiceError.timeout(
+                            "\(domain).\(service) on \(entityID)"
+                        ))
+                    }
+                }
+
+                do {
+                    try await send(command)
+                } catch {
+                    // Send failed before HA could reply — consume the
+                    // continuation ourselves so we don't leak it.
+                    if let waiter = await state.consumeServiceCallContinuation(id: msgID) {
+                        waiter.resume(throwing: error)
+                    }
+                }
+            }
+        }
     }
 
     /// Request all current entity states.
@@ -229,6 +265,11 @@ final class HomeAssistantWebSocketClient: Sendable {
             let id: Int
             let success: Bool
             let message: String?
+            let error: ErrorBody?
+            struct ErrorBody: Decodable {
+                let code: String?
+                let message: String?
+            }
         }
         guard let peek = try? JSONDecoder().decode(ResultPeek.self, from: data) else { return }
 
@@ -244,6 +285,19 @@ final class HomeAssistantWebSocketClient: Sendable {
                     userInfo: [NSLocalizedDescriptionKey: peek.message ?? "statistics request failed"]
                 )
                 cont.resume(throwing: err)
+            }
+            return
+        }
+
+        // Route to any pending service-call continuation. Resumes
+        // with a clear error payload when HA rejects the call, so
+        // callers see real failure toasts instead of silent no-ops.
+        if let cont = await state.consumeServiceCallContinuation(id: peek.id) {
+            if peek.success {
+                cont.resume(returning: ())
+            } else {
+                let msg = peek.error?.message ?? peek.message ?? "Home Assistant rejected the service call"
+                cont.resume(throwing: HAServiceError.rejected(msg))
             }
             return
         }
@@ -463,6 +517,12 @@ private actor WebSocketState {
     /// without contending for a shared dispatch surface.
     private var statisticsContinuations: [Int: CheckedContinuation<Data, Error>] = [:]
 
+    /// Per-request continuations for `call_service` commands. Waits
+    /// for HA's `{type: result, success: ...}` envelope so mapper
+    /// bugs (wrong mode name, bad field shape) surface as a thrown
+    /// error instead of a silent no-op. See `callService`.
+    private var serviceCallContinuations: [Int: CheckedContinuation<Void, Error>] = [:]
+
     /// Ping RTT tracking. Maps msgID → send timestamp so the pong handler
     /// can compute elapsed milliseconds. We only keep the last 10 samples
     /// to bound memory and keep the median stable against outliers.
@@ -498,6 +558,14 @@ private actor WebSocketState {
         statisticsContinuations.removeValue(forKey: id)
     }
 
+    func registerServiceCallContinuation(id: Int, continuation: CheckedContinuation<Void, Error>) {
+        serviceCallContinuations[id] = continuation
+    }
+
+    func consumeServiceCallContinuation(id: Int) -> CheckedContinuation<Void, Error>? {
+        serviceCallContinuations.removeValue(forKey: id)
+    }
+
     // MARK: - Ping RTT
 
     func registerPing(id: Int) {
@@ -520,5 +588,25 @@ private actor WebSocketState {
         return sorted.count.isMultiple(of: 2)
             ? (sorted[mid - 1] + sorted[mid]) / 2.0
             : sorted[mid]
+    }
+}
+
+// MARK: - Service-call error
+
+/// Thrown by `callService` when HA's result envelope carries
+/// `success: false` (mapper sent an invalid mode / bad field /
+/// unknown entity) or when the server never replies within the
+/// 8s watchdog window. Preserving a human-readable message is the
+/// whole point — silent rejection is what made the Nest thermostat
+/// feel broken before this layer existed.
+enum HAServiceError: LocalizedError {
+    case rejected(String)
+    case timeout(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .rejected(let msg): return msg
+        case .timeout(let ctx):  return "Home Assistant didn't reply in time (\(ctx))."
+        }
     }
 }
