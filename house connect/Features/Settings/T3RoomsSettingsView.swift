@@ -21,6 +21,7 @@ import SwiftUI
 struct T3RoomsSettingsView: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(RoomLinkStore.self) private var roomLinkStore
+    @Environment(\.dismiss) private var dismiss
     @State private var showingCreate = false
     @State private var showingLinkPicker = false
     @State private var unlinkCandidate: ManualRoomLink?
@@ -78,11 +79,11 @@ struct T3RoomsSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                THeader(backLabel: "Settings", onBack: { dismiss() })
                 TTitle(
                     title: "Rooms.",
                     subtitle: "\(totalRoomCount) rooms across \(groupedRooms.count) \(groupedRooms.count == 1 ? "provider" : "providers")"
                 )
-                .t3ScreenTopPad()
 
                 // Duplicate warning — flags rooms whose name appears
                 // under more than one provider and that aren't

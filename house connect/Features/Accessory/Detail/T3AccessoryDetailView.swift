@@ -84,6 +84,8 @@ struct T3AccessoryDetailView: View {
                         .accessibilityLabel("Command error: \(lastErrorMessage)")
                 }
 
+                T3DeviceLinksSection(accessoryID: accessoryID)
+
                 T3DeviceAutomationsSection(accessoryID: accessoryID)
 
                 TSectionHead(title: "Device")

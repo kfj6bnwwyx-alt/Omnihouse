@@ -95,6 +95,40 @@ final class DeviceLinkStore {
         links.first { $0.secondaryID == secondaryID }
     }
 
+    /// Every AccessoryID linked (directly or transitively) with
+    /// `id`. Follows both primary→secondary and secondary→primary
+    /// edges so a single device wired into 3–4 providers' links
+    /// still surfaces all its companions. The `id` itself is NOT
+    /// included in the result — callers usually want "others in
+    /// my group."
+    func companions(of id: AccessoryID) -> [AccessoryID] {
+        // Resolve the canonical primary for the group. If `id` is a
+        // secondary, walk to its primary; otherwise `id` is the
+        // primary. Then enumerate every secondary pointing at that
+        // primary.
+        let primary: AccessoryID
+        if let asSecondary = links.first(where: { $0.secondaryID == id }) {
+            primary = asSecondary.primaryID
+        } else {
+            primary = id
+        }
+        var group: Set<AccessoryID> = []
+        group.insert(primary)
+        for link in links where link.primaryID == primary {
+            group.insert(link.secondaryID)
+        }
+        group.remove(id)
+        return Array(group)
+    }
+
+    /// Every `ManualDeviceLink` row that mentions `id` on either
+    /// side. Used by the device-detail unlink UI so the user can
+    /// remove a specific pair without navigating to Settings →
+    /// Linked Devices.
+    func linksInvolving(_ id: AccessoryID) -> [ManualDeviceLink] {
+        links.filter { $0.primaryID == id || $0.secondaryID == id }
+    }
+
     // MARK: - Mutations
 
     /// Creates a new link between `primary` and `secondary`. No-ops if

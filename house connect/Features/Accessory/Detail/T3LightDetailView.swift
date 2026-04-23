@@ -226,6 +226,8 @@ struct T3LightDetailView: View {
                         .padding(.bottom, 20)
                     }
 
+                    T3DeviceLinksSection(accessoryID: accessoryID)
+
                     T3DeviceAutomationsSection(accessoryID: accessoryID)
 
                     TSectionHead(title: "Device")

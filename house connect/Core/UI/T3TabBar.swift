@@ -14,16 +14,25 @@ import UIKit
 
 struct T3TabBar: View {
     @Binding var selection: T3Tab
+    /// Called when the user taps the CURRENTLY SELECTED tab. The
+    /// convention (matching Apple Home, Mail, and most iOS apps)
+    /// is to pop the navigation stack back to the tab's root.
+    /// T3RootView wires this to `navigator.path = NavigationPath()`.
+    var onReselect: (() -> Void)? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(T3Tab.allCases, id: \.self) { tab in
                 Button {
-                    guard selection != tab else { return }
                     #if canImport(UIKit)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     #endif
+                    if selection == tab {
+                        // Re-tap on the active tab → pop to root.
+                        onReselect?()
+                        return
+                    }
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
                         selection = tab
                     }

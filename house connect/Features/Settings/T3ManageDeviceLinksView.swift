@@ -19,6 +19,7 @@ import SwiftUI
 struct T3ManageDeviceLinksView: View {
     @Environment(ProviderRegistry.self) private var registry
     @Environment(DeviceLinkStore.self)  private var linkStore
+    @Environment(\.dismiss) private var dismiss
 
     @State private var showingLinkPicker = false
     @State private var unlinkCandidate: ManualDeviceLink?
@@ -31,9 +32,9 @@ struct T3ManageDeviceLinksView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                THeader(backLabel: "Settings", onBack: { dismiss() })
                 TTitle(title: "Linked Devices.",
                        subtitle: "Match the same device across providers")
-                    .t3ScreenTopPad()
 
                 // Current links
                 TSectionHead(title: "Current links",
@@ -353,6 +354,12 @@ struct T3ManageDeviceLinksView: View {
 // MARK: - Two-step link picker
 
 struct T3LinkDevicePickerSheet: View {
+    /// When non-nil, the picker skips step 1 and pre-seeds this
+    /// accessory as the primary side of the link. Used from device
+    /// detail views so "Link another device" lands straight in
+    /// "pick the partner" mode.
+    var preselectedPrimary: AccessoryID? = nil
+
     @Environment(ProviderRegistry.self) private var registry
     @Environment(DeviceLinkStore.self)  private var linkStore
     @Environment(\.dismiss) private var dismiss
@@ -367,6 +374,17 @@ struct T3LinkDevicePickerSheet: View {
 
     private var primaryName: String {
         primaryID.flatMap { id in registry.allAccessories.first(where: { $0.id == id })?.name } ?? "—"
+    }
+
+    /// Name of whichever OTHER accessory a candidate is already
+    /// linked to, so the picker can surface "LINKED · ⌕ Other" on
+    /// the row instead of hiding it. Returns nil when the
+    /// candidate is not in any existing pair.
+    private func existingLinkPartnerName(for acc: Accessory) -> String? {
+        let companions = linkStore.companions(of: acc.id)
+        guard let first = companions.first else { return nil }
+        return registry.allAccessories.first(where: { $0.id == first })?.name
+            ?? first.nativeID
     }
 
     var body: some View {
@@ -408,7 +426,18 @@ struct T3LinkDevicePickerSheet: View {
 
                     ForEach(Array(eligible.enumerated()), id: \.element.id) { i, acc in
                         let isSelected = (step == 1 ? primaryID : secondaryID) == acc.id
+                        let partner = existingLinkPartnerName(for: acc)
+                        let alreadyWithCurrentPrimary: Bool = {
+                            guard step == 2, let p = primaryID else { return false }
+                            return linkStore.areLinked(p, acc.id)
+                        }()
                         Button {
+                            // Never re-link a pair that already exists;
+                            // tapping it again is a no-op so the user
+                            // can't accidentally create duplicate
+                            // entries (even though addLink is
+                            // idempotent — feedback matters).
+                            guard !alreadyWithCurrentPrimary else { return }
                             if step == 1 {
                                 primaryID = acc.id
                                 secondaryID = nil
@@ -426,20 +455,39 @@ struct T3LinkDevicePickerSheet: View {
                                     Text(acc.name)
                                         .font(T3.inter(15, weight: .medium))
                                         .foregroundStyle(T3.ink)
-                                    Text(acc.id.provider.displayLabel.uppercased())
-                                        .font(T3.mono(9))
-                                        .foregroundStyle(T3.sub)
-                                        .tracking(1)
+                                    HStack(spacing: 6) {
+                                        Text(acc.id.provider.displayLabel.uppercased())
+                                            .font(T3.mono(9))
+                                            .foregroundStyle(T3.sub)
+                                            .tracking(1)
+                                        if let partner {
+                                            Text("· LINKED WITH \(partner.uppercased())")
+                                                .font(T3.mono(9))
+                                                .foregroundStyle(T3.accent)
+                                                .tracking(1)
+                                                .lineLimit(1)
+                                        }
+                                    }
                                 }
                                 Spacer()
-                                if isSelected {
+                                if alreadyWithCurrentPrimary {
+                                    Text("ALREADY LINKED")
+                                        .font(T3.mono(9))
+                                        .tracking(1.4)
+                                        .foregroundStyle(T3.sub)
+                                } else if isSelected {
                                     T3IconImage(systemName: "checkmark")
                                         .frame(width: 14, height: 14)
+                                        .foregroundStyle(T3.accent)
+                                } else if partner != nil {
+                                    T3IconImage(systemName: "link")
+                                        .frame(width: 12, height: 12)
                                         .foregroundStyle(T3.accent)
                                 }
                             }
                             .padding(.horizontal, T3.screenPadding)
                             .padding(.vertical, 13)
+                            .opacity(alreadyWithCurrentPrimary ? 0.45 : 1)
                             .overlay(alignment: .top) { TRule() }
                             .overlay(alignment: .bottom) {
                                 if i == eligible.count - 1 { TRule() }
@@ -472,6 +520,15 @@ struct T3LinkDevicePickerSheet: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // If the caller pre-seeded a primary (from a device
+                // detail view's "Link another device"), skip the
+                // pick-first step.
+                if let pre = preselectedPrimary, primaryID == nil {
+                    primaryID = pre
+                    step = 2
+                }
+            }
         }
         .modifier(T3SheetChromeModifier())
     }

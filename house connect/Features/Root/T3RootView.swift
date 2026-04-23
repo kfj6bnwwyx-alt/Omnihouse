@@ -66,7 +66,16 @@ struct T3RootView: View {
             .toolbar(.hidden, for: .tabBar)
 
             // Floating T3 tab bar
-            T3TabBar(selection: $navigator.selection)
+            T3TabBar(
+                selection: $navigator.selection,
+                onReselect: {
+                    // Tab re-tap pops the nav stack to the tab root —
+                    // matches Apple Home / Mail / Messages behaviour.
+                    if !navigator.path.isEmpty {
+                        navigator.path = NavigationPath()
+                    }
+                }
+            )
         }
         // Global HA disconnection banner — shows on every tab whenever
         // Home Assistant's WebSocket is down. Sits below the status bar
