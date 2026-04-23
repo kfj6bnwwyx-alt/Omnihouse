@@ -15,8 +15,12 @@ Installs a `pre-push` hook that runs `scripts/check.sh` before every
 ## Usage
 
 ```
-scripts/check.sh           # clean build + all unit tests
-scripts/check.sh --build   # build only (faster; skip tests)
+scripts/check.sh             # clean build + all unit tests
+scripts/check.sh --build     # build only (faster; skip tests)
+scripts/check.sh --changed   # build + only tests related to changed
+                             # files since origin/main. Fast feedback
+                             # during iteration. Falls back to
+                             # build-only when no test files map.
 ```
 
 Exit code is non-zero on any failure. The script uses whichever iOS

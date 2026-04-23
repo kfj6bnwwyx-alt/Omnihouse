@@ -190,6 +190,17 @@ final class SonosDiscovery {
             // closure runs off-main, so hop via `Task { @MainActor ... }`
             // with an explicit `[weak self]` capture rather than an
             // implicit one.
+            //
+            // Lifecycle notes (fixing the "already cancelled, ignoring
+            // cancel" log spam seen when multiple Sonos speakers are
+            // on the network):
+            //   · On `.ready` we grab the remote endpoint then cancel
+            //     the connection. That triggers `.cancelled` next,
+            //     which we handle WITHOUT calling cancel() again.
+            //   · We also clear `stateUpdateHandler` the moment we
+            //     observe a terminal state so the connection releases
+            //     its capture of the handler closure and can
+            //     deallocate promptly.
             switch state {
             case .ready:
                 let remote = connection.currentPath?.remoteEndpoint
@@ -197,8 +208,14 @@ final class SonosDiscovery {
                 Task { @MainActor [weak self] in
                     self?.recordResolved(remote: remote, serviceName: serviceName)
                 }
-            case .failed, .cancelled:
+            case .failed:
+                connection.stateUpdateHandler = nil
                 connection.cancel()
+                Task { @MainActor [weak self] in
+                    self?.resolving.remove(serviceName)
+                }
+            case .cancelled:
+                connection.stateUpdateHandler = nil
                 Task { @MainActor [weak self] in
                     self?.resolving.remove(serviceName)
                 }

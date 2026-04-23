@@ -22,6 +22,7 @@ struct T3SmokeAlarmDetailView: View {
 
     @Environment(ProviderRegistry.self) private var registry
     @Environment(SmokeAlarmEventStore.self) private var eventStore
+    @Environment(\.dismiss) private var dismiss
     #if os(iOS)
     @Environment(SmokeAlertController.self) private var alertController
     #endif
@@ -54,27 +55,44 @@ struct T3SmokeAlarmDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                THeader(
+                    backLabel: roomName,
+                    rightLabel: heroStatus.label,
+                    showDot: heroStatus.isAlert,
+                    onBack: { dismiss() }
+                )
+
                 TTitle(
                     title: (accessory?.name ?? "Smoke Alarm") + ".",
                     subtitle: "\(providerLabel)  ·  \(roomName.uppercased())"
                 )
-                .t3ScreenTopPad()
 
-                // Status — reachable + battery summary. Smoke/CO detection
-                // state isn't exposed on Accessory yet; once the Nest SDM
-                // stream is wired we can surface it here alongside battery.
+                // Hero status — one big, scannable word telling the
+                // user whether the alarm is happy. Smoke/CO detection
+                // state isn't on Accessory yet; today "ALERT" only
+                // fires when the device reports unreachable. Once a
+                // real Nest SDM stream lands we'll add `SMOKE` /
+                // `CO` overrides ahead of unreachable.
+                statusHero
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
+                    .padding(.horizontal, T3.screenPadding)
+                    .overlay(alignment: .bottom) { TRule() }
+
+                if let pct = batteryPercent {
+                    batteryBar(percent: pct)
+                }
+
+                // Status — compact reachability + provider summary.
                 TSectionHead(title: "Status")
                 statusRow(
                     label: "REACHABLE",
                     value: (accessory?.isReachable ?? false) ? "Yes" : "No"
                 )
-                if let pct = batteryPercent {
-                    statusRow(label: "BATTERY", value: "\(pct)%")
-                }
                 statusRow(
                     label: "PROVIDER",
                     value: providerLabel,
-                    isLast: batteryPercent == nil
+                    isLast: true
                 )
 
                 #if os(iOS)
@@ -122,6 +140,87 @@ struct T3SmokeAlarmDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .modifier(T3SheetChromeModifier())
+    }
+
+    // MARK: - Hero status
+
+    /// "SAFE" when the alarm is reachable and battery (if reported)
+    /// is above 20%. "CHECK" when the battery is low but the alarm
+    /// is otherwise healthy — a gentler warning than "ALERT".
+    /// "ALERT" when the device is unreachable. Once Accessory
+    /// exposes smoke/CO capability, that signal overrides all
+    /// three and flips this to a red "SMOKE" / "CO" hero.
+    private var heroStatus: (label: String, isAlert: Bool) {
+        guard let accessory else { return ("UNKNOWN", true) }
+        if !accessory.isReachable { return ("ALERT", true) }
+        if let pct = batteryPercent, pct <= 20 { return ("CHECK", false) }
+        return ("SAFE", false)
+    }
+
+    private var statusHero: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(heroStatus.label)
+                .font(T3.inter(64, weight: .medium))
+                .tracking(-2.5)
+                .foregroundStyle(heroStatus.isAlert ? T3.danger : T3.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                TLabel(text: heroSubLabel)
+                if let pct = batteryPercent {
+                    Text("BATTERY \(pct)%")
+                        .font(T3.mono(10))
+                        .tracking(1.2)
+                        .foregroundStyle(T3.sub)
+                }
+            }
+        }
+    }
+
+    private var heroSubLabel: String {
+        guard let accessory else { return "—" }
+        if !accessory.isReachable { return "UNREACHABLE" }
+        if let pct = batteryPercent, pct <= 20 { return "LOW BATTERY" }
+        return "ALL CLEAR"
+    }
+
+    /// Hairline battery bar under the hero. Orange dot signals
+    /// low battery (≤ 20%) without shouting — the number in the
+    /// hero caption already does the work.
+    private func batteryBar(percent: Int) -> some View {
+        let clamped = max(0, min(100, percent))
+        let isLow = clamped <= 20
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                TLabel(text: "BATTERY")
+                Spacer()
+                if isLow { TDot(size: 5, color: T3.accent) }
+                Text("\(clamped)%")
+                    .font(T3.mono(10))
+                    .tracking(1.2)
+                    .foregroundStyle(isLow ? T3.accent : T3.sub)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(T3.rule)
+                        .frame(height: 2)
+                    Rectangle()
+                        .fill(isLow ? T3.accent : T3.ink)
+                        .frame(
+                            width: geo.size.width * CGFloat(clamped) / 100,
+                            height: 2
+                        )
+                }
+            }
+            .frame(height: 2)
+        }
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.vertical, 14)
+        .overlay(alignment: .bottom) { TRule() }
     }
 
     // MARK: - Rows
@@ -200,23 +299,30 @@ struct T3SmokeAlarmDetailView: View {
             }
         } label: {
             HStack(spacing: 10) {
-                T3IconImage(systemName: isSimulating ? "stop.circle" : "play.circle")
-                    .frame(width: 18, height: 18)
-                    .foregroundStyle(T3.ink)
-                Text(isSimulating ? "Simulating…" : "Simulate alert")
-                    .font(T3.inter(15, weight: .medium))
-                    .foregroundStyle(T3.ink)
-                Spacer()
+                if isSimulating {
+                    ProgressView()
+                        .tint(T3.page)
+                        .scaleEffect(0.8)
+                } else {
+                    T3IconImage(systemName: "play.fill")
+                        .frame(width: 12, height: 12)
+                        .foregroundStyle(T3.page)
+                }
+                Text(isSimulating ? "SIMULATING ALERT…" : "RUN ALERT SIMULATION")
+                    .font(T3.mono(12))
+                    .tracking(2)
+                    .foregroundStyle(T3.page)
             }
-            .padding(.horizontal, T3.screenPadding)
-            .padding(.vertical, 14)
-            .overlay(alignment: .top) { TRule() }
-            .overlay(alignment: .bottom) { TRule() }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(T3.ink)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.t3Row)
         .disabled(isSimulating || accessory == nil)
-        .opacity(isSimulating ? 0.5 : 1)
+        .opacity(isSimulating ? 0.65 : 1)
+        .padding(.horizontal, T3.screenPadding)
+        .padding(.top, 4)
     }
     #endif
 }
