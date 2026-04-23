@@ -223,12 +223,12 @@ final class ProviderRegistry {
     private static let capabilityMatrix: [ProviderID: [ProviderOp: Bool]] = [
         .homeKit: [
             .renameAccessory: true,
-            .moveAccessoryToRoom: false,
+            .moveAccessoryToRoom: true,
             .removeAccessory: true
         ],
         .smartThings: [
             .renameAccessory: true,
-            .moveAccessoryToRoom: false,
+            .moveAccessoryToRoom: true,
             .removeAccessory: true
         ],
         .sonos: [

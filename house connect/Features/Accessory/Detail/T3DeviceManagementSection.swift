@@ -127,11 +127,8 @@ struct T3DeviceManagementSection: View {
                     .environment(registry)
             }
             .sheet(isPresented: $showingMove) {
-                // Populated in the next commit. Until then tapping
-                // "Move to room" opens the placeholder — the
-                // capability flag flips to true only when the real
-                // sheet lands.
-                EmptyMoveSheetPlaceholder()
+                T3MoveAccessoryToRoomSheet(accessoryID: accessoryID)
+                    .environment(registry)
             }
         }
     }
@@ -184,32 +181,6 @@ struct T3DeviceManagementSection: View {
         } catch {
             errorMessage = "Could not remove: \((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)"
         }
-    }
-}
-
-// MARK: - Placeholder for Move-to-Room sheet
-
-/// Stand-in until `T3MoveAccessoryToRoomSheet` lands in the next
-/// commit. Kept minimal so the build stays green. Because every
-/// capability-matrix entry for `.moveAccessoryToRoom` is currently
-/// `false`, this sheet is never actually presented in v1 — the
-/// placeholder exists only so the `if canMove { ... }` branch
-/// compiles.
-private struct EmptyMoveSheetPlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Move to room — coming soon.")
-                .font(T3.inter(15, weight: .medium))
-                .foregroundStyle(T3.ink)
-            Button("Close") { dismiss() }
-                .font(T3.inter(14, weight: .medium))
-                .foregroundStyle(T3.accent)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(T3.page)
     }
 }
 

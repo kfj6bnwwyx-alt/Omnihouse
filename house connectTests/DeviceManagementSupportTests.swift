@@ -20,11 +20,12 @@ final class DeviceManagementSupportTests: XCTestCase {
         XCTAssertTrue(registry.supports(.renameAccessory, on: idFor(.homeKit)))
     }
 
-    func testHomeKit_moveSupported_afterCommit2() {
-        // Flipped to true when T3MoveAccessoryToRoomSheet lands.
-        // Current commit: false. Keep the test in place so the flag
-        // flip is visible in CI.
-        XCTAssertFalse(registry.supports(.moveAccessoryToRoom, on: idFor(.homeKit)))
+    func testHomeKit_moveSupported() {
+        XCTAssertTrue(registry.supports(.moveAccessoryToRoom, on: idFor(.homeKit)))
+    }
+
+    func testSmartThings_moveSupported() {
+        XCTAssertTrue(registry.supports(.moveAccessoryToRoom, on: idFor(.smartThings)))
     }
 
     func testHomeKit_removeSupported() {
