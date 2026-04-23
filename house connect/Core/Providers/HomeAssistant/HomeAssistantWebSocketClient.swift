@@ -152,6 +152,63 @@ final class HomeAssistantWebSocketClient: Sendable {
         try await send(command)
     }
 
+    /// Update an entity's registry row. HA's
+    /// `config/entity_registry/update` message accepts any subset of
+    /// editable fields — we currently use it for `name` (rename) and
+    /// `area_id` (move-to-room). Routed through the same service-call
+    /// continuation as real service calls, so a rejection from HA
+    /// (unknown entity, invalid area) throws `HAServiceError.rejected`
+    /// instead of silently succeeding.
+    ///
+    /// Pass nil for `areaID` to clear the area assignment (sends
+    /// `"area_id": null`). Pass nil for `name` to leave the name
+    /// unchanged (field is omitted from the payload).
+    func updateEntityRegistry(
+        entityID: String,
+        name: String? = nil,
+        areaID: String?? = nil
+    ) async throws {
+        let msgID = await state.nextID()
+        // Build the payload ourselves since only a subset of the
+        // typed `HAWebSocketCommand` shape is relevant here.
+        var payload: [String: Any] = [
+            "id": msgID,
+            "type": "config/entity_registry/update",
+            "entity_id": entityID
+        ]
+        if let name { payload["name"] = name }
+        // Swift's nested optional lets us distinguish "caller didn't
+        // pass areaID" (omit field) from "caller passed nil" (clear
+        // the area assignment). `areaID ?? nil` collapses to the
+        // inner value when present.
+        if let areaUpdate = areaID {
+            payload["area_id"] = areaUpdate as Any? ?? NSNull()
+        }
+
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            Task {
+                await state.registerServiceCallContinuation(id: msgID, continuation: cont)
+
+                Task { [msgID] in
+                    try? await Task.sleep(for: .seconds(8))
+                    if let stale = await state.consumeServiceCallContinuation(id: msgID) {
+                        stale.resume(throwing: HAServiceError.timeout(
+                            "config/entity_registry/update on \(entityID)"
+                        ))
+                    }
+                }
+
+                do {
+                    try await sendRaw(payload)
+                } catch {
+                    if let waiter = await state.consumeServiceCallContinuation(id: msgID) {
+                        waiter.resume(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+
     /// Subscribe to state_changed events for real-time updates.
     func subscribeStateChanges() async throws {
         let msgID = await state.nextID()

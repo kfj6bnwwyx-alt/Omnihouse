@@ -359,10 +359,33 @@ final class HomeAssistantProvider: NSObject, AccessoryProvider, HomeAssistantWeb
     }
 
     func rename(accessory accessoryID: AccessoryID, to newName: String) async throws {
-        // HA doesn't support renaming entities via API in a simple way;
-        // the user should rename in the HA UI. We could use the entity
-        // registry update, but that's an advanced operation.
-        throw ProviderError.unsupportedCommand
+        // HA stores user-overridden entity names on the entity
+        // registry row, not on the entity state. The
+        // `config/entity_registry/update` message takes a `name`
+        // field that shadows the integration's `friendly_name` —
+        // exactly the shape the Web UI uses when you rename from
+        // Settings → Entities. Our `updateEntityRegistry` helper
+        // waits for HA's result envelope and throws
+        // `HAServiceError.rejected` on failure.
+        guard let ws = wsClient, isConnected else {
+            throw ProviderError.notAuthorized
+        }
+        try await ws.updateEntityRegistry(
+            entityID: accessoryID.nativeID,
+            name: newName
+        )
+    }
+
+    func assignAccessory(_ accessoryID: AccessoryID, toRoomID roomID: String?) async throws {
+        // Same entity-registry update, different field. HA's room
+        // concept is `area_id`; pass nil to clear the assignment.
+        guard let ws = wsClient, isConnected else {
+            throw ProviderError.notAuthorized
+        }
+        try await ws.updateEntityRegistry(
+            entityID: accessoryID.nativeID,
+            areaID: roomID as String??
+        )
     }
 
     // Rooms are managed in HA's area registry — CRUD via WebSocket

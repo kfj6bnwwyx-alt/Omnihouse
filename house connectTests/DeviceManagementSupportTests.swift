@@ -74,10 +74,8 @@ final class DeviceManagementSupportTests: XCTestCase {
         XCTAssertTrue(registry.supports(.renameAccessory, on: idFor(.homeAssistant)))
     }
 
-    func testHomeAssistant_moveSupported_afterCommit3() {
-        // Flipped to true when `assignAccessory` + WS area-update
-        // land (commit 3 of this feature).
-        XCTAssertFalse(registry.supports(.moveAccessoryToRoom, on: idFor(.homeAssistant)))
+    func testHomeAssistant_moveSupported() {
+        XCTAssertTrue(registry.supports(.moveAccessoryToRoom, on: idFor(.homeAssistant)))
     }
 
     func testHomeAssistant_removeUnsupported() {

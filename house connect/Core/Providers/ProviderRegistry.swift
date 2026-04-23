@@ -249,12 +249,11 @@ final class ProviderRegistry {
         ],
         .homeAssistant: [
             // `friendly_name` is writable via entity registry; area
-            // assignment is writable via the same endpoint (added in
-            // commit 3). Removal of HA entities is out of scope —
-            // HA treats them as long-lived registry rows; users nuke
-            // them in HA itself.
+            // assignment is writable via the same endpoint. Removal
+            // of HA entities is out of scope — HA treats them as
+            // long-lived registry rows; users nuke them in HA itself.
             .renameAccessory: true,
-            .moveAccessoryToRoom: false,
+            .moveAccessoryToRoom: true,
             .removeAccessory: false
         ]
     ]
