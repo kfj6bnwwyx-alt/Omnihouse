@@ -116,6 +116,21 @@ struct T3HomeDashboardView: View {
             if energy.lastUpdated == nil {
                 await energy.refresh()
             }
+            // Push the current active-devices counts to the widget
+            // extension's shared UserDefaults suite. No-op until the
+            // App Group entitlement is configured, so safe to wire
+            // up now. Writer dedupes if counts are unchanged.
+            ActiveDevicesSnapshotWriter.writeIfChanged(
+                accessories: registry.allAccessories
+            )
+        }
+        .onChange(of: registry.allAccessories.count) { _, _ in
+            // Any time the accessory universe changes (provider
+            // refresh, link change, device removed), re-snapshot so
+            // the widget catches up on its next timeline fire.
+            ActiveDevicesSnapshotWriter.writeIfChanged(
+                accessories: registry.allAccessories
+            )
         }
         .refreshable {
             weather.fetchIfNeeded()

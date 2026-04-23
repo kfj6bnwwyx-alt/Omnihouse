@@ -21,5 +21,6 @@ struct HouseConnectWidgetsBundle: WidgetBundle {
         CameraWidget()
         ThermostatWidget()
         SceneRunWidget()
+        ActiveDevicesWidget()
     }
 }

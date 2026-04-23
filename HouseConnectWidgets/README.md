@@ -68,6 +68,27 @@ compile the same type.
 Both surfaces should appear: Dynamic Island when the app is in the
 background, lock screen banner when the device is locked.
 
+## 6. Light up live data for widgets (App Groups)
+
+Several widgets in this extension (ActiveDevicesWidget, ThermostatWidget,
+CameraWidget, SceneRunWidget) read from an App Group shared
+UserDefaults suite. Without it they render placeholder/demo data. To
+go live, **do this once** in Xcode:
+
+1. App target (`house connect`) → Signing & Capabilities → + Capability
+   → **App Groups**. Add identifier: `group.house-connect.shared`.
+2. Widget extension target (`HouseConnectWidgetsExtension`) → same
+   panel → + Capability → App Groups → tick the same identifier.
+3. Commit the regenerated `.entitlements` files.
+
+After the entitlement is live:
+
+- `house connect/Features/Dashboard/ActiveDevicesSnapshotWriter.swift`
+  automatically starts writing the active-devices snapshot on every
+  Home dashboard appearance + accessory-count change. The widget's
+  `SharedActiveDevicesSnapshot.read()` picks it up. No code changes
+  required; the UserDefaults suite just becomes writable.
+
 ## What's still deferred
 
 See the "Wanted — not yet buildable" block in `Documents/Omni-house/PHASES.md`
