@@ -190,4 +190,72 @@ final class ProviderRegistry {
         }
         try await provider.removeAccessory(accessoryID)
     }
+
+    // MARK: - Capability check
+    //
+    // `AccessoryProvider`'s protocol says every provider gets rename /
+    // move / remove, but the defaults all throw `.unsupportedCommand`
+    // and in practice only HomeKit + SmartThings implement the full
+    // trio. UI code needs to KNOW ahead of time so we can hide the
+    // unsupported rows from the device-management section — catching
+    // a throw after the user tapped "Rename" and showing an error
+    // toast is a worse experience than never offering the row.
+    //
+    // The table below is the source of truth; when a new provider
+    // lands (or an existing one gains a capability) this is the one
+    // place to update. `DeviceManagementSupportTests` snapshots the
+    // matrix so regressions show up in CI.
+
+    enum ProviderOp {
+        case renameAccessory
+        case moveAccessoryToRoom
+        case removeAccessory
+    }
+
+    func supports(_ op: ProviderOp, on id: AccessoryID) -> Bool {
+        Self.capabilityMatrix[id.provider]?[op] ?? false
+    }
+
+    // Per-commit rollout note: `moveAccessoryToRoom` is currently
+    // false for every provider because the move-to-room picker sheet
+    // lands in commit 2 of this feature. Flipping HomeKit / SmartThings
+    // / HA to true happens when the sheet + wiring are in.
+    private static let capabilityMatrix: [ProviderID: [ProviderOp: Bool]] = [
+        .homeKit: [
+            .renameAccessory: true,
+            .moveAccessoryToRoom: false,
+            .removeAccessory: true
+        ],
+        .smartThings: [
+            .renameAccessory: true,
+            .moveAccessoryToRoom: false,
+            .removeAccessory: true
+        ],
+        .sonos: [
+            // Names managed in the Sonos app; device list is discovery-
+            // driven so we can only remove the local record, which
+            // reappears on the next refresh — surface remove only
+            // when we're ready to manage an ignore-list, not today.
+            .renameAccessory: false,
+            .moveAccessoryToRoom: false,
+            .removeAccessory: true
+        ],
+        .nest: [
+            // SDM API doesn't expose name/room writes; remove is a
+            // local delete (same as Sonos).
+            .renameAccessory: false,
+            .moveAccessoryToRoom: false,
+            .removeAccessory: true
+        ],
+        .homeAssistant: [
+            // `friendly_name` is writable via entity registry; area
+            // assignment is writable via the same endpoint (added in
+            // commit 3). Removal of HA entities is out of scope —
+            // HA treats them as long-lived registry rows; users nuke
+            // them in HA itself.
+            .renameAccessory: true,
+            .moveAccessoryToRoom: false,
+            .removeAccessory: false
+        ]
+    ]
 }
