@@ -1,7 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { google } from "googleapis";
-import { z } from "zod";
+import { z } from "zod/v4";
+
+// @anthropic-ai/sdk@0.95.1's betaZodTool runtime needs zod/v4 schemas, but its
+// .d.ts types reference zod (v3). Cast schemas with `asV3Schema` at the call
+// site to silence the typecheck; runtime is v4-correct.
+const asV3Schema = <T>(schema: T): import("zod").ZodType => schema as never;
+
+interface JobRow {
+  date_seen: string;
+  company: string;
+  role: string;
+  location: string;
+  remote_type: string;
+  comp: string;
+  source: string;
+  url: string;
+  fit_tier: "Strong" | "Worth a look" | "Stretch";
+  why_fit: string;
+  mission_flag: "Green" | "Neutral" | "Red";
+  status: string;
+  dedup_key: string;
+}
 
 const SHEET_ID = required("SHEET_ID");
 const JOBS_TAB = process.env.JOBS_TAB_NAME ?? "Jobs";
@@ -39,7 +60,7 @@ const sheetsReadDedup = betaZodTool({
   name: "sheets_read_dedup",
   description:
     "Read existing dedup_keys (column M of the Jobs tab) and skip-list company names (column A of the Skip List tab). Call this ONCE at the start of the run before any web discovery.",
-  inputSchema: z.object({}),
+  inputSchema: asV3Schema(z.object({})),
   run: async () => {
     const sheets = sheetsClient();
     const [jobsResp, skipResp] = await Promise.all([
@@ -71,28 +92,30 @@ const sheetsAppendJobs = betaZodTool({
   name: "sheets_append_jobs",
   description:
     "Append job rows to the Jobs tab. Call this with EVERY job included in the email digest. Columns are appended in this order: date_seen, company, role, location, remote_type, comp, source, url, fit_tier, why_fit, mission_flag, status, dedup_key.",
-  inputSchema: z.object({
-    rows: z
-      .array(
-        z.object({
-          date_seen: z.string(),
-          company: z.string(),
-          role: z.string(),
-          location: z.string(),
-          remote_type: z.string(),
-          comp: z.string().default(""),
-          source: z.string(),
-          url: z.string(),
-          fit_tier: z.enum(["Strong", "Worth a look", "Stretch"]),
-          why_fit: z.string(),
-          mission_flag: z.enum(["Green", "Neutral", "Red"]),
-          status: z.string().default("New"),
-          dedup_key: z.string(),
-        }),
-      )
-      .min(0),
-  }),
-  run: async ({ rows }) => {
+  inputSchema: asV3Schema(
+    z.object({
+      rows: z
+        .array(
+          z.object({
+            date_seen: z.string(),
+            company: z.string(),
+            role: z.string(),
+            location: z.string(),
+            remote_type: z.string(),
+            comp: z.string().default(""),
+            source: z.string(),
+            url: z.string(),
+            fit_tier: z.enum(["Strong", "Worth a look", "Stretch"]),
+            why_fit: z.string(),
+            mission_flag: z.enum(["Green", "Neutral", "Red"]),
+            status: z.string().default("New"),
+            dedup_key: z.string(),
+          }),
+        )
+        .min(0),
+    }),
+  ),
+  run: async ({ rows }: { rows: JobRow[] }) => {
     if (rows.length === 0) return "No rows to append.";
     const sheets = sheetsClient();
     const values = rows.map((r) => [
@@ -125,12 +148,14 @@ const gmailCreateDraft = betaZodTool({
   name: "gmail_create_draft",
   description:
     "Create a Gmail draft for Simona to review and send. Pass HTML body styled per the brief. Plain-text fallback is optional but recommended.",
-  inputSchema: z.object({
-    to: z.string(),
-    subject: z.string(),
-    htmlBody: z.string(),
-    plainBody: z.string().optional(),
-  }),
+  inputSchema: asV3Schema(
+    z.object({
+      to: z.string(),
+      subject: z.string(),
+      htmlBody: z.string(),
+      plainBody: z.string().optional(),
+    }),
+  ),
   run: async ({ to, subject, htmlBody, plainBody }) => {
     const gmail = gmailClient();
     const boundary = `=_b_${Date.now()}`;
@@ -281,7 +306,7 @@ async function main() {
 
   const finalMessage = await client.beta.messages.toolRunner({
     model: "claude-opus-4-7",
-    max_tokens: 32000,
+    max_tokens: 16000,
     thinking: { type: "adaptive" },
     output_config: { effort: "xhigh" },
     cache_control: { type: "ephemeral" },

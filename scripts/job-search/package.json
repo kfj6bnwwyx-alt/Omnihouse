@@ -6,7 +6,7 @@
     "start": "tsx run.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "^0.95.1",
     "googleapis": "^144.0.0",
     "zod": "^3.23.8"
   },
