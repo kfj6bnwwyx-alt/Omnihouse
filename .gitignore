@@ -43,3 +43,6 @@ AuthKey_*.p8
 RESUME.md
 hetzner-backend-architecture.md
 ios-architecture.md
+
+# Job-search runner local installs (.env already excluded above)
+scripts/job-search/node_modules/
